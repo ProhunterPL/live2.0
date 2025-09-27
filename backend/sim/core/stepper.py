@@ -7,7 +7,8 @@ import taichi as ti
 import numpy as np
 import time
 from typing import Dict, List, Optional, Any
-from .config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
+from ..config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
+
 from .grid import Grid
 from .particles import ParticleSystem
 from .potentials import PotentialSystem
@@ -81,20 +82,23 @@ class SimulationStepper:
                 # Add particles randomly distributed
                 num_particles = int(concentration * self.config.max_particles)
                 for _ in range(num_particles):
-                    pos = self.rng.next_vector2(0, self.config.grid_width)
-                    vel = self.rng.next_vector2(-1, 1)
+                    # Use Python-side RNG to avoid calling @ti.func from Python scope
+                    px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
+                    vx, vy = self.rng.py_next_vector2(-1.0, 1.0)
+                    pos = ti.Vector([px, py])
+                    vel = ti.Vector([vx, vy])
                     attributes = ti.Vector([1.0, 0.0, 0.0, 0.0])  # mass, charge_x, charge_y, charge_z
-                    
-                    self.particles.add_particle(pos, vel, attributes, type_id, 2, 1.0)
+                    self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
         
         # Add energy sources
         for _ in range(self.open_chemistry_config.energy_sources):
-            pos = self.rng.next_vector2(0, self.config.grid_width)
+            px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
+            pos = ti.Vector([px, py])
             intensity = self.open_chemistry_config.energy_intensity
             radius = 10.0
             
             self.energy_manager.add_energy_source(
-                pos.to_numpy(), intensity, radius, duration=100.0
+                (float(pos[0]), float(pos[1])), intensity, radius, duration=100.0
             )
     
     def initialize_open_chemistry_mode(self):
@@ -104,16 +108,18 @@ class SimulationStepper:
         
         for i in range(num_initial_particles):
             # Random position
-            pos = self.rng.next_vector2(0, self.config.grid_width)
+            px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
+            pos = ti.Vector([px, py])
             
             # Random velocity
-            vel = self.rng.next_vector2(-0.5, 0.5)
+            vx, vy = self.rng.py_next_vector2(-0.5, 0.5)
+            vel = ti.Vector([vx, vy])
             
             # Random attributes
-            mass = self.rng.next_range(0.5, 2.0)
-            charge_x = self.rng.next_range(-1.0, 1.0)
-            charge_y = self.rng.next_range(-1.0, 1.0)
-            charge_z = self.rng.next_range(-1.0, 1.0)
+            mass = float(self.rng.py_next_range(0.5, 2.0))
+            charge_x = float(self.rng.py_next_range(-1.0, 1.0))
+            charge_y = float(self.rng.py_next_range(-1.0, 1.0))
+            charge_z = float(self.rng.py_next_range(-1.0, 1.0))
             attributes = ti.Vector([mass, charge_x, charge_y, charge_z])
             
             # Random type
@@ -124,16 +130,17 @@ class SimulationStepper:
             )
             
             # Add particle
-            self.particles.add_particle(pos, vel, attributes, type_id, 2, 1.0)
+            self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
         
         # Add energy sources
         for _ in range(self.open_chemistry_config.energy_sources):
-            pos = self.rng.next_vector2(0, self.config.grid_width)
+            px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
+            pos = ti.Vector([px, py])
             intensity = self.open_chemistry_config.energy_intensity
             radius = 15.0
             
             self.energy_manager.add_energy_source(
-                pos.to_numpy(), intensity, radius, duration=200.0
+                (float(pos[0]), float(pos[1])), intensity, radius, duration=200.0
             )
     
     def step(self, dt: float = None):
@@ -144,65 +151,89 @@ class SimulationStepper:
         if not self.is_running or self.is_paused:
             return
         
-        # Update energy system
-        self.energy_manager.update(dt)
+        print(f"STEP {self.step_count + 1}: Starting - sim_time={self.current_time:.6f}, dt={dt:.6f}")
         
-        # Update particle positions
-        self.particles.update_positions(dt)
-        
-        # Update spatial hash
-        self.grid.update_spatial_hash()
-        
-        # Compute forces
-        self.potentials.compute_forces(
-            self.particles.positions,
-            self.particles.attributes,
-            self.particles.active,
-            self.particles.particle_count[None]
-        )
-        
-        # Apply forces
-        self.particles.apply_forces(self.potentials.forces, dt)
-        
-        # Update binding system
-        self.binding.update_bonds(
-            self.particles.positions,
-            self.particles.attributes,
-            self.particles.active,
-            self.particles.particle_count[None],
-            dt
-        )
-        
-        # Update clusters
-        self.binding.update_clusters(
-            self.particles.active,
-            self.particles.particle_count[None]
-        )
-        
-        # Apply periodic boundary conditions
-        self.grid.apply_periodic_boundary()
-        
-        # Update energy field
-        self.grid.decay_energy_field(self.config.energy_decay)
-        
-        # Add energy from sources to particles
-        self.add_energy_to_particles()
-        
-        # Apply mutations in high energy regions
-        self.apply_mutations(dt)
-        
-        # Update graph representation
-        self.update_graph_representation()
-        
-        # Detect novel substances
-        self.detect_novel_substances()
-        
-        # Update metrics
-        self.update_metrics()
+        try:
+            # Update energy system
+            print(f"STEP {self.step_count + 1}: Updating energy system")
+            self.energy_manager.update(dt)
+            
+            # Update particle positions
+            print(f"STEP {self.step_count + 1}: Updating particle positions")
+            self.particles.update_positions(dt)
+            
+            # Update spatial hash
+            print(f"STEP {self.step_count + 1}: Updating spatial hash")
+            self.grid.update_spatial_hash()
+            
+            # Compute forces
+            print(f"STEP {self.step_count + 1}: Computing forces")
+            self.potentials.compute_forces(
+                self.particles.positions,
+                self.particles.attributes,
+                self.particles.active,
+                self.particles.particle_count[None]
+            )
+            
+            # Apply forces
+            print(f"STEP {self.step_count + 1}: Applying forces")
+            self.particles.apply_forces(self.potentials.forces, dt)
+            
+            # Update binding system
+            print(f"STEP {self.step_count + 1}: Updating binding system")
+            self.binding.update_bonds(
+                self.particles.positions,
+                self.particles.attributes,
+                self.particles.active,
+                self.particles.particle_count[None],
+                dt
+            )
+            
+            # Update clusters
+            print(f"STEP {self.step_count + 1}: Updating clusters")
+            self.binding.update_clusters(
+                self.particles.active,
+                self.particles.particle_count[None]
+            )
+            
+            # Apply periodic boundary conditions
+            print(f"STEP {self.step_count + 1}: Applying periodic boundary conditions")
+            self.grid.apply_periodic_boundary()
+            
+            # Update energy field
+            print(f"STEP {self.step_count + 1}: Updating energy field")
+            self.grid.decay_energy_field(self.config.energy_decay)
+            
+            # Add energy from sources to particles
+            print(f"STEP {self.step_count + 1}: Adding energy to particles")
+            self.add_energy_to_particles()
+            
+            # Apply mutations in high energy regions
+            print(f"STEP {self.step_count + 1}: Applying mutations")
+            self.apply_mutations(dt)
+            
+            # Update graph representation
+            print(f"STEP {self.step_count + 1}: Updating graph representation")
+            self.update_graph_representation()
+            
+            # Detect novel substances
+            print(f"STEP {self.step_count + 1}: Detecting novel substances")
+            self.detect_novel_substances()
+            
+            # Update metrics
+            print(f"STEP {self.step_count + 1}: Updating metrics")
+            self.update_metrics()
+            
+        except Exception as e:
+            print(f"STEP {self.step_count + 1}: ERROR - {e}")
+            import traceback
+            traceback.print_exc()
+            raise  # Re-raise to see the full error
         
         # Update time and step count
         self.current_time += dt
         self.step_count += 1
+        print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}")
     
     def add_energy_to_particles(self):
         """Add energy from field to particles"""
@@ -227,24 +258,56 @@ class SimulationStepper:
         mutation_rate = self.open_chemistry_config.mutation_rate
         mutation_strength = self.open_chemistry_config.mutation_strength
         
-        # Find high energy regions
-        high_energy_regions = self.energy_manager.get_high_energy_regions()
+        # Throttle mutation application to avoid heavy work every step
+        mutation_interval = getattr(self.open_chemistry_config, "mutation_interval", 5)
+        if mutation_interval is None or mutation_interval < 1:
+            mutation_interval = 5
+        if (self.step_count % mutation_interval) != 0:
+            print(f"STEP {self.step_count + 1}: Mutations skipped (interval={mutation_interval})")
+            return
         
-        for region_pos in high_energy_regions:
-            # Find particles near this region
+        # Find high energy regions (may be many)
+        high_energy_regions = self.energy_manager.get_high_energy_regions()
+        if not high_energy_regions:
+            print(f"STEP {self.step_count + 1}: No high energy regions for mutations")
+            return
+        
+        # Cap the number of regions processed per step
+        max_regions_per_step = 64
+        selected_regions = high_energy_regions[:max_regions_per_step]
+        
+        # Limit neighbors considered per region and total mutations per step
+        max_neighbors_per_region = 64
+        max_mutations_per_step = 200
+        neighbors = ti.field(dtype=ti.i32, shape=(max_neighbors_per_region,))
+        total_applied = 0
+        
+        for region_pos in selected_regions:
+            if total_applied >= max_mutations_per_step:
+                break
             region_ti = ti.Vector(region_pos)
-            neighbors = ti.field(dtype=ti.i32, shape=(100,))
-            count = self.grid.get_neighbors(region_ti, 5.0, neighbors)
+            count = int(self.grid.get_neighbors(region_ti, 5.0, neighbors))
+            count = max(0, min(count, max_neighbors_per_region))
+            if count == 0:
+                continue
+            # Pull neighbors to numpy for safe Python-side iteration
+            neighbor_indices = neighbors.to_numpy()[:count]
             
-            # Apply mutations to nearby particles
-            for i in range(count):
-                particle_idx = neighbors[i]
+            for particle_idx in neighbor_indices:
+                if total_applied >= max_mutations_per_step:
+                    break
                 if self.particles.active[particle_idx] == 1:
-                    # Check mutation probability
-                    if self.rng.next() < mutation_rate * dt:
+                    if self.rng.py_next() < mutation_rate * dt:
                         self.particles.mutate_particle(
-                            particle_idx, mutation_strength, self.current_time, self.rng
+                            int(particle_idx), float(mutation_strength), float(self.current_time), self.rng
                         )
+                        total_applied += 1
+        
+        print(
+            f"STEP {self.step_count + 1}: Mutations applied={total_applied}, "
+            f"regions_considered={len(selected_regions)}/{len(high_energy_regions)}, "
+            f"interval={mutation_interval}"
+        )
     
     def update_graph_representation(self):
         """Update graph representation of molecular structures"""
@@ -301,7 +364,9 @@ class SimulationStepper:
         """Calculate complexity of a molecular structure"""
         from .metrics import ComplexityAnalyzer
         
-        return ComplexityAnalyzer.calculate_emergent_complexity(graph, particle_attributes)
+        # Convert dict to list for ComplexityAnalyzer
+        attributes_list = list(particle_attributes.values())
+        return ComplexityAnalyzer.calculate_emergent_complexity(graph, attributes_list)
     
     def update_metrics(self):
         """Update all metrics"""
@@ -402,7 +467,7 @@ class SimulationStepper:
     def get_visualization_data(self) -> Dict:
         """Get data for visualization"""
         # Get particle data
-        positions, attributes, active_mask = self.particles.get_active_particles()
+        positions, velocities, attributes, active_mask = self.particles.get_active_particles()
         
         # Get energy field
         energy_field = self.energy_manager.energy_system.energy_field.to_numpy()
@@ -416,6 +481,7 @@ class SimulationStepper:
         return {
             'particles': {
                 'positions': positions.tolist(),
+                # 'velocities': velocities.tolist(),  # keep optional for now
                 'attributes': attributes.tolist(),
                 'active_mask': active_mask.tolist()
             },

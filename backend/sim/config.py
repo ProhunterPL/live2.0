@@ -11,7 +11,7 @@ class SimulationConfig(BaseModel):
     grid_width: int = Field(default=256, ge=64, le=1024)
     
     # Simulation mode
-    mode: str = Field(default="open_chemistry", regex="^(preset_prebiotic|open_chemistry)$")
+    mode: str = Field(default="open_chemistry", pattern="^(preset_prebiotic|open_chemistry)$")
     
     # Time settings
     dt: float = Field(default=0.01, gt=0, le=1.0)

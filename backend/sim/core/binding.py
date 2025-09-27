@@ -6,7 +6,7 @@ Handles particle binding, bond formation/breaking, and cluster detection
 import taichi as ti
 import numpy as np
 from typing import List, Tuple, Dict, Set
-from .config import SimulationConfig
+from ..config import SimulationConfig
 
 @ti.data_oriented
 class BindingSystem:
@@ -67,13 +67,21 @@ class BindingSystem:
                     if active[j] == 1 and self.bond_active[i, j] == 0:
                         # Check if particles should form a bond
                         if self.should_form_bond(i, j, positions, attributes):
-                            self.form_bond(i, j)
+                            # Form bond inline to avoid kernel-to-kernel calls
+                            self.bond_active[i, j] = 1
+                            self.bond_active[j, i] = 1
+                            self.bond_matrix[i, j] = 1.0
+                            self.bond_matrix[j, i] = 1.0
         
         # Check for bond breaking
         for i, j in ti.ndrange(self.max_particles, self.max_particles):
             if self.bond_active[i, j] == 1:
                 if self.should_break_bond(i, j, positions, attributes):
-                    self.break_bond(i, j)
+                    # Break bond inline to avoid kernel-to-kernel calls
+                    self.bond_active[i, j] = 0
+                    self.bond_active[j, i] = 0
+                    self.bond_matrix[i, j] = 0.0
+                    self.bond_matrix[j, i] = 0.0
     
     @ti.func
     def should_form_bond(self, i: ti.i32, j: ti.i32, positions: ti.template(),
@@ -87,31 +95,26 @@ class BindingSystem:
         r = r_vec.norm()
         
         # Check distance threshold
-        if r > self.config.particle_radius * 2.5:  # Within binding range
-            return 0
+        result = 0
+        if r <= self.config.particle_radius * 2.5:  # Within binding range
+            # Check binding compatibility
+            mass_i = attributes[i][0]
+            mass_j = attributes[j][0]
+            charge_i = attributes[i][1]
+            charge_j = attributes[j][1]
+            
+            # Mass compatibility
+            mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
+            if mass_ratio >= 0.5:  # Similar masses
+                # Charge compatibility (opposite charges attract)
+                charge_product = charge_i * charge_j
+                if charge_product <= 0.1:  # Not same charges
+                    # Energy threshold
+                    binding_energy = self.compute_binding_energy(i, j, r, attributes)
+                    if binding_energy < -0.5:  # Sufficiently negative binding energy
+                        result = 1
         
-        # Check binding compatibility
-        mass_i = attributes[i][0]
-        mass_j = attributes[j][0]
-        charge_i = attributes[i][1]
-        charge_j = attributes[j][1]
-        
-        # Mass compatibility
-        mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
-        if mass_ratio < 0.5:  # Too different masses
-            return 0
-        
-        # Charge compatibility (opposite charges attract)
-        charge_product = charge_i * charge_j
-        if charge_product > 0.1:  # Same charges repel
-            return 0
-        
-        # Energy threshold
-        binding_energy = self.compute_binding_energy(i, j, r, attributes)
-        if binding_energy < -0.5:  # Sufficiently negative binding energy
-            return 1
-        
-        return 0
+        return result
     
     @ti.func
     def should_break_bond(self, i: ti.i32, j: ti.i32, positions: ti.template(),
@@ -125,29 +128,32 @@ class BindingSystem:
         r = r_vec.norm()
         
         # Break if too far apart
+        result = 0
         if r > self.config.particle_radius * 4.0:
-            return 1
-        
-        # Break if bond is too weak
-        bond_strength = self.bond_matrix[i, j]
-        if bond_strength < self.config.unbinding_threshold:
-            return 1
+            result = 1
+        else:
+            # Break if bond is too weak
+            bond_strength = self.bond_matrix[i, j]
+            if bond_strength < self.config.unbinding_threshold:
+                result = 1
         
         # Break if particles have incompatible properties
-        mass_i = attributes[i][0]
-        mass_j = attributes[j][0]
-        charge_i = attributes[i][1]
-        charge_j = attributes[j][1]
+        if result == 0:
+            mass_i = attributes[i][0]
+            mass_j = attributes[j][0]
+            charge_i = attributes[i][1]
+            charge_j = attributes[j][1]
+            
+            mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
+            if mass_ratio < 0.3:  # Masses became too different
+                result = 1
+            
+            if result == 0:
+                charge_product = charge_i * charge_j
+                if charge_product > 0.2:  # Charges became incompatible
+                    result = 1
         
-        mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
-        if mass_ratio < 0.3:  # Masses became too different
-            return 1
-        
-        charge_product = charge_i * charge_j
-        if charge_product > 0.2:  # Charges became incompatible
-            return 1
-        
-        return 0
+        return result
     
     @ti.func
     def compute_binding_energy(self, i: ti.i32, j: ti.i32, r: ti.f32,
@@ -241,10 +247,20 @@ class BindingSystem:
     
     @ti.func
     def find_cluster_root(self, i: ti.i32) -> ti.i32:
-        """Find root of cluster using path compression"""
-        if self.cluster_id[i] != i:
-            self.cluster_id[i] = self.find_cluster_root(self.cluster_id[i])
-        return self.cluster_id[i]
+        """Find root of cluster using iterative approach (no recursion)"""
+        # Iterative path compression to avoid recursion depth issues
+        root = i
+        while self.cluster_id[root] != root:
+            root = self.cluster_id[root]
+        
+        # Path compression
+        current = i
+        while current != root:
+            next_node = self.cluster_id[current]
+            self.cluster_id[current] = root
+            current = next_node
+        
+        return root
     
     @ti.func
     def union_clusters(self, i: ti.i32, j: ti.i32):

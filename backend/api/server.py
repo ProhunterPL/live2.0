@@ -6,6 +6,7 @@ Provides WebSocket streaming and REST API endpoints
 import asyncio
 import json
 import time
+import logging
 from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,21 @@ from pydantic import BaseModel
 import uvicorn
 import numpy as np
 import msgpack
+import taichi as ti
+
+# Setup logging to file
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs.txt'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Initialize Taichi first
+ti.init(arch=ti.cpu)
 
 from sim.config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
 from sim.core.stepper import SimulationStepper
@@ -241,17 +257,28 @@ class Live2Server:
         @self.app.websocket("/simulation/{simulation_id}/stream")
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):
             """WebSocket endpoint for real-time data streaming"""
+            logger.info(f"WebSocket connection attempt for simulation {simulation_id}")
             await websocket.accept()
+            logger.info(f"WebSocket accepted for simulation {simulation_id}")
             
             if simulation_id not in self.simulations:
+                logger.error(f"Simulation {simulation_id} not found")
                 await websocket.close(code=1008, reason="Simulation not found")
                 return
             
             # Add connection to active connections
             self.active_connections[simulation_id].append(websocket)
+            logger.info(f"Added WebSocket connection for simulation {simulation_id}")
+            
+            # Ensure simulation is running when a client connects
+            simulation = self.simulations[simulation_id]
+            if not simulation.is_running:
+                logger.info(f"Starting simulation {simulation_id}")
+                simulation.start()
             
             # Start broadcasting if not already started
             if simulation_id not in self.broadcast_tasks:
+                logger.info(f"Starting broadcast task for simulation {simulation_id}")
                 self.broadcast_tasks[simulation_id] = asyncio.create_task(
                     self.broadcast_simulation_data(simulation_id)
                 )
@@ -273,11 +300,18 @@ class Live2Server:
     
     async def broadcast_simulation_data(self, simulation_id: str):
         """Broadcast simulation data to connected clients"""
+        logger.info(f"Starting broadcast for simulation {simulation_id}")
         simulation = self.simulations[simulation_id]
         
         while True:
             try:
+                # Advance simulation to ensure time progresses while streaming
+                logger.info(f"BROADCAST: About to step simulation {simulation_id} - current_time={simulation.current_time:.6f}, step_count={simulation.step_count}")
+                simulation.step()
+                logger.info(f"BROADCAST: Step completed for simulation {simulation_id} - current_time={simulation.current_time:.6f}, step_count={simulation.step_count}")
+                
                 # Get visualization data
+                logger.debug(f"Getting visualization data for simulation {simulation_id}")
                 data = simulation.get_visualization_data()
                 
                 # Serialize data
@@ -297,12 +331,14 @@ class Live2Server:
                     for websocket in disconnected:
                         self.active_connections[simulation_id].remove(websocket)
                 
-                # Wait before next broadcast
-                await asyncio.sleep(0.1)  # 10 FPS
+                # Wait before next broadcast (about 30 FPS)
+                await asyncio.sleep(0.033)
                 
             except Exception as e:
-                print(f"Error broadcasting data: {e}")
-                break
+                logger.error(f"BROADCAST ERROR: {e}")
+                import traceback
+                logger.error(f"BROADCAST TRACEBACK: {traceback.format_exc()}")
+                # continue broadcasting despite errors
     
     async def run_simulation_loop(self, simulation_id: str):
         """Run simulation loop for a specific simulation"""

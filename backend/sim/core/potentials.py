@@ -6,7 +6,7 @@ Handles particle-particle interactions and binding potentials
 import taichi as ti
 import numpy as np
 from typing import Tuple, Dict, Optional
-from .config import SimulationConfig
+from ..config import SimulationConfig
 
 @ti.data_oriented
 class PotentialSystem:

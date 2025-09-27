@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WebSocket</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="data"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8000/simulation/sim_1759007240781/stream');
+        
+        ws.onopen = function() {
+            document.getElementById('status').innerHTML = 'Connected';
+        };
+        
+        ws.onmessage = function(event) {
+            document.getElementById('data').innerHTML = 'Received data: ' + event.data.length + ' bytes';
+        };
+        
+        ws.onerror = function(error) {
+            document.getElementById('status').innerHTML = 'Error: ' + error;
+        };
+        
+        ws.onclose = function() {
+            document.getElementById('status').innerHTML = 'Disconnected';
+        };
+    </script>
+</body>
+</html>

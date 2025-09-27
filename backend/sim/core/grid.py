@@ -6,7 +6,32 @@ Handles 2D periodic grid with particle positioning and neighbor finding
 import taichi as ti
 import numpy as np
 from typing import Tuple, List
-from .config import SimulationConfig
+from ..config import SimulationConfig
+
+# Global variables for Taichi fields (will be initialized later)
+particle_positions = None
+particle_attributes = None
+particle_active = None
+particle_count = None
+spatial_hash = None
+cell_counts = None
+energy_field = None
+
+def init_taichi_fields(max_particles: int, grid_cells_x: int, grid_cells_y: int,
+                       energy_width: int, energy_height: int, max_particles_per_cell: int = 32):
+    """Initialize Taichi fields after ti.init() has been called"""
+    global particle_positions, particle_attributes, particle_active, particle_count
+    global spatial_hash, cell_counts, energy_field
+    
+    particle_positions = ti.Vector.field(2, dtype=ti.f32, shape=(max_particles,))
+    particle_attributes = ti.Vector.field(4, dtype=ti.f32, shape=(max_particles,))
+    particle_active = ti.field(dtype=ti.i32, shape=(max_particles,))
+    particle_count = ti.field(dtype=ti.i32, shape=())
+    
+    spatial_hash = ti.field(dtype=ti.i32, shape=(grid_cells_x, grid_cells_y, max_particles_per_cell))
+    cell_counts = ti.field(dtype=ti.i32, shape=(grid_cells_x, grid_cells_y))
+    
+    energy_field = ti.field(dtype=ti.f32, shape=(energy_width, energy_height))
 
 @ti.data_oriented
 class Grid:
@@ -16,30 +41,37 @@ class Grid:
         self.config = config
         self.height = config.grid_height
         self.width = config.grid_width
+        self.max_particles = config.max_particles
         
-        # Initialize Taichi
-        ti.init(arch=ti.gpu, default_fp=ti.f32)
-        
-        # Grid data structures
-        self.particle_positions = ti.Vector.field(2, dtype=ti.f32, shape=(config.max_particles,))
-        self.particle_attributes = ti.Vector.field(4, dtype=ti.f32, shape=(config.max_particles,))  # [mass, charge_x, charge_y, charge_z]
-        self.particle_active = ti.field(dtype=ti.i32, shape=(config.max_particles,))
-        self.particle_count = ti.field(dtype=ti.i32, shape=())
-        
-        # Spatial hash for neighbor finding
+        # Spatial hash parameters
         self.cell_size = 2.0  # Should be > 2 * particle_radius
         self.grid_cells_x = int(np.ceil(self.width / self.cell_size))
         self.grid_cells_y = int(np.ceil(self.height / self.cell_size))
+        self.max_particles_per_cell = 32
+
+        # Initialize Taichi fields if not already done
+        if particle_positions is None:
+            init_taichi_fields(
+                max_particles=self.max_particles,
+                grid_cells_x=self.grid_cells_x,
+                grid_cells_y=self.grid_cells_y,
+                energy_width=self.width,
+                energy_height=self.height,
+                max_particles_per_cell=self.max_particles_per_cell,
+            )
+        
+        # Use module-level fields
+        self.particle_positions = particle_positions
+        self.particle_attributes = particle_attributes
+        self.particle_active = particle_active
+        self.particle_count = particle_count
         
         # Hash table: cell -> list of particle indices
-        self.max_particles_per_cell = 32
-        self.spatial_hash = ti.field(dtype=ti.i32, 
-                                   shape=(self.grid_cells_x, self.grid_cells_y, self.max_particles_per_cell))
-        self.cell_counts = ti.field(dtype=ti.i32, 
-                                  shape=(self.grid_cells_x, self.grid_cells_y))
+        self.spatial_hash = spatial_hash
+        self.cell_counts = cell_counts
         
         # Energy field
-        self.energy_field = ti.field(dtype=ti.f32, shape=(self.width, self.height))
+        self.energy_field = energy_field
         
         # Initialize
         self.reset()
@@ -47,7 +79,8 @@ class Grid:
     @ti.kernel
     def reset(self):
         """Reset grid to initial state"""
-        for i in range(self.particle_count[None]):
+        # Reset all particles
+        for i in range(self.max_particles):
             self.particle_active[i] = 0
         
         self.particle_count[None] = 0
@@ -65,7 +98,7 @@ class Grid:
     @ti.kernel
     def add_particle(self, pos: ti.template(), attributes: ti.template()) -> ti.i32:
         """Add a particle to the grid. Returns particle index or -1 if failed"""
-        if self.particle_count[None] >= self.particle_positions.shape[0]:
+        if self.particle_count[None] >= 10000:  # Use fixed max_particles
             return -1
         
         idx = self.particle_count[None]

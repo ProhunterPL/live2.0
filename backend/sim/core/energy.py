@@ -5,8 +5,9 @@ Handles energy sources, distribution, and dissipation
 
 import taichi as ti
 import numpy as np
+import time
 from typing import List, Tuple, Dict, Optional
-from .config import SimulationConfig
+from ..config import SimulationConfig
 
 @ti.data_oriented
 class EnergySystem:
@@ -56,20 +57,20 @@ class EnergySystem:
         
         self.source_count[None] = 0
     
-    @ti.kernel
-    def add_energy_source(self, pos: ti.template(), intensity: ti.f32, 
-                         radius: ti.f32) -> ti.i32:
-        """Add an energy source. Returns source index or -1 if failed"""
-        if self.source_count[None] >= self.max_sources:
+    def add_energy_source_py(self, pos, intensity: float, radius: float, duration: float = 0.0) -> int:
+        """Add an energy source from Python scope (no Taichi kernel returns)."""
+        idx = int(self.source_count[None])
+        if idx >= int(self.max_sources):
             return -1
-        
-        idx = self.source_count[None]
-        self.source_positions[idx] = pos
-        self.source_intensities[idx] = intensity
-        self.source_radii[idx] = radius
+        # Accept tuple/list or ti.Vector
+        if isinstance(pos, (tuple, list)):
+            self.source_positions[idx] = ti.Vector([float(pos[0]), float(pos[1])])
+        else:
+            self.source_positions[idx] = pos
+        self.source_intensities[idx] = float(intensity)
+        self.source_radii[idx] = float(radius)
         self.source_active[idx] = 1
-        self.source_count[None] += 1
-        
+        self.source_count[None] = idx + 1
         return idx
     
     @ti.kernel
@@ -114,11 +115,10 @@ class EnergySystem:
                         energy_factor = ti.max(energy_factor, 0.0)
                         self.energy_field[x, y] += intensity * energy_factor * dt
         
-        # Apply diffusion
-        self.apply_diffusion(dt)
-        
-        # Apply decay
-        self.apply_decay(dt)
+        # Apply decay only (skip diffusion for now to avoid field creation in kernel)
+        decay_rate = self.energy_decay_rate[None]
+        for i, j in ti.ndrange(self.width, self.height):
+            self.energy_field[i, j] *= (1.0 - decay_rate * dt)
     
     @ti.kernel
     def apply_diffusion(self, dt: ti.f32):
@@ -323,8 +323,8 @@ class EnergyManager:
         self.energy_sources.append(source)
         
         # Add to energy system
-        source_idx = self.energy_system.add_energy_source(
-            ti.Vector(position), intensity, radius
+        source_idx = self.energy_system.add_energy_source_py(
+            ti.Vector(position), intensity, radius, duration
         )
         
         return source_idx

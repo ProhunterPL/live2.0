@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
-import { Play, Pause, Square, RotateCcw, Settings, BarChart3 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Play, Pause, Square, RotateCcw } from 'lucide-react'
 import HeatmapCanvas from './components/HeatmapCanvas'
 import Controls from './components/Controls'
 import GraphPreview from './components/GraphPreview'
-import { SimulationAPI } from './lib/api'
-import { WebSocketClient } from './lib/ws'
+import { SimulationAPI } from './lib/api.ts'
+import { WebSocketClient } from './lib/ws.ts'
 import type { SimulationData, SimulationStatus } from './lib/types'
 
 const App: React.FC = () => {
@@ -17,18 +17,27 @@ const App: React.FC = () => {
   const api = new SimulationAPI()
   const wsClient = new WebSocketClient()
 
+  const initializedRef = useRef(false)
   useEffect(() => {
-    // Initialize simulation on mount
+    // Prevent duplicate init in React 18 StrictMode
+    if (initializedRef.current) return
+    initializedRef.current = true
     initializeSimulation()
     
     return () => {
-      // Cleanup on unmount
-      if (simulationId) {
-        api.stopSimulation(simulationId)
-        wsClient.disconnect()
-      }
+      // Cleanup: only disconnect WS; don't stop simulation implicitly in dev
+      wsClient.disconnect()
     }
   }, [])
+
+  // Poll status periodically so the time advances even if WS data is delayed
+  useEffect(() => {
+    if (!simulationId) return
+    const interval = setInterval(() => {
+      updateStatus(simulationId)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [simulationId])
 
   const initializeSimulation = async () => {
     try {
@@ -38,6 +47,7 @@ const App: React.FC = () => {
           grid_width: 256,
           mode: 'open_chemistry',
           max_particles: 10000,
+          max_time: 1000,
           dt: 0.01,
           energy_decay: 0.95,
           energy_threshold: 0.1,
@@ -63,23 +73,26 @@ const App: React.FC = () => {
     }
   }
 
-  const connectWebSocket = async (id: string) => {
+  const connectWebSocket = async (id: string | null) => {
     try {
-      await wsClient.connect(`ws://localhost:8000/simulation/${id}/stream`)
+      if (!id) {
+        console.error('connectWebSocket called without simulationId')
+        return
+      }
+      // Pass only the simulationId; ws client will build the full URL
+      await wsClient.connect(id)
       setIsConnected(true)
       
-      wsClient.onMessage = (data: SimulationData) => {
+      wsClient.on('simulation_data', (data: SimulationData) => {
         setSimulationData(data)
-      }
-      
-      wsClient.onClose = () => {
+      })
+      wsClient.on('disconnected', () => {
         setIsConnected(false)
-      }
-      
-      wsClient.onError = (error: Error) => {
+      })
+      wsClient.on('error', (error: Error) => {
         console.error('WebSocket error:', error)
         setIsConnected(false)
-      }
+      })
     } catch (error) {
       console.error('Failed to connect WebSocket:', error)
     }

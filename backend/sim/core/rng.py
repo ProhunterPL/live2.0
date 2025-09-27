@@ -5,7 +5,7 @@ Provides deterministic, seeded random number generation
 
 import taichi as ti
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 
 @ti.data_oriented
 class RNG:
@@ -107,6 +107,23 @@ class RNG:
     def set_state(self, state: int):
         """Set RNG state"""
         self.state[None] = state
+
+    # -------- Python-scope helpers (safe to call from normal Python) --------
+    def py_next(self) -> float:
+        rnd = np.random.default_rng(self.seed)
+        val = float(rnd.random())
+        # advance seed deterministically
+        self.seed = int((self.seed * 1664525 + 1013904223) % (2**31 - 1))
+        return val
+
+    def py_next_range(self, min_val: float, max_val: float) -> float:
+        return min_val + (max_val - min_val) * self.py_next()
+
+    def py_next_vector2(self, min_val: float, max_val: float) -> Tuple[float, float]:
+        return (
+            self.py_next_range(min_val, max_val),
+            self.py_next_range(min_val, max_val),
+        )
 
 # Global RNG instance
 _global_rng = None

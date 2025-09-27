@@ -6,7 +6,7 @@ Handles concentration fields, diffusion, and chemical reactions
 import taichi as ti
 import numpy as np
 from typing import Dict, List, Tuple, Optional
-from .config import PresetPrebioticConfig
+from ..config import PresetPrebioticConfig
 
 @ti.data_oriented
 class ConcentrationFields:

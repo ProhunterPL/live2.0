@@ -6,7 +6,41 @@ Handles particle properties, attributes, and basic operations
 import taichi as ti
 import numpy as np
 from typing import Dict, List, Tuple, Optional
-from .config import SimulationConfig
+from ..config import SimulationConfig
+
+# Global variables for Taichi fields (will be initialized later)
+positions = None
+velocities = None
+attributes = None
+active = None
+particle_count = None
+type_ids = None
+binding_sites = None
+binding_strength = None
+energy = None
+age = None
+last_mutation = None
+
+def init_particle_fields():
+    """Initialize Taichi fields after ti.init() has been called"""
+    global positions, velocities, attributes, active, particle_count
+    global type_ids, binding_sites, binding_strength
+    global energy, age, last_mutation
+    
+    positions = ti.Vector.field(2, dtype=ti.f32, shape=(10000,))
+    velocities = ti.Vector.field(2, dtype=ti.f32, shape=(10000,))
+    attributes = ti.Vector.field(4, dtype=ti.f32, shape=(10000,))
+    active = ti.field(dtype=ti.i32, shape=(10000,))
+    particle_count = ti.field(dtype=ti.i32, shape=())
+    
+    type_ids = ti.field(dtype=ti.i32, shape=(10000,))
+    binding_sites = ti.field(dtype=ti.i32, shape=(10000,))
+    binding_strength = ti.field(dtype=ti.f32, shape=(10000,))
+    
+    # Dynamic properties
+    energy = ti.field(dtype=ti.f32, shape=(10000,))
+    age = ti.field(dtype=ti.f32, shape=(10000,))
+    last_mutation = ti.field(dtype=ti.f32, shape=(10000,))
 
 @ti.data_oriented
 class ParticleSystem:
@@ -16,22 +50,26 @@ class ParticleSystem:
         self.config = config
         self.max_particles = config.max_particles
         
-        # Particle data structures
-        self.positions = ti.Vector.field(2, dtype=ti.f32, shape=(self.max_particles,))
-        self.velocities = ti.Vector.field(2, dtype=ti.f32, shape=(self.max_particles,))
-        self.attributes = ti.Vector.field(4, dtype=ti.f32, shape=(self.max_particles,))  # [mass, charge_x, charge_y, charge_z]
-        self.active = ti.field(dtype=ti.i32, shape=(self.max_particles,))
-        self.particle_count = ti.field(dtype=ti.i32, shape=())
+        # Initialize Taichi fields if not already done
+        if positions is None:
+            init_particle_fields()
+        
+        # Use module-level fields
+        self.positions = positions
+        self.velocities = velocities
+        self.attributes = attributes
+        self.active = active
+        self.particle_count = particle_count
         
         # Particle types and properties
-        self.type_ids = ti.field(dtype=ti.i32, shape=(self.max_particles,))
-        self.binding_sites = ti.field(dtype=ti.i32, shape=(self.max_particles,))
-        self.binding_strength = ti.field(dtype=ti.f32, shape=(self.max_particles,))
+        self.type_ids = type_ids
+        self.binding_sites = binding_sites
+        self.binding_strength = binding_strength
         
         # Dynamic properties
-        self.energy = ti.field(dtype=ti.f32, shape=(self.max_particles,))
-        self.age = ti.field(dtype=ti.f32, shape=(self.max_particles,))
-        self.last_mutation = ti.field(dtype=ti.f32, shape=(self.max_particles,))
+        self.energy = energy
+        self.age = age
+        self.last_mutation = last_mutation
         
         # Type registry for tracking particle types
         self.type_registry = {}
@@ -68,27 +106,23 @@ class ParticleSystem:
         
         return type_id
     
-    @ti.kernel
-    def add_particle(self, pos: ti.template(), vel: ti.template(), 
-                    attributes: ti.template(), type_id: ti.i32,
-                    binding_sites: ti.i32, binding_strength: ti.f32) -> ti.i32:
-        """Add a particle to the system. Returns particle index or -1 if failed"""
-        if self.particle_count[None] >= self.max_particles:
+    def add_particle_py(self, pos, vel, attributes, type_id: int,
+                        binding_sites: int, binding_strength: float) -> int:
+        """Add a particle from Python scope to avoid Taichi kernel return constraints."""
+        idx = int(self.particle_count[None])
+        if idx >= int(self.max_particles):
             return -1
-        
-        idx = self.particle_count[None]
         self.positions[idx] = pos
         self.velocities[idx] = vel
         self.attributes[idx] = attributes
-        self.type_ids[idx] = type_id
-        self.binding_sites[idx] = binding_sites
-        self.binding_strength[idx] = binding_strength
+        self.type_ids[idx] = int(type_id)
+        self.binding_sites[idx] = int(binding_sites)
+        self.binding_strength[idx] = float(binding_strength)
         self.active[idx] = 1
         self.energy[idx] = 0.0
         self.age[idx] = 0.0
         self.last_mutation[idx] = 0.0
-        
-        self.particle_count[None] += 1
+        self.particle_count[None] = idx + 1
         return idx
     
     @ti.kernel
