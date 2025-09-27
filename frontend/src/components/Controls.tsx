@@ -95,14 +95,17 @@ const Controls: React.FC<ControlsProps> = ({
   }
 
   const formatTime = (seconds: number): string => {
+    if (!Number.isFinite(seconds)) return '0:00.00'
+    if (seconds < 60) {
+      const mins = Math.floor(seconds / 60)
+      const secs = Math.floor(seconds % 60)
+      const ms = Math.floor((seconds - Math.floor(seconds)) * 100)
+      return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
+    }
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const secs = Math.floor(seconds % 60)
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
   return (
@@ -170,7 +173,11 @@ const Controls: React.FC<ControlsProps> = ({
             </div>
             <div className="metric">
               <div className="metric-label">Health Score</div>
-              <div className="metric-value">{(metrics.health_score * 100).toFixed(1)}%</div>
+              <div className="metric-value">{
+                Number.isFinite(metrics.health_score)
+                  ? (metrics.health_score * 100).toFixed(1) + '%'
+                  : '0.0%'
+              }</div>
             </div>
             <div className="metric">
               <div className="metric-label">Total Energy</div>
