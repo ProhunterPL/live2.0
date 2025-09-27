@@ -1,0 +1,317 @@
+import React, { useRef, useEffect, useState } from 'react'
+import type { SimulationData } from '../lib/types'
+
+interface HeatmapCanvasProps {
+  data: SimulationData | null
+  selectedSubstance: string | null
+  isConnected: boolean
+}
+
+const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
+  data,
+  selectedSubstance,
+  isConnected
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
+  const [showParticles, setShowParticles] = useState(true)
+  const [showEnergy, setShowEnergy] = useState(true)
+  const [showBonds, setShowBonds] = useState(true)
+  const [particleSize, setParticleSize] = useState(2)
+  const [energyOpacity, setEnergyOpacity] = useState(0.7)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Set canvas size
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect()
+      canvas.width = rect.width * window.devicePixelRatio
+      canvas.height = rect.height * window.devicePixelRatio
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+    }
+
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas)
+    }
+  }, [])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !data) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const rect = canvas.getBoundingClientRect()
+    const width = rect.width
+    const height = rect.height
+
+    // Clear canvas
+    ctx.fillStyle = '#000000'
+    ctx.fillRect(0, 0, width, height)
+
+    // Draw energy field
+    if (showEnergy && data.energy_field) {
+      drawEnergyField(ctx, data.energy_field, width, height)
+    }
+
+    // Draw bonds
+    if (showBonds && data.bonds && data.particles) {
+      drawBonds(ctx, data.bonds, data.particles.positions, width, height)
+    }
+
+    // Draw particles
+    if (showParticles && data.particles) {
+      drawParticles(ctx, data.particles, width, height)
+    }
+
+    // Draw mouse position info
+    if (mousePos) {
+      drawMouseInfo(ctx, mousePos, data, width, height)
+    }
+
+  }, [data, selectedSubstance, showParticles, showEnergy, showBonds, particleSize, energyOpacity, mousePos])
+
+  const drawEnergyField = (
+    ctx: CanvasRenderingContext2D,
+    energyField: number[][],
+    width: number,
+    height: number
+  ) => {
+    const fieldWidth = energyField[0]?.length || 0
+    const fieldHeight = energyField.length || 0
+    
+    if (fieldWidth === 0 || fieldHeight === 0) return
+
+    const cellWidth = width / fieldWidth
+    const cellHeight = height / fieldHeight
+
+    // Find max energy for normalization
+    let maxEnergy = 0
+    for (let y = 0; y < fieldHeight; y++) {
+      for (let x = 0; x < fieldWidth; x++) {
+        maxEnergy = Math.max(maxEnergy, energyField[y][x])
+      }
+    }
+
+    if (maxEnergy === 0) return
+
+    // Draw energy field
+    for (let y = 0; y < fieldHeight; y++) {
+      for (let x = 0; x < fieldWidth; x++) {
+        const energy = energyField[y][x]
+        const intensity = energy / maxEnergy
+        
+        if (intensity > 0) {
+          // Color from blue (low) to red (high)
+          const hue = (1 - intensity) * 240 // 240 = blue, 0 = red
+          ctx.fillStyle = `hsla(${hue}, 100%, 50%, ${energyOpacity})`
+          ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight)
+        }
+      }
+    }
+  }
+
+  const drawBonds = (
+    ctx: CanvasRenderingContext2D,
+    bonds: Array<{ particle_i: number; particle_j: number; strength: number }>,
+    positions: [number, number][],
+    width: number,
+    height: number
+  ) => {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = 1
+
+    bonds.forEach(bond => {
+      const pos1 = positions[bond.particle_i]
+      const pos2 = positions[bond.particle_j]
+      
+      if (pos1 && pos2) {
+        // Scale positions to canvas
+        const x1 = (pos1[0] / 256) * width
+        const y1 = (pos1[1] / 256) * height
+        const x2 = (pos2[0] / 256) * width
+        const y2 = (pos2[1] / 256) * height
+
+        ctx.beginPath()
+        ctx.moveTo(x1, y1)
+        ctx.lineTo(x2, y2)
+        ctx.stroke()
+      }
+    })
+  }
+
+  const drawParticles = (
+    ctx: CanvasRenderingContext2D,
+    particles: { positions: [number, number][]; attributes: [number, number, number, number][] },
+    width: number,
+    height: number
+  ) => {
+    particles.positions.forEach((pos, index) => {
+      const attr = particles.attributes[index]
+      if (!attr) return
+
+      const [mass, chargeX, chargeY, chargeZ] = attr
+      
+      // Scale position to canvas
+      const x = (pos[0] / 256) * width
+      const y = (pos[1] / 256) * height
+
+      // Color based on charge
+      const chargeMagnitude = Math.sqrt(chargeX * chargeX + chargeY * chargeY + chargeZ * chargeZ)
+      const hue = chargeMagnitude > 0 ? (chargeX > 0 ? 0 : 120) : 240 // Red for positive, green for negative, blue for neutral
+      
+      ctx.fillStyle = `hsl(${hue}, 70%, 60%)`
+      ctx.beginPath()
+      ctx.arc(x, y, particleSize, 0, 2 * Math.PI)
+      ctx.fill()
+
+      // Draw mass indicator (size)
+      const massSize = Math.max(1, mass * 2)
+      ctx.strokeStyle = `hsl(${hue}, 70%, 80%)`
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.arc(x, y, massSize, 0, 2 * Math.PI)
+      ctx.stroke()
+    })
+  }
+
+  const drawMouseInfo = (
+    ctx: CanvasRenderingContext2D,
+    mousePos: { x: number; y: number },
+    data: SimulationData,
+    width: number,
+    height: number
+  ) => {
+    // Convert mouse position to simulation coordinates
+    const simX = (mousePos.x / width) * 256
+    const simY = (mousePos.y / height) * 256
+
+    // Find nearest particle
+    let nearestParticle = null
+    let minDistance = Infinity
+
+    if (data.particles) {
+      data.particles.positions.forEach((pos, index) => {
+        const distance = Math.sqrt((pos[0] - simX) ** 2 + (pos[1] - simY) ** 2)
+        if (distance < minDistance) {
+          minDistance = distance
+          nearestParticle = { index, pos, attr: data.particles.attributes[index] }
+        }
+      })
+    }
+
+    // Draw info box
+    if (nearestParticle && minDistance < 10) {
+      const attr = nearestParticle.attr
+      const [mass, chargeX, chargeY, chargeZ] = attr
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.fillRect(mousePos.x + 10, mousePos.y - 60, 150, 50)
+
+      ctx.fillStyle = '#ffffff'
+      ctx.font = '12px monospace'
+      ctx.fillText(`Mass: ${mass.toFixed(2)}`, mousePos.x + 15, mousePos.y - 40)
+      ctx.fillText(`Charge: (${chargeX.toFixed(2)}, ${chargeY.toFixed(2)}, ${chargeZ.toFixed(2)})`, mousePos.x + 15, mousePos.y - 25)
+      ctx.fillText(`Pos: (${nearestParticle.pos[0].toFixed(1)}, ${nearestParticle.pos[1].toFixed(1)})`, mousePos.x + 15, mousePos.y - 10)
+    }
+  }
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    setMousePos({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    })
+  }
+
+  const handleMouseLeave = () => {
+    setMousePos(null)
+  }
+
+  return (
+    <div className="relative w-full h-full">
+      <canvas
+        ref={canvasRef}
+        className="heatmap-canvas"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      />
+      
+      {/* Controls overlay */}
+      <div className="absolute top-4 left-4 bg-black bg-opacity-50 p-2 rounded">
+        <div className="flex flex-col gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showParticles}
+              onChange={(e) => setShowParticles(e.target.checked)}
+            />
+            Particles
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showEnergy}
+              onChange={(e) => setShowEnergy(e.target.checked)}
+            />
+            Energy Field
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showBonds}
+              onChange={(e) => setShowBonds(e.target.checked)}
+            />
+            Bonds
+          </label>
+          <div className="flex items-center gap-2">
+            <label>Particle Size:</label>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={particleSize}
+              onChange={(e) => setParticleSize(Number(e.target.value))}
+              className="w-16"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label>Energy Opacity:</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={energyOpacity}
+              onChange={(e) => setEnergyOpacity(Number(e.target.value))}
+              className="w-16"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Connection status */}
+      <div className="absolute top-4 right-4">
+        <div className={`px-3 py-1 rounded text-sm ${
+          isConnected ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-red-500 bg-opacity-20 text-red-400'
+        }`}>
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default HeatmapCanvas
