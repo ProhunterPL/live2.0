@@ -15,6 +15,7 @@ from sim.core.catalog import SubstanceRecord, SubstanceCatalog
 from sim.core.metrics import MetricsCollector, NoveltyTracker, ComplexityAnalyzer
 from sim.core.energy import EnergySystem, EnergyManager
 from sim.core.rng import RNG
+from sim.core.fields_ca import PresetPrebioticSimulator
 
 class TestSimulationConfig:
     """Test simulation configuration"""
@@ -402,6 +403,25 @@ class TestEnergySystem:
         # Check that energy was added
         energy_at_center = energy.get_energy_at_position(pos)
         assert energy_at_center > 0
+
+class TestPresetPrebioticSimulator:
+    """Test preset mode visualization data"""
+    def test_preset_visualization(self):
+        preset_config = PresetPrebioticConfig()
+        width, height = 64, 64
+        sim = PresetPrebioticSimulator(preset_config, width, height)
+        # Add some energy and step
+        sim.add_energy_source((32.0, 32.0), 1.0, 8.0)
+        sim.step(0.05)
+        viz = sim.get_visualization_data()
+        assert 'concentrations' in viz
+        conc = viz['concentrations']
+        assert isinstance(conc, dict)
+        # Expect at least HCN key per default config
+        assert any(k in conc for k in ['HCN', 'NH2CHO'])
+        # Energy field shape matches
+        assert len(viz['energy_field']) == height
+        assert len(viz['energy_field'][0]) == width
 
 if __name__ == "__main__":
     pytest.main([__file__])

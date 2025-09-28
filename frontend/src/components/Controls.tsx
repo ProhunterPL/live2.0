@@ -7,17 +7,26 @@ interface ControlsProps {
   simulationId: string | null
   status: SimulationStatus | null
   onStatusUpdate: (id: string) => void
+  availableSpecies?: string[]
+  selectedSubstance?: string | null
+  onSubstanceChange?: (id: string | null) => void
+  runtimeMs?: number
 }
 
 const Controls: React.FC<ControlsProps> = ({
   simulationId,
   status,
-  onStatusUpdate
+  onStatusUpdate,
+  availableSpecies,
+  selectedSubstance,
+  onSubstanceChange,
+  runtimeMs
 }) => {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [novelSubstances, setNovelSubstances] = useState<any[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const [snapshotFilename, setSnapshotFilename] = useState('')
+  // species selection handled via props
 
   const api = new SimulationAPI()
 
@@ -25,6 +34,7 @@ const Controls: React.FC<ControlsProps> = ({
     if (simulationId) {
       updateMetrics()
       updateNovelSubstances()
+      // Poll concentrations species list if present via metrics hint soon
       
       // Update metrics every 5 seconds
       const interval = setInterval(() => {
@@ -126,12 +136,12 @@ const Controls: React.FC<ControlsProps> = ({
           </div>
         </div>
 
-        {/* Time */}
-        {status && (
+        {/* Time (wall-clock runtime) */}
+        {typeof runtimeMs === 'number' && (
           <div className="control-group">
             <label>Simulation Time</label>
             <div className="text-sm font-mono">
-              {formatTime(status.current_time)}
+              {formatTime((runtimeMs as number) / 1000)}
             </div>
           </div>
         )}
@@ -147,6 +157,23 @@ const Controls: React.FC<ControlsProps> = ({
         )}
       </div>
 
+      {/* Preset Mode: Species Selection (if concentrations present via frontend main view) */}
+      {Array.isArray(availableSpecies) && (availableSpecies as string[]).length > 0 && (
+        <div className="control-group">
+          <label>Select Species (Preset Mode)</label>
+          <select
+            className="w-full text-sm"
+            value={selectedSubstance || ''}
+            onChange={(e) => onSubstanceChange?.(e.target.value || null)}
+          >
+            <option value="">All</option>
+            {(availableSpecies as string[]).map((s: string) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Metrics */}
       {metrics && (
         <div className="control-group">
@@ -157,31 +184,31 @@ const Controls: React.FC<ControlsProps> = ({
           <div className="metrics">
             <div className="metric">
               <div className="metric-label">Particles</div>
-              <div className="metric-value">{formatNumber(metrics.particle_count)}</div>
+              <div className="metric-value">{formatNumber(metrics.particle_count ?? 0)}</div>
             </div>
             <div className="metric">
               <div className="metric-label">Bonds</div>
-              <div className="metric-value">{formatNumber(metrics.bond_count)}</div>
+              <div className="metric-value">{formatNumber(metrics.bond_count ?? 0)}</div>
             </div>
             <div className="metric">
               <div className="metric-label">Clusters</div>
-              <div className="metric-value">{formatNumber(metrics.cluster_count)}</div>
+              <div className="metric-value">{formatNumber(metrics.cluster_count ?? 0)}</div>
             </div>
             <div className="metric">
               <div className="metric-label">Novelty Rate</div>
-              <div className="metric-value">{(metrics.novelty_rate * 100).toFixed(1)}%</div>
+              <div className="metric-value">{(((metrics.novelty_rate ?? 0) * 100)).toFixed(1)}%</div>
             </div>
             <div className="metric">
               <div className="metric-label">Health Score</div>
               <div className="metric-value">{
-                Number.isFinite(metrics.health_score)
-                  ? (metrics.health_score * 100).toFixed(1) + '%'
+                Number.isFinite(metrics.health_score ?? 0)
+                  ? (((metrics.health_score ?? 0) * 100).toFixed(1) + '%')
                   : '0.0%'
               }</div>
             </div>
             <div className="metric">
               <div className="metric-label">Total Energy</div>
-              <div className="metric-value">{formatNumber(metrics.total_energy)}</div>
+              <div className="metric-value">{formatNumber(metrics.total_energy ?? 0)}</div>
             </div>
           </div>
         </div>

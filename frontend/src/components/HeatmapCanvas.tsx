@@ -30,9 +30,12 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     // Set canvas size
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect()
-      canvas.width = rect.width * window.devicePixelRatio
-      canvas.height = rect.height * window.devicePixelRatio
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+      // Use 1x pixel ratio in preview/prod to reduce memory and ensure UI overlays visible
+      const ratio = 1
+      canvas.width = rect.width * ratio
+      canvas.height = rect.height * ratio
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.scale(ratio, ratio)
     }
 
     resizeCanvas()
@@ -63,9 +66,17 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
       drawEnergyField(ctx, data.energy_field, width, height)
     }
 
+    // Draw concentration field for preset mode
+    if (data.concentrations) {
+      drawConcentrationField(ctx, data.concentrations, selectedSubstance, width, height)
+    }
+
     // Draw bonds
     if (showBonds && data.bonds && data.particles) {
-      drawBonds(ctx, data.bonds, data.particles.positions, width, height)
+      const bonds = Array.isArray(data.bonds) && data.bonds.length > 0 && Array.isArray(data.bonds[0])
+        ? (data.bonds as [number, number, number][]).map(([i, j, s]) => ({ particle_i: i, particle_j: j, strength: s }))
+        : (data.bonds as Array<{ particle_i: number; particle_j: number; strength: number }>)
+      drawBonds(ctx, bonds, data.particles.positions, width, height)
     }
 
     // Draw particles
@@ -114,6 +125,48 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
           // Color from blue (low) to red (high)
           const hue = (1 - intensity) * 240 // 240 = blue, 0 = red
           ctx.fillStyle = `hsla(${hue}, 100%, 50%, ${energyOpacity})`
+          ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight)
+        }
+      }
+    }
+  }
+
+  const drawConcentrationField = (
+    ctx: CanvasRenderingContext2D,
+    concentrations: Record<string, number[][]>,
+    species: string | null,
+    width: number,
+    height: number
+  ) => {
+    const keys = Object.keys(concentrations)
+    if (keys.length === 0) return
+    const key = species && concentrations[species] ? species : keys[0]
+    const field = concentrations[key]
+    const fieldHeight = field.length || 0
+    const fieldWidth = field[0]?.length || 0
+    if (fieldWidth === 0 || fieldHeight === 0) return
+
+    const cellWidth = width / fieldWidth
+    const cellHeight = height / fieldHeight
+
+    // Find max concentration for normalization
+    let maxVal = 0
+    for (let y = 0; y < fieldHeight; y++) {
+      for (let x = 0; x < fieldWidth; x++) {
+        maxVal = Math.max(maxVal, field[y][x])
+      }
+    }
+    if (maxVal === 0) return
+
+    // Draw concentration heatmap (green palette)
+    for (let y = 0; y < fieldHeight; y++) {
+      for (let x = 0; x < fieldWidth; x++) {
+        const v = field[y][x]
+        const intensity = v / maxVal
+        if (intensity > 0) {
+          const hue = 120
+          const light = 20 + 60 * intensity
+          ctx.fillStyle = `hsla(${hue}, 100%, ${light}%, ${energyOpacity})`
           ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight)
         }
       }
@@ -196,23 +249,24 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     const simY = (mousePos.y / height) * 256
 
     // Find nearest particle
-    let nearestParticle = null
+    let nearestParticle: { index: number; pos: [number, number]; attr: [number, number, number, number] } | null = null
     let minDistance = Infinity
 
-    if (data.particles) {
-      data.particles.positions.forEach((pos, index) => {
+    const parts = data.particles
+    if (parts) {
+      parts.positions.forEach((pos, index) => {
         const distance = Math.sqrt((pos[0] - simX) ** 2 + (pos[1] - simY) ** 2)
         if (distance < minDistance) {
           minDistance = distance
-          nearestParticle = { index, pos, attr: data.particles.attributes[index] }
+          nearestParticle = { index, pos, attr: parts.attributes[index] }
         }
       })
     }
 
     // Draw info box
     if (nearestParticle && minDistance < 10) {
-      const attr = nearestParticle.attr
-      const [mass, chargeX, chargeY, chargeZ] = attr
+      const p = nearestParticle as { index: number; pos: [number, number]; attr: [number, number, number, number] }
+      const [mass, chargeX, chargeY, chargeZ] = p.attr
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
       ctx.fillRect(mousePos.x + 10, mousePos.y - 60, 150, 50)
@@ -221,7 +275,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
       ctx.font = '12px monospace'
       ctx.fillText(`Mass: ${mass.toFixed(2)}`, mousePos.x + 15, mousePos.y - 40)
       ctx.fillText(`Charge: (${chargeX.toFixed(2)}, ${chargeY.toFixed(2)}, ${chargeZ.toFixed(2)})`, mousePos.x + 15, mousePos.y - 25)
-      ctx.fillText(`Pos: (${nearestParticle.pos[0].toFixed(1)}, ${nearestParticle.pos[1].toFixed(1)})`, mousePos.x + 15, mousePos.y - 10)
+      ctx.fillText(`Pos: (${p.pos[0].toFixed(1)}, ${p.pos[1].toFixed(1)})`, mousePos.x + 15, mousePos.y - 10)
     }
   }
 
@@ -250,7 +304,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
       />
       
       {/* Controls overlay */}
-      <div className="absolute top-4 left-4 bg-black bg-opacity-50 p-2 rounded">
+      <div className="absolute bg-black bg-opacity-50 p-2 rounded" style={{ zIndex: 1000, top: 8, left: 8, position: 'absolute' }}>
         <div className="flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
             <input

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import type { SimulationData, NovelSubstance } from '../lib/types'
+import type { SimulationData } from '../lib/types'
 
 interface GraphPreviewProps {
   data: SimulationData | null
@@ -21,7 +21,8 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
   useEffect(() => {
     if (data && data.particles && data.bonds) {
       // Create a preview of the largest cluster
-      const clusters = data.clusters || []
+      const clustersAny = data.clusters || []
+      const clusters = (clustersAny as any[]).map((c) => Array.isArray(c) ? { particles: c } : c)
       if (clusters.length > 0) {
         // Find the largest cluster
         const largestCluster = clusters.reduce((max, cluster) => 
@@ -31,14 +32,14 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
         if (largestCluster.particles.length > 1) {
           // Get particles and bonds for this cluster
           const clusterParticles = largestCluster.particles
-          const clusterBonds = data.bonds.filter(bond => 
-            clusterParticles.includes(bond.particle_i) && 
-            clusterParticles.includes(bond.particle_j)
-          )
+          const bondsAny = data.bonds as any[]
+          const clusterBonds = bondsAny
+            .map((b: any) => Array.isArray(b) ? { particle_i: b[0], particle_j: b[1] } : b)
+            .filter((bond: any) => clusterParticles.includes(bond.particle_i) && clusterParticles.includes(bond.particle_j))
 
           // Map to local indices
           const particleMap = new Map<number, number>()
-          clusterParticles.forEach((particleId, index) => {
+          ;(clusterParticles as number[]).forEach((particleId: number, index: number) => {
             particleMap.set(particleId, index)
           })
 
@@ -47,12 +48,12 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
             particleMap.get(bond.particle_j) || 0
           ])
 
-          const localParticles: [number, number][] = clusterParticles.map(particleId => 
-            data.particles.positions[particleId] || [0, 0]
+          const localParticles: [number, number][] = (clusterParticles as number[]).map((particleId: number) => 
+            (data.particles as any).positions[particleId] || [0, 0]
           )
 
-          const localAttributes: [number, number, number, number][] = clusterParticles.map(particleId => 
-            data.particles.attributes[particleId] || [1, 0, 0, 0]
+          const localAttributes: [number, number, number, number][] = (clusterParticles as number[]).map((particleId: number) => 
+            (data.particles as any).attributes[particleId] || [1, 0, 0, 0]
           )
 
           setPreviewData({
@@ -196,7 +197,7 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
         <div className="mt-4">
           <h4 className="text-sm font-semibold text-white mb-2">Select Cluster</h4>
           <div className="space-y-1">
-            {data.clusters.slice(0, 5).map((cluster, index) => (
+            {(data.clusters as any[]).slice(0, 5).map((cluster: any, index: number) => (
               <button
                 key={index}
                 className={`w-full text-left px-2 py-1 rounded text-xs ${
@@ -206,7 +207,7 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
                 }`}
                 onClick={() => onSubstanceSelect(`cluster_${index}`)}
               >
-                Cluster {index + 1}: {cluster.particles.length} particles
+                Cluster {index + 1}: {(Array.isArray(cluster) ? cluster.length : cluster.particles.length)} particles
               </button>
             ))}
           </div>

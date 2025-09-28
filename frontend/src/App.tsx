@@ -13,6 +13,10 @@ const App: React.FC = () => {
   const [simulationData, setSimulationData] = useState<SimulationData | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [selectedSubstance, setSelectedSubstance] = useState<string | null>(null)
+  const [mode, setMode] = useState<'preset_prebiotic' | 'open_chemistry'>('open_chemistry')
+  const [runtimeStartMs, setRuntimeStartMs] = useState<number | null>(null)
+  const [runtimeAccumulatedMs, setRuntimeAccumulatedMs] = useState<number>(0)
+  const [runtimeNowMs, setRuntimeNowMs] = useState<number>(Date.now())
   
   const api = new SimulationAPI()
   const wsClient = new WebSocketClient()
@@ -39,13 +43,66 @@ const App: React.FC = () => {
     return () => clearInterval(interval)
   }, [simulationId])
 
+  // Runtime clock tick
+  useEffect(() => {
+    const tick = setInterval(() => setRuntimeNowMs(Date.now()), 200)
+    return () => clearInterval(tick)
+  }, [])
+
+  // Recreate simulation when mode changes
+  useEffect(() => {
+    if (!initializedRef.current) return
+    const recreate = async () => {
+      try {
+        // Disconnect current WS
+        wsClient.disconnect()
+        setIsConnected(false)
+        // Reset runtime
+        setRuntimeAccumulatedMs(0)
+        setRuntimeStartMs(null)
+        // Create new simulation in selected mode
+        const response = await api.createSimulation({
+          config: {
+            grid_height: 192,
+            grid_width: 192,
+            mode,
+            max_particles: 10000,
+            max_time: 1000,
+            dt: 0.01,
+            energy_decay: 0.95,
+            energy_threshold: 0.1,
+            particle_radius: 0.5,
+            binding_threshold: 0.8,
+            unbinding_threshold: 0.2,
+            novelty_window: 100,
+            min_cluster_size: 2,
+            vis_frequency: 5,
+            log_frequency: 100,
+            seed: Math.floor(Math.random() * 1000000)
+          },
+          mode
+        })
+        if (response.success && response.simulation_id) {
+          setSimulationId(response.simulation_id)
+          await connectWebSocket(response.simulation_id)
+          await startSimulation(response.simulation_id)
+          setRuntimeStartMs(Date.now())
+        }
+      } catch (err) {
+        console.error('Failed to recreate simulation:', err)
+      }
+    }
+    recreate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
   const initializeSimulation = async () => {
     try {
       const response = await api.createSimulation({
         config: {
-          grid_height: 256,
-          grid_width: 256,
-          mode: 'open_chemistry',
+          grid_height: 192,
+          grid_width: 192,
+          mode,
           max_particles: 10000,
           max_time: 1000,
           dt: 0.01,
@@ -56,17 +113,20 @@ const App: React.FC = () => {
           unbinding_threshold: 0.2,
           novelty_window: 100,
           min_cluster_size: 2,
-          vis_frequency: 10,
+          vis_frequency: 1,
           log_frequency: 100,
           seed: Math.floor(Math.random() * 1000000)
         },
-        mode: 'open_chemistry'
+        mode
       })
 
       if (response.success && response.simulation_id) {
         setSimulationId(response.simulation_id)
         await connectWebSocket(response.simulation_id)
         await startSimulation(response.simulation_id)
+        // start wall-clock runtime
+        setRuntimeAccumulatedMs(0)
+        setRuntimeStartMs(Date.now())
       }
     } catch (error) {
       console.error('Failed to initialize simulation:', error)
@@ -113,6 +173,11 @@ const App: React.FC = () => {
     try {
       await api.pauseSimulation(simulationId)
       await updateStatus(simulationId)
+      // accumulate runtime and stop clock
+      if (runtimeStartMs !== null) {
+        setRuntimeAccumulatedMs(prev => prev + (Date.now() - runtimeStartMs))
+        setRuntimeStartMs(null)
+      }
     } catch (error) {
       console.error('Failed to pause simulation:', error)
     }
@@ -124,6 +189,10 @@ const App: React.FC = () => {
     try {
       await api.resumeSimulation(simulationId)
       await updateStatus(simulationId)
+      // resume wall-clock
+      if (runtimeStartMs === null) {
+        setRuntimeStartMs(Date.now())
+      }
     } catch (error) {
       console.error('Failed to resume simulation:', error)
     }
@@ -137,6 +206,11 @@ const App: React.FC = () => {
       wsClient.disconnect()
       setIsConnected(false)
       await updateStatus(simulationId)
+      // stop wall-clock without resetting accumulated (keeps total)
+      if (runtimeStartMs !== null) {
+        setRuntimeAccumulatedMs(prev => prev + (Date.now() - runtimeStartMs))
+        setRuntimeStartMs(null)
+      }
     } catch (error) {
       console.error('Failed to stop simulation:', error)
     }
@@ -148,6 +222,9 @@ const App: React.FC = () => {
     try {
       await api.resetSimulation(simulationId)
       await updateStatus(simulationId)
+      // reset wall-clock
+      setRuntimeAccumulatedMs(0)
+      setRuntimeStartMs(Date.now())
     } catch (error) {
       console.error('Failed to reset simulation:', error)
     }
@@ -190,6 +267,16 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-300">Mode:</label>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as any)}
+            className="text-sm px-2 py-1 border border-white/20 rounded bg-white/10 text-white"
+          >
+            <option value="open_chemistry">Open Chemistry</option>
+            <option value="preset_prebiotic">Preset Prebiotic</option>
+          </select>
+          
           <button
             className="btn btn-primary"
             onClick={status?.is_paused ? resumeSimulation : pauseSimulation}
@@ -225,6 +312,7 @@ const App: React.FC = () => {
             simulationId={simulationId}
             status={status}
             onStatusUpdate={updateStatus}
+            runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
           />
           
           {simulationData && (

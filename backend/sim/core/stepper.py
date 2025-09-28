@@ -18,6 +18,8 @@ from .catalog import SubstanceCatalog
 from .metrics import MetricsCollector, NoveltyTracker, MetricsAggregator
 from .energy import EnergyManager
 from .rng import RNG
+from .fields_ca import PresetPrebioticSimulator
+from ..io.snapshot import SnapshotSerializer
 
 class SimulationStepper:
     """Main simulation coordinator"""
@@ -26,6 +28,7 @@ class SimulationStepper:
         self.config = config
         self.current_time = 0.0
         self.step_count = 0
+        self._current_dt = float(config.dt)
         
         # Initialize components
         self.grid = Grid(config)
@@ -46,6 +49,7 @@ class SimulationStepper:
         # Mode-specific configurations
         self.preset_config = PresetPrebioticConfig()
         self.open_chemistry_config = OpenChemistryConfig()
+        self.preset_simulator = None
         
         # Simulation state
         self.is_running = False
@@ -67,36 +71,19 @@ class SimulationStepper:
     
     def initialize_preset_mode(self):
         """Initialize preset prebiotic mode"""
-        # Add initial particles based on preset configuration
-        species = self.preset_config.species
+        # Initialize the preset fields/chemistry simulator
+        self.preset_simulator = PresetPrebioticSimulator(
+            self.preset_config,
+            self.config.grid_width,
+            self.config.grid_height,
+        )
         
-        for species_name, concentration in species.items():
-            if concentration > 0:
-                # Register particle type
-                type_id = self.particles.register_particle_type(
-                    name=species_name,
-                    mass=1.0,
-                    charge=(0.0, 0.0, 0.0)
-                )
-                
-                # Add particles randomly distributed
-                num_particles = int(concentration * self.config.max_particles)
-                for _ in range(num_particles):
-                    # Use Python-side RNG to avoid calling @ti.func from Python scope
-                    px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
-                    vx, vy = self.rng.py_next_vector2(-1.0, 1.0)
-                    pos = ti.Vector([px, py])
-                    vel = ti.Vector([vx, vy])
-                    attributes = ti.Vector([1.0, 0.0, 0.0, 0.0])  # mass, charge_x, charge_y, charge_z
-                    self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
-        
-        # Add energy sources
+        # Add energy sources for preset mode as well
         for _ in range(self.open_chemistry_config.energy_sources):
             px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
             pos = ti.Vector([px, py])
             intensity = self.open_chemistry_config.energy_intensity
             radius = 10.0
-            
             self.energy_manager.add_energy_source(
                 (float(pos[0]), float(pos[1])), intensity, radius, duration=100.0
             )
@@ -146,7 +133,18 @@ class SimulationStepper:
     def step(self, dt: float = None):
         """Perform one simulation step"""
         if dt is None:
-            dt = self.config.dt
+            # Adaptive timestep based on recent energy mean (simple controller)
+            recent_mean = self.aggregator.aggregated_stats.get('energy_field_mean', None)
+            base_dt = float(self.config.dt)
+            if recent_mean is None:
+                self._current_dt = base_dt
+            else:
+                # Scale dt inversely with energy; clamp to [base_dt/4, base_dt]
+                # target_mean ~ 0.1
+                target = 0.1
+                factor = max(0.25, min(1.0, target / max(recent_mean, 1e-6)))
+                self._current_dt = base_dt * factor
+            dt = self._current_dt
         
         if not self.is_running or self.is_paused:
             return
@@ -157,72 +155,85 @@ class SimulationStepper:
             # Update energy system
             print(f"STEP {self.step_count + 1}: Updating energy system")
             self.energy_manager.update(dt)
-            
-            # Update particle positions
-            print(f"STEP {self.step_count + 1}: Updating particle positions")
-            self.particles.update_positions(dt)
-            
-            # Update spatial hash
-            print(f"STEP {self.step_count + 1}: Updating spatial hash")
-            self.grid.update_spatial_hash()
-            
-            # Compute forces
-            print(f"STEP {self.step_count + 1}: Computing forces")
-            self.potentials.compute_forces(
-                self.particles.positions,
-                self.particles.attributes,
-                self.particles.active,
-                self.particles.particle_count[None]
-            )
-            
-            # Apply forces
-            print(f"STEP {self.step_count + 1}: Applying forces")
-            self.particles.apply_forces(self.potentials.forces, dt)
-            
-            # Update binding system
-            print(f"STEP {self.step_count + 1}: Updating binding system")
-            self.binding.update_bonds(
-                self.particles.positions,
-                self.particles.attributes,
-                self.particles.active,
-                self.particles.particle_count[None],
-                dt
-            )
-            
-            # Update clusters
-            print(f"STEP {self.step_count + 1}: Updating clusters")
-            self.binding.update_clusters(
-                self.particles.active,
-                self.particles.particle_count[None]
-            )
-            
-            # Apply periodic boundary conditions
-            print(f"STEP {self.step_count + 1}: Applying periodic boundary conditions")
-            self.grid.apply_periodic_boundary()
-            
-            # Update energy field
-            print(f"STEP {self.step_count + 1}: Updating energy field")
-            self.grid.decay_energy_field(self.config.energy_decay)
-            
-            # Add energy from sources to particles
-            print(f"STEP {self.step_count + 1}: Adding energy to particles")
-            self.add_energy_to_particles()
-            
-            # Apply mutations in high energy regions
-            print(f"STEP {self.step_count + 1}: Applying mutations")
-            self.apply_mutations(dt)
-            
-            # Update graph representation
-            print(f"STEP {self.step_count + 1}: Updating graph representation")
-            self.update_graph_representation()
-            
-            # Detect novel substances
-            print(f"STEP {self.step_count + 1}: Detecting novel substances")
-            self.detect_novel_substances()
-            
-            # Update metrics
-            print(f"STEP {self.step_count + 1}: Updating metrics")
-            self.update_metrics()
+
+            if self.config.mode == "preset_prebiotic":
+                # Synchronize preset energy field with main energy system (read-only copy)
+                if self.preset_simulator is not None:
+                    energy_np = self.energy_manager.energy_system.energy_field.to_numpy()
+                    self.preset_simulator.energy_field.from_numpy(energy_np)
+                    # Step preset chemistry
+                    print(f"STEP {self.step_count + 1}: Stepping preset prebiotic simulator")
+                    self.preset_simulator.step(dt)
+                # Metrics for preset mode
+                print(f"STEP {self.step_count + 1}: Updating metrics (preset)")
+                self.update_metrics()
+            else:
+                # Open chemistry branch
+                # Update particle positions
+                print(f"STEP {self.step_count + 1}: Updating particle positions")
+                self.particles.update_positions(dt)
+                
+                # Update spatial hash
+                print(f"STEP {self.step_count + 1}: Updating spatial hash")
+                self.grid.update_spatial_hash()
+                
+                # Compute forces
+                print(f"STEP {self.step_count + 1}: Computing forces")
+                self.potentials.compute_forces(
+                    self.particles.positions,
+                    self.particles.attributes,
+                    self.particles.active,
+                    self.particles.particle_count[None]
+                )
+                
+                # Apply forces
+                print(f"STEP {self.step_count + 1}: Applying forces")
+                self.particles.apply_forces(self.potentials.forces, dt)
+                
+                # Update binding system
+                print(f"STEP {self.step_count + 1}: Updating binding system")
+                self.binding.update_bonds(
+                    self.particles.positions,
+                    self.particles.attributes,
+                    self.particles.active,
+                    self.particles.particle_count[None],
+                    dt
+                )
+                
+                # Update clusters
+                print(f"STEP {self.step_count + 1}: Updating clusters")
+                self.binding.update_clusters(
+                    self.particles.active,
+                    self.particles.particle_count[None]
+                )
+                
+                # Apply periodic boundary conditions
+                print(f"STEP {self.step_count + 1}: Applying periodic boundary conditions")
+                self.grid.apply_periodic_boundary()
+                
+                # Update energy field (legacy decay path)
+                print(f"STEP {self.step_count + 1}: Updating energy field (grid decay)")
+                self.grid.decay_energy_field(self.config.energy_decay)
+                
+                # Add energy from sources to particles
+                print(f"STEP {self.step_count + 1}: Adding energy to particles")
+                self.add_energy_to_particles()
+                
+                # Apply mutations in high energy regions
+                print(f"STEP {self.step_count + 1}: Applying mutations")
+                self.apply_mutations(dt)
+                
+                # Update graph representation
+                print(f"STEP {self.step_count + 1}: Updating graph representation")
+                self.update_graph_representation()
+                
+                # Detect novel substances
+                print(f"STEP {self.step_count + 1}: Detecting novel substances")
+                self.detect_novel_substances()
+                
+                # Update metrics
+                print(f"STEP {self.step_count + 1}: Updating metrics")
+                self.update_metrics()
             
         except Exception as e:
             print(f"STEP {self.step_count + 1}: ERROR - {e}")
@@ -466,30 +477,43 @@ class SimulationStepper:
     
     def get_visualization_data(self) -> Dict:
         """Get data for visualization"""
-        # Get particle data
-        positions, velocities, attributes, active_mask = self.particles.get_active_particles()
-        
-        # Get energy field
-        energy_field = self.energy_manager.energy_system.energy_field.to_numpy()
-        
-        # Get bonds
-        bonds = self.binding.get_bonds()
-        
-        # Get clusters
-        clusters = self.binding.get_clusters()
-        
-        return {
-            'particles': {
-                'positions': positions.tolist(),
-                # 'velocities': velocities.tolist(),  # keep optional for now
-                'attributes': attributes.tolist(),
-                'active_mask': active_mask.tolist()
-            },
-            'energy_field': energy_field.tolist(),
-            'bonds': bonds,
-            'clusters': clusters,
+        data = {
             'metrics': self.aggregator.get_aggregated_stats()
         }
+        
+        # Energy field (always present)
+        energy_field = self.energy_manager.energy_system.energy_field.to_numpy()
+        data['energy_field'] = energy_field.tolist()
+        
+        if self.config.mode == "preset_prebiotic":
+            # Provide concentration fields for preset mode
+            if self.preset_simulator is not None:
+                # Extract only one channel (selected species index 0 by default) to reduce bandwidth
+                try:
+                    conc = self.preset_simulator.concentration_fields.get_all_concentrations()
+                    # pick first available species
+                    first_key = next(iter(conc.keys())) if conc else None
+                    if first_key is not None:
+                        data['concentration_view'] = conc[first_key].tolist()
+                        data['concentration_species'] = list(conc.keys())
+                        # Back-compat: also provide single-key concentrations for older clients
+                        data['concentrations'] = {first_key: conc[first_key].tolist()}
+                except Exception:
+                    pass
+        else:
+            # Provide particle/bond/cluster data for open chemistry
+            positions, velocities, attributes, active_mask = self.particles.get_active_particles()
+            bonds = self.binding.get_bonds()
+            clusters = self.binding.get_clusters()
+            data['particles'] = {
+                'positions': positions.tolist(),
+                'attributes': attributes.tolist(),
+                'active_mask': active_mask.tolist()
+            }
+            data['bonds'] = bonds
+            data['clusters'] = clusters
+        
+        return data
     
     def get_novel_substances(self, count: int = 10) -> List[Dict]:
         """Get recent novel substances"""
@@ -498,45 +522,17 @@ class SimulationStepper:
         return [substance.to_dict() for substance in recent_substances]
     
     def save_snapshot(self, filename: str):
-        """Save simulation snapshot"""
-        snapshot = {
-            'config': self.config.dict(),
-            'current_time': self.current_time,
-            'step_count': self.step_count,
-            'particles': self.particles.get_active_particles(),
-            'bonds': self.binding.get_bonds(),
-            'clusters': self.binding.get_clusters(),
-            'energy_field': self.energy_manager.energy_system.energy_field.to_numpy().tolist(),
-            'catalog': {
-                'substances': {k: v.to_dict() for k, v in self.catalog.substances.items()},
-                'statistics': self.catalog.get_catalog_stats()
-            },
-            'metrics': self.aggregator.get_aggregated_stats()
-        }
-        
+        """Save simulation snapshot using serializer"""
+        snapshot = SnapshotSerializer.serialize_simulation(self)
         import json
         with open(filename, 'w') as f:
             json.dump(snapshot, f, indent=2)
     
     def load_snapshot(self, filename: str):
-        """Load simulation snapshot"""
+        """Load simulation snapshot using serializer"""
         import json
         with open(filename, 'r') as f:
             snapshot = json.load(f)
-        
-        # Load configuration
-        self.config = SimulationConfig(**snapshot['config'])
-        
-        # Load simulation state
-        self.current_time = snapshot['current_time']
-        self.step_count = snapshot['step_count']
-        
-        # Load particles
-        self.particles.reset()
-        # ... (implement particle loading)
-        
-        # Load other components
-        # ... (implement loading for other components)
-        
-        # Update metrics
-        self.update_metrics()
+        if not SnapshotSerializer.validate_snapshot(snapshot):
+            raise ValueError("Invalid snapshot data")
+        SnapshotSerializer.deserialize_simulation(snapshot, self)

@@ -28,8 +28,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Taichi first
-ti.init(arch=ti.cpu)
+# Initialize Taichi: prefer CUDA, then Vulkan, then CPU
+try:
+    if hasattr(ti, 'cuda') and ti.cuda.is_available():
+        ti.init(arch=ti.cuda)
+    elif hasattr(ti, 'vulkan'):
+        ti.init(arch=ti.vulkan)
+    else:
+        ti.init(arch=ti.cpu)
+except Exception:
+    ti.init(arch=ti.cpu)
 
 from sim.config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
 from sim.core.stepper import SimulationStepper
@@ -75,8 +83,9 @@ class Live2Server:
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self.snapshot_manager = SnapshotManager()
         
-        # WebSocket broadcasting
+        # WebSocket broadcasting and simulation loops
         self.broadcast_tasks: Dict[str, asyncio.Task] = {}
+        self.simulation_tasks: Dict[str, asyncio.Task] = {}
         
         # Default configuration
         self.default_config = SimulationConfig()
@@ -102,6 +111,8 @@ class Live2Server:
         async def create_simulation(request: SimulationRequest):
             """Create a new simulation"""
             try:
+                # Enforce single simulation: stop and cleanup existing ones
+                self.stop_all_simulations()
                 # Create simulation ID
                 simulation_id = f"sim_{int(time.time() * 1000)}"
                 
@@ -154,6 +165,8 @@ class Live2Server:
             
             simulation = self.simulations[simulation_id]
             simulation.start()
+            # Ensure simulation loop is running in background (non-blocking)
+            self.start_simulation_loop(simulation_id)
             
             return {"success": True, "message": "Simulation started"}
         
@@ -192,6 +205,11 @@ class Live2Server:
             if simulation_id in self.broadcast_tasks:
                 self.broadcast_tasks[simulation_id].cancel()
                 del self.broadcast_tasks[simulation_id]
+            # Stop simulation loop and cleanup resources
+            if simulation_id in self.simulation_tasks:
+                self.simulation_tasks[simulation_id].cancel()
+                del self.simulation_tasks[simulation_id]
+            self.cleanup_simulation(simulation_id)
             
             return {"success": True, "message": "Simulation stopped"}
         
@@ -275,6 +293,8 @@ class Live2Server:
             if not simulation.is_running:
                 logger.info(f"Starting simulation {simulation_id}")
                 simulation.start()
+            # Start background simulation loop (avoid stepping in broadcast task)
+            self.start_simulation_loop(simulation_id)
             
             # Start broadcasting if not already started
             if simulation_id not in self.broadcast_tasks:
@@ -284,9 +304,9 @@ class Live2Server:
                 )
             
             try:
+                # Passive keep-alive; disconnections are handled in broadcast on send failure
                 while True:
-                    # Keep connection alive
-                    await websocket.receive_text()
+                    await asyncio.sleep(30)
             except WebSocketDisconnect:
                 # Remove connection
                 if websocket in self.active_connections[simulation_id]:
@@ -305,31 +325,50 @@ class Live2Server:
         
         while True:
             try:
-                # Advance simulation to ensure time progresses while streaming
-                logger.info(f"BROADCAST: About to step simulation {simulation_id} - current_time={simulation.current_time:.6f}, step_count={simulation.step_count}")
-                simulation.step()
-                logger.info(f"BROADCAST: Step completed for simulation {simulation_id} - current_time={simulation.current_time:.6f}, step_count={simulation.step_count}")
-                
+                # Skip frames to reduce bandwidth based on vis_frequency
+                vis_freq = getattr(simulation.config, 'vis_frequency', 10)
+                if vis_freq is None or vis_freq <= 0:
+                    vis_freq = 10
+                if simulation.step_count % int(vis_freq) != 0:
+                    await asyncio.sleep(0.01)
+                    continue
+
                 # Get visualization data
                 logger.debug(f"Getting visualization data for simulation {simulation_id}")
                 data = simulation.get_visualization_data()
+
+                # Lightweight downsampling for large fields
+                def _downsample_2x(arr2d):
+                    try:
+                        import numpy as _np
+                        a = _np.asarray(arr2d)
+                        h, w = a.shape
+                        if h >= 2 and w >= 2:
+                            a = a[:h - (h % 2), :w - (w % 2)]
+                            a = a.reshape(a.shape[0]//2, 2, a.shape[1]//2, 2).mean(axis=(1, 3))
+                        return a.tolist()
+                    except Exception:
+                        return arr2d
+
+                if isinstance(data.get('energy_field'), list) and len(data['energy_field']) >= 256:
+                    data['energy_field'] = _downsample_2x(data['energy_field'])
+                if isinstance(data.get('concentration_view'), list) and len(data['concentration_view']) >= 256:
+                    data['concentration_view'] = _downsample_2x(data['concentration_view'])
                 
-                # Serialize data
-                if len(data['particles']['positions']) > 0:
-                    # Use msgpack for binary data
-                    binary_data = msgpack.packb(data)
-                    
-                    # Send to all connected clients
-                    disconnected = []
-                    for websocket in self.active_connections[simulation_id]:
-                        try:
-                            await websocket.send_bytes(binary_data)
-                        except:
-                            disconnected.append(websocket)
-                    
-                    # Remove disconnected clients
-                    for websocket in disconnected:
-                        self.active_connections[simulation_id].remove(websocket)
+                # Serialize data (send even if no particles, e.g., preset mode concentrations)
+                binary_data = msgpack.packb(data)
+                
+                # Send to all connected clients
+                disconnected = []
+                for websocket in self.active_connections[simulation_id]:
+                    try:
+                        await websocket.send_bytes(binary_data)
+                    except:
+                        disconnected.append(websocket)
+                
+                # Remove disconnected clients
+                for websocket in disconnected:
+                    self.active_connections[simulation_id].remove(websocket)
                 
                 # Wait before next broadcast (about 30 FPS)
                 await asyncio.sleep(0.033)
@@ -353,7 +392,8 @@ class Live2Server:
     def start_simulation_loop(self, simulation_id: str):
         """Start simulation loop"""
         if simulation_id in self.simulations:
-            asyncio.create_task(self.run_simulation_loop(simulation_id))
+            if simulation_id not in self.simulation_tasks or self.simulation_tasks[simulation_id].done():
+                self.simulation_tasks[simulation_id] = asyncio.create_task(self.run_simulation_loop(simulation_id))
     
     def cleanup_simulation(self, simulation_id: str):
         """Clean up simulation resources"""
@@ -366,6 +406,31 @@ class Live2Server:
         if simulation_id in self.broadcast_tasks:
             self.broadcast_tasks[simulation_id].cancel()
             del self.broadcast_tasks[simulation_id]
+        if simulation_id in self.simulation_tasks:
+            self.simulation_tasks[simulation_id].cancel()
+            del self.simulation_tasks[simulation_id]
+
+    def stop_all_simulations(self):
+        """Stop and cleanup all running simulations (single-sim policy)"""
+        for sim_id in list(self.simulations.keys()):
+            try:
+                self.simulations[sim_id].stop()
+            except Exception:
+                pass
+            if sim_id in self.broadcast_tasks:
+                try:
+                    self.broadcast_tasks[sim_id].cancel()
+                except Exception:
+                    pass
+                self.broadcast_tasks.pop(sim_id, None)
+            if sim_id in self.simulation_tasks:
+                try:
+                    self.simulation_tasks[sim_id].cancel()
+                except Exception:
+                    pass
+                self.simulation_tasks.pop(sim_id, None)
+            self.active_connections.pop(sim_id, None)
+            self.simulations.pop(sim_id, None)
 
 # Global server instance
 server = Live2Server()

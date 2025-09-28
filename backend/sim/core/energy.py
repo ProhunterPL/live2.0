@@ -20,6 +20,8 @@ class EnergySystem:
         
         # Energy field
         self.energy_field = ti.field(dtype=ti.f32, shape=(self.width, self.height))
+        # Temp field for diffusion (preallocated to avoid Taichi-scope allocation)
+        self._temp_field = ti.field(dtype=ti.f32, shape=(self.width, self.height))
         
         # Energy sources
         self.max_sources = 10
@@ -123,12 +125,9 @@ class EnergySystem:
     @ti.kernel
     def apply_diffusion(self, dt: ti.f32):
         """Apply energy diffusion using discrete Laplacian"""
-        # Create temporary field for diffusion
-        temp_field = ti.field(dtype=ti.f32, shape=(self.width, self.height))
-        
-        # Copy current field
+        # Copy current field to preallocated temp field
         for i, j in ti.ndrange(self.width, self.height):
-            temp_field[i, j] = self.energy_field[i, j]
+            self._temp_field[i, j] = self.energy_field[i, j]
         
         # Apply diffusion kernel
         diffusion_rate = self.energy_diffusion_rate[None]
@@ -141,9 +140,9 @@ class EnergySystem:
             down = (j + 1) % self.height
             
             # Discrete Laplacian
-            laplacian = (temp_field[left, j] + temp_field[right, j] + 
-                        temp_field[i, up] + temp_field[i, down] - 
-                        4.0 * temp_field[i, j])
+            laplacian = (self._temp_field[left, j] + self._temp_field[right, j] + 
+                        self._temp_field[i, up] + self._temp_field[i, down] - 
+                        4.0 * self._temp_field[i, j])
             
             # Update energy field
             self.energy_field[i, j] += diffusion_rate * laplacian * dt
@@ -155,6 +154,13 @@ class EnergySystem:
         
         for i, j in ti.ndrange(self.width, self.height):
             self.energy_field[i, j] *= decay_rate
+
+    @ti.kernel
+    def apply_thermostat(self, target: ti.f32, alpha: ti.f32):
+        """Gently pull energy towards a target level (global thermostat)"""
+        for i, j in ti.ndrange(self.width, self.height):
+            e = self.energy_field[i, j]
+            self.energy_field[i, j] = e + alpha * (target - e)
     
     @ti.kernel
     def add_energy_impulse(self, pos: ti.template(), intensity: ti.f32, 
@@ -362,6 +368,9 @@ class EnergyManager:
         
         # Update energy system
         self.energy_system.update_energy_field(dt)
+        # Diffuse energy and apply gentle thermostat toward target (use energy_threshold as target)
+        self.energy_system.apply_diffusion(dt)
+        self.energy_system.apply_thermostat(float(self.config.energy_threshold), 0.01)
     
     def get_energy_at_position(self, position: Tuple[float, float]) -> float:
         """Get energy at a specific position"""

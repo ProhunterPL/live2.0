@@ -9,6 +9,7 @@ import os
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import numpy as np
+import taichi as ti
 
 class SnapshotManager:
     """Manages simulation snapshots"""
@@ -218,7 +219,7 @@ class SnapshotSerializer:
                 )
                 
                 # Add particle
-                simulation.particles.add_particle(pos_ti, vel_ti, attr_ti, type_id, 2, 1.0)
+                simulation.particles.add_particle_py(pos_ti, vel_ti, attr_ti, type_id, 2, 1.0)
         
         # Load bonds
         bonds = snapshot_data["bonds"]
