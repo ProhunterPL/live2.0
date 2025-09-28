@@ -18,8 +18,8 @@ const App: React.FC = () => {
   const [runtimeAccumulatedMs, setRuntimeAccumulatedMs] = useState<number>(0)
   const [runtimeNowMs, setRuntimeNowMs] = useState<number>(Date.now())
   
-  const api = new SimulationAPI()
-  const wsClient = new WebSocketClient()
+  const api = useRef(new SimulationAPI()).current
+  const wsClient = useRef(new WebSocketClient()).current
 
   const initializedRef = useRef(false)
   useEffect(() => {
@@ -32,7 +32,7 @@ const App: React.FC = () => {
       // Cleanup: only disconnect WS; don't stop simulation implicitly in dev
       wsClient.disconnect()
     }
-  }, [])
+  }, [wsClient])
 
   // Poll status periodically so the time advances even if WS data is delayed
   useEffect(() => {
@@ -41,7 +41,7 @@ const App: React.FC = () => {
       updateStatus(simulationId)
     }, 1000)
     return () => clearInterval(interval)
-  }, [simulationId])
+  }, [simulationId, api])
 
   // Runtime clock tick
   useEffect(() => {
@@ -85,8 +85,9 @@ const App: React.FC = () => {
         if (response.success && response.simulation_id) {
           setSimulationId(response.simulation_id)
           await connectWebSocket(response.simulation_id)
-          await startSimulation(response.simulation_id)
-          setRuntimeStartMs(Date.now())
+          // Don't auto-start simulation - wait for user to press play
+          // await startSimulation(response.simulation_id)
+          setRuntimeStartMs(null)
         }
       } catch (err) {
         console.error('Failed to recreate simulation:', err)
@@ -94,7 +95,7 @@ const App: React.FC = () => {
     }
     recreate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [mode, api, wsClient])
 
   const initializeSimulation = async () => {
     try {
@@ -123,10 +124,11 @@ const App: React.FC = () => {
       if (response.success && response.simulation_id) {
         setSimulationId(response.simulation_id)
         await connectWebSocket(response.simulation_id)
-        await startSimulation(response.simulation_id)
+        // Don't auto-start simulation - wait for user to press play
+        // await startSimulation(response.simulation_id)
         // start wall-clock runtime
         setRuntimeAccumulatedMs(0)
-        setRuntimeStartMs(Date.now())
+        setRuntimeStartMs(null)
       }
     } catch (error) {
       console.error('Failed to initialize simulation:', error)
@@ -162,6 +164,8 @@ const App: React.FC = () => {
     try {
       await api.startSimulation(id)
       await updateStatus(id)
+      // start wall-clock runtime
+      setRuntimeStartMs(Date.now())
     } catch (error) {
       console.error('Failed to start simulation:', error)
     }
@@ -279,17 +283,17 @@ const App: React.FC = () => {
           
           <button
             className="btn btn-primary"
-            onClick={status?.is_paused ? resumeSimulation : pauseSimulation}
-            disabled={!status?.is_running}
+            onClick={status?.is_running ? (status?.is_paused ? resumeSimulation : pauseSimulation) : () => startSimulation(simulationId!)}
+            disabled={!simulationId}
           >
-            {status?.is_paused ? <Play size={16} /> : <Pause size={16} />}
-            {status?.is_paused ? 'Resume' : 'Pause'}
+            {status?.is_running ? (status?.is_paused ? <Play size={16} /> : <Pause size={16} />) : <Play size={16} />}
+            {status?.is_running ? (status?.is_paused ? 'Resume' : 'Pause') : 'Start'}
           </button>
           
           <button
             className="btn btn-danger"
             onClick={stopSimulation}
-            disabled={!status?.is_running}
+            disabled={!simulationId}
           >
             <Square size={16} />
             Stop

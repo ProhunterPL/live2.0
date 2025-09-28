@@ -281,20 +281,21 @@ class Live2Server:
             
             if simulation_id not in self.simulations:
                 logger.error(f"Simulation {simulation_id} not found")
-                await websocket.close(code=1008, reason="Simulation not found")
+                try:
+                    await websocket.close(code=1008, reason="Simulation not found")
+                except Exception as e:
+                    logger.warning(f"Failed to close WebSocket for simulation {simulation_id}: {e}")
                 return
             
             # Add connection to active connections
+            if simulation_id not in self.active_connections:
+                self.active_connections[simulation_id] = []
             self.active_connections[simulation_id].append(websocket)
             logger.info(f"Added WebSocket connection for simulation {simulation_id}")
             
-            # Ensure simulation is running when a client connects
+            # Don't auto-start simulation - wait for explicit start command from frontend
             simulation = self.simulations[simulation_id]
-            if not simulation.is_running:
-                logger.info(f"Starting simulation {simulation_id}")
-                simulation.start()
-            # Start background simulation loop (avoid stepping in broadcast task)
-            self.start_simulation_loop(simulation_id)
+            logger.info(f"WebSocket connected for simulation {simulation_id} (not auto-started)")
             
             # Start broadcasting if not already started
             if simulation_id not in self.broadcast_tasks:
@@ -355,8 +356,24 @@ class Live2Server:
                 if isinstance(data.get('concentration_view'), list) and len(data['concentration_view']) >= 256:
                     data['concentration_view'] = _downsample_2x(data['concentration_view'])
                 
-                # Serialize data (send even if no particles, e.g., preset mode concentrations)
-                binary_data = msgpack.packb(data)
+                # Convert numpy types to native Python types for serialization
+                def convert_numpy_types(obj):
+                    if isinstance(obj, np.integer):
+                        return int(obj)
+                    elif isinstance(obj, np.floating):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    elif isinstance(obj, dict):
+                        return {k: convert_numpy_types(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert_numpy_types(item) for item in obj]
+                    else:
+                        return obj
+                
+                # Convert numpy types before serialization
+                serializable_data = convert_numpy_types(data)
+                binary_data = msgpack.packb(serializable_data)
                 
                 # Send to all connected clients
                 disconnected = []
@@ -437,4 +454,11 @@ server = Live2Server()
 app = server.app
 
 if __name__ == "__main__":
+    import asyncio
+    import sys
+    
+    # Fix for Windows asyncio issues
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
