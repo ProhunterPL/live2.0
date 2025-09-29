@@ -9,7 +9,7 @@
 
 ### ❌ Co musisz zainstalować:
 - ❌ **Python 3.9+** - Wymagany dla backend
-- ❌ **pip** - Menadżer pakietów Python
+- ❌ **pip** - Menedżer pakietów Pythona
 
 ## 🛠️ Instalacja Wymaganych Narzędzi
 

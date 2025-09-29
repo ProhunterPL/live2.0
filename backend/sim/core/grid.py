@@ -98,7 +98,7 @@ class Grid:
     @ti.kernel
     def add_particle(self, pos: ti.template(), attributes: ti.template()) -> ti.i32:
         """Add a particle to the grid. Returns particle index or -1 if failed"""
-        if self.particle_count[None] >= 10000:  # Use fixed max_particles
+        if self.particle_count[None] >= self.max_particles:  # Use configured max_particles
             return -1
         
         idx = self.particle_count[None]

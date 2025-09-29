@@ -191,14 +191,31 @@ class TestSimulationAPI:
         """Test saving snapshot"""
         sim_id = self.test_create_simulation_open_chemistry()
         
+        # Test with custom filename
+        test_filename = "test_snapshot.json"
         response = client.post(f"/simulation/{sim_id}/snapshot/save", json={
-            "filename": "test_snapshot.json"
+            "filename": test_filename
         })
         
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        assert data["filename"] == "test_snapshot.json"
+        assert data["filename"] == test_filename
+        
+        # Verify file was actually written to disk
+        import os
+        assert os.path.exists(test_filename), f"Snapshot file {test_filename} was not created"
+        
+        # Verify file contains valid JSON
+        import json
+        with open(test_filename, 'r') as f:
+            snapshot_data = json.load(f)
+            assert isinstance(snapshot_data, dict), "Snapshot file should contain valid JSON"
+            assert "simulation" in snapshot_data, "Snapshot should contain simulation data"
+        
+        # Clean up the test file
+        os.remove(test_filename)
+        assert not os.path.exists(test_filename), f"Failed to clean up test file {test_filename}"
     
     def test_load_snapshot(self):
         """Test loading snapshot"""
