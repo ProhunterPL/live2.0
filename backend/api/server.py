@@ -17,12 +17,21 @@ import numpy as np
 import msgpack
 import taichi as ti
 
-# Setup logging to file
+# Setup logging to file with rotation (max 5MB)
+from logging.handlers import RotatingFileHandler
+
+# Create rotating file handler with max 5MB per file, keep 3 backup files
+file_handler = RotatingFileHandler(
+    'logs.txt', 
+    maxBytes=5*1024*1024,  # 5MB
+    backupCount=3
+)
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs.txt'),
+        file_handler,
         logging.StreamHandler()
     ]
 )

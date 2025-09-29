@@ -192,6 +192,8 @@ temp/
 # Logs
 logs
 *.log
+logs.txt
+backend/logs.txt
 
 # Runtime data
 pids
