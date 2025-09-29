@@ -1,0 +1,11 @@
+2025-09-29 15:11:06,022 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-09-29 15:11:23,391 - __main__ - INFO - WebSocket connection attempt for simulation sim_1759151475661
+2025-09-29 15:11:23,391 - __main__ - INFO - WebSocket accepted for simulation sim_1759151475661
+2025-09-29 15:11:23,392 - __main__ - ERROR - Simulation sim_1759151475661 not found
+2025-09-29 15:12:50,170 - __main__ - INFO - WebSocket connection attempt for simulation sim_1759151563669
+2025-09-29 15:12:50,170 - __main__ - INFO - WebSocket accepted for simulation sim_1759151563669
+2025-09-29 15:12:50,170 - __main__ - ERROR - Simulation sim_1759151563669 not found
+2025-09-29 15:15:01,039 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-09-29 15:15:18,971 - __main__ - INFO - WebSocket connection attempt for simulation sim_1759151711430
+2025-09-29 15:15:18,972 - __main__ - INFO - WebSocket accepted for simulation sim_1759151711430
+2025-09-29 15:15:18,973 - __main__ - ERROR - Simulation sim_1759151711430 not found

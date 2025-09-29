@@ -13,6 +13,7 @@ pydantic>=2.5.0
 # Data handling
 msgpack>=1.0.7
 h5py>=3.10.0
+networkx>=3.0
 
 # Testing
 pytest>=7.4.0

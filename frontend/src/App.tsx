@@ -63,10 +63,10 @@ const App: React.FC = () => {
         // Create new simulation in selected mode
         const response = await api.createSimulation({
           config: {
-            grid_height: 192,
-            grid_width: 192,
+            grid_height: 128,
+            grid_width: 128,
             mode,
-            max_particles: 10000,
+            max_particles: 5000,
             max_time: 1000,
             dt: 0.01,
             energy_decay: 0.95,
@@ -101,10 +101,10 @@ const App: React.FC = () => {
     try {
       const response = await api.createSimulation({
         config: {
-          grid_height: 192,
-          grid_width: 192,
+          grid_height: 128,
+          grid_width: 128,
           mode,
-          max_particles: 10000,
+          max_particles: 5000,
           max_time: 1000,
           dt: 0.01,
           energy_decay: 0.95,
@@ -114,7 +114,7 @@ const App: React.FC = () => {
           unbinding_threshold: 0.2,
           novelty_window: 100,
           min_cluster_size: 2,
-          vis_frequency: 1,
+            vis_frequency: 5,
           log_frequency: 100,
           seed: Math.floor(Math.random() * 1000000)
         },

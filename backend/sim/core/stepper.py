@@ -149,11 +149,12 @@ class SimulationStepper:
         if not self.is_running or self.is_paused:
             return
         
-        print(f"STEP {self.step_count + 1}: Starting - sim_time={self.current_time:.6f}, dt={dt:.6f}")
+        # Log only every 100 steps to reduce overhead
+        if self.step_count % 100 == 0:
+            print(f"STEP {self.step_count + 1}: Starting - sim_time={self.current_time:.6f}, dt={dt:.6f}")
         
         try:
             # Update energy system
-            print(f"STEP {self.step_count + 1}: Updating energy system")
             self.energy_manager.update(dt)
 
             if self.config.mode == "preset_prebiotic":
@@ -162,23 +163,18 @@ class SimulationStepper:
                     energy_np = self.energy_manager.energy_system.energy_field.to_numpy()
                     self.preset_simulator.energy_field.from_numpy(energy_np)
                     # Step preset chemistry
-                    print(f"STEP {self.step_count + 1}: Stepping preset prebiotic simulator")
                     self.preset_simulator.step(dt)
                 # Metrics for preset mode
-                print(f"STEP {self.step_count + 1}: Updating metrics (preset)")
                 self.update_metrics()
             else:
                 # Open chemistry branch
                 # Update particle positions
-                print(f"STEP {self.step_count + 1}: Updating particle positions")
                 self.particles.update_positions(dt)
                 
                 # Update spatial hash
-                print(f"STEP {self.step_count + 1}: Updating spatial hash")
                 self.grid.update_spatial_hash()
                 
                 # Compute forces
-                print(f"STEP {self.step_count + 1}: Computing forces")
                 self.potentials.compute_forces(
                     self.particles.positions,
                     self.particles.attributes,
@@ -187,11 +183,9 @@ class SimulationStepper:
                 )
                 
                 # Apply forces
-                print(f"STEP {self.step_count + 1}: Applying forces")
                 self.particles.apply_forces(self.potentials.forces, dt)
                 
                 # Update binding system
-                print(f"STEP {self.step_count + 1}: Updating binding system")
                 self.binding.update_bonds(
                     self.particles.positions,
                     self.particles.attributes,
@@ -201,38 +195,30 @@ class SimulationStepper:
                 )
                 
                 # Update clusters
-                print(f"STEP {self.step_count + 1}: Updating clusters")
                 self.binding.update_clusters(
                     self.particles.active,
                     self.particles.particle_count[None]
                 )
                 
                 # Apply periodic boundary conditions
-                print(f"STEP {self.step_count + 1}: Applying periodic boundary conditions")
                 self.grid.apply_periodic_boundary()
                 
                 # Update energy field (legacy decay path)
-                print(f"STEP {self.step_count + 1}: Updating energy field (grid decay)")
                 self.grid.decay_energy_field(self.config.energy_decay)
                 
                 # Add energy from sources to particles
-                print(f"STEP {self.step_count + 1}: Adding energy to particles")
                 self.add_energy_to_particles()
                 
                 # Apply mutations in high energy regions
-                print(f"STEP {self.step_count + 1}: Applying mutations")
                 self.apply_mutations(dt)
                 
                 # Update graph representation
-                print(f"STEP {self.step_count + 1}: Updating graph representation")
                 self.update_graph_representation()
                 
                 # Detect novel substances
-                print(f"STEP {self.step_count + 1}: Detecting novel substances")
                 self.detect_novel_substances()
                 
                 # Update metrics
-                print(f"STEP {self.step_count + 1}: Updating metrics")
                 self.update_metrics()
             
         except Exception as e:
@@ -244,7 +230,10 @@ class SimulationStepper:
         # Update time and step count
         self.current_time += dt
         self.step_count += 1
-        print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}")
+        
+        # Log completion only every 100 steps
+        if self.step_count % 100 == 0:
+            print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}")
     
     def add_energy_to_particles(self):
         """Add energy from field to particles"""
@@ -270,17 +259,15 @@ class SimulationStepper:
         mutation_strength = self.open_chemistry_config.mutation_strength
         
         # Throttle mutation application to avoid heavy work every step
-        mutation_interval = getattr(self.open_chemistry_config, "mutation_interval", 5)
+        mutation_interval = getattr(self.open_chemistry_config, "mutation_interval", 10)
         if mutation_interval is None or mutation_interval < 1:
-            mutation_interval = 5
+            mutation_interval = 10
         if (self.step_count % mutation_interval) != 0:
-            print(f"STEP {self.step_count + 1}: Mutations skipped (interval={mutation_interval})")
             return
         
         # Find high energy regions (may be many)
         high_energy_regions = self.energy_manager.get_high_energy_regions()
         if not high_energy_regions:
-            print(f"STEP {self.step_count + 1}: No high energy regions for mutations")
             return
         
         # Cap the number of regions processed per step
@@ -314,11 +301,13 @@ class SimulationStepper:
                         )
                         total_applied += 1
         
-        print(
-            f"STEP {self.step_count + 1}: Mutations applied={total_applied}, "
-            f"regions_considered={len(selected_regions)}/{len(high_energy_regions)}, "
-            f"interval={mutation_interval}"
-        )
+        # Log mutations only every 50 steps
+        if self.step_count % 50 == 0:
+            print(
+                f"STEP {self.step_count + 1}: Mutations applied={total_applied}, "
+                f"regions_considered={len(selected_regions)}/{len(high_energy_regions)}, "
+                f"interval={mutation_interval}"
+            )
     
     def update_graph_representation(self):
         """Update graph representation of molecular structures"""

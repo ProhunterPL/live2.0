@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useMemo } from 'react'
 import type { SimulationData } from '../lib/types'
 
 interface HeatmapCanvasProps {
@@ -19,6 +19,31 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
   const [showBonds, setShowBonds] = useState(true)
   const [particleSize, setParticleSize] = useState(2)
   const [energyOpacity, setEnergyOpacity] = useState(0.7)
+
+  // Memoize expensive calculations
+  const memoizedData = useMemo(() => {
+    if (!data) return null
+    
+    // Downsample large fields for better performance
+    const downsample = (field: number[][], factor: number = 2) => {
+      if (!field || field.length === 0) return field
+      const result: number[][] = []
+      for (let y = 0; y < field.length; y += factor) {
+        const row: number[] = []
+        for (let x = 0; x < field[0].length; x += factor) {
+          row.push(field[y][x] || 0)
+        }
+        result.push(row)
+      }
+      return result
+    }
+
+    return {
+      ...data,
+      energy_field: data.energy_field ? downsample(data.energy_field, 2) : data.energy_field,
+      concentration_view: data.concentration_view ? downsample(data.concentration_view, 2) : data.concentration_view
+    }
+  }, [data])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -48,7 +73,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !data) return
+    if (!canvas || !memoizedData) return
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -62,34 +87,60 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     ctx.fillRect(0, 0, width, height)
 
     // Draw energy field
-    if (showEnergy && data.energy_field) {
-      drawEnergyField(ctx, data.energy_field, width, height)
+    if (showEnergy && memoizedData.energy_field) {
+      drawEnergyField(ctx, memoizedData.energy_field, width, height)
     }
 
     // Draw concentration field for preset mode
-    if (data.concentrations) {
-      drawConcentrationField(ctx, data.concentrations, selectedSubstance, width, height)
+    if (memoizedData.concentrations) {
+      drawConcentrationField(ctx, memoizedData.concentrations, selectedSubstance, width, height)
     }
 
     // Draw bonds
-    if (showBonds && data.bonds && data.particles) {
-      const bonds = Array.isArray(data.bonds) && data.bonds.length > 0 && Array.isArray(data.bonds[0])
-        ? (data.bonds as [number, number, number][]).map(([i, j, s]) => ({ particle_i: i, particle_j: j, strength: s }))
-        : (data.bonds as Array<{ particle_i: number; particle_j: number; strength: number }>)
-      drawBonds(ctx, bonds, data.particles.positions, width, height)
+    if (showBonds && memoizedData.bonds && memoizedData.particles) {
+      let bonds: Array<{ particle_i: number; particle_j: number; strength: number }>
+      
+      if (Array.isArray(memoizedData.bonds) && memoizedData.bonds.length > 0) {
+        if (Array.isArray(memoizedData.bonds[0])) {
+          // Handle [number, number, number][] format
+          bonds = (memoizedData.bonds as [number, number, number][]).map(([i, j, s]) => ({ 
+            particle_i: i, 
+            particle_j: j, 
+            strength: s 
+          }))
+        } else {
+          // Handle object format
+          bonds = memoizedData.bonds as Array<{ particle_i: number; particle_j: number; strength: number }>
+        }
+      } else {
+        bonds = []
+      }
+      
+      drawBonds(ctx, bonds, memoizedData.particles.positions, width, height)
     }
 
     // Draw particles
-    if (showParticles && data.particles) {
-      drawParticles(ctx, data.particles, width, height)
+    if (showParticles && memoizedData.particles) {
+      drawParticles(ctx, memoizedData.particles, width, height)
     }
 
     // Draw mouse position info
     if (mousePos) {
-      drawMouseInfo(ctx, mousePos, data, width, height)
+      drawMouseInfo(ctx, mousePos, memoizedData, width, height)
     }
 
-  }, [data, selectedSubstance, showParticles, showEnergy, showBonds, particleSize, energyOpacity, mousePos])
+  }, [memoizedData, selectedSubstance, showParticles, showEnergy, showBonds, particleSize, energyOpacity, mousePos])
+
+  // Throttle mouse position updates to reduce re-renders
+  const throttledMouseMove = useRef<number | null>(null)
+  const handleMouseMoveThrottled = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (throttledMouseMove.current) {
+      clearTimeout(throttledMouseMove.current)
+    }
+    throttledMouseMove.current = window.setTimeout(() => {
+      handleMouseMove(event)
+    }, 16) // ~60 FPS
+  }
 
   const drawEnergyField = (
     ctx: CanvasRenderingContext2D,
@@ -208,9 +259,11 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     width: number,
     height: number
   ) => {
+    if (!particles.positions || !particles.attributes) return
+    
     particles.positions.forEach((pos, index) => {
       const attr = particles.attributes[index]
-      if (!attr) return
+      if (!attr || !pos) return
 
       const [mass, chargeX, chargeY, chargeZ] = attr
       
@@ -253,8 +306,9 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     let minDistance = Infinity
 
     const parts = data.particles
-    if (parts) {
+    if (parts && parts.positions && parts.attributes) {
       parts.positions.forEach((pos, index) => {
+        if (!pos) return
         const distance = Math.sqrt((pos[0] - simX) ** 2 + (pos[1] - simY) ** 2)
         if (distance < minDistance) {
           minDistance = distance
@@ -299,7 +353,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
       <canvas
         ref={canvasRef}
         className="heatmap-canvas"
-        onMouseMove={handleMouseMove}
+        onMouseMove={handleMouseMoveThrottled}
         onMouseLeave={handleMouseLeave}
       />
       

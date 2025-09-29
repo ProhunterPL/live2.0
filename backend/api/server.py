@@ -272,6 +272,27 @@ class Live2Server:
             
             return {"metrics": metrics}
         
+        @self.app.get("/simulation/{simulation_id}/novel-substances")
+        async def get_novel_substances(simulation_id: str, limit: int = 10):
+            """Get novel substances discovered in simulation"""
+            if simulation_id not in self.simulations:
+                raise HTTPException(status_code=404, detail="Simulation not found")
+            
+            simulation = self.simulations[simulation_id]
+            
+            # Get novel substances from simulation state or catalog
+            try:
+                if hasattr(simulation, 'catalog') and hasattr(simulation.catalog, 'get_novel_substances'):
+                    substances = simulation.catalog.get_novel_substances(limit)
+                else:
+                    # Fallback: return empty list or mock data
+                    substances = []
+                
+                return {"substances": substances}
+            except Exception as e:
+                logger.warning(f"Failed to get novel substances for simulation {simulation_id}: {e}")
+                return {"substances": []}
+        
         @self.app.websocket("/simulation/{simulation_id}/stream")
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):
             """WebSocket endpoint for real-time data streaming"""
@@ -322,10 +343,20 @@ class Live2Server:
     async def broadcast_simulation_data(self, simulation_id: str):
         """Broadcast simulation data to connected clients"""
         logger.info(f"Starting broadcast for simulation {simulation_id}")
+        
+        # Check if simulation exists
+        if simulation_id not in self.simulations:
+            logger.error(f"Simulation {simulation_id} not found for broadcast")
+            return
+            
         simulation = self.simulations[simulation_id]
         
         while True:
             try:
+                # Check if simulation still exists
+                if simulation_id not in self.simulations:
+                    logger.info(f"Simulation {simulation_id} removed, stopping broadcast")
+                    break
                 # Skip frames to reduce bandwidth based on vis_frequency
                 vis_freq = getattr(simulation.config, 'vis_frequency', 10)
                 if vis_freq is None or vis_freq <= 0:
@@ -377,24 +408,32 @@ class Live2Server:
                 
                 # Send to all connected clients
                 disconnected = []
-                for websocket in self.active_connections[simulation_id]:
-                    try:
-                        await websocket.send_bytes(binary_data)
-                    except:
-                        disconnected.append(websocket)
+                if simulation_id in self.active_connections:
+                    for websocket in self.active_connections[simulation_id]:
+                        try:
+                            await websocket.send_bytes(binary_data)
+                        except:
+                            disconnected.append(websocket)
                 
                 # Remove disconnected clients
-                for websocket in disconnected:
-                    self.active_connections[simulation_id].remove(websocket)
+                if simulation_id in self.active_connections:
+                    for websocket in disconnected:
+                        if websocket in self.active_connections[simulation_id]:
+                            self.active_connections[simulation_id].remove(websocket)
                 
-                # Wait before next broadcast (about 30 FPS)
-                await asyncio.sleep(0.033)
+                # Wait before next broadcast (about 15 FPS for better performance)
+                await asyncio.sleep(0.067)
                 
             except Exception as e:
                 logger.error(f"BROADCAST ERROR: {e}")
                 import traceback
                 logger.error(f"BROADCAST TRACEBACK: {traceback.format_exc()}")
-                # continue broadcasting despite errors
+                # Stop broadcasting if simulation is gone
+                if simulation_id not in self.simulations:
+                    logger.info(f"Simulation {simulation_id} removed, stopping broadcast due to error")
+                    break
+                # Wait a bit before retrying
+                await asyncio.sleep(1)
     
     async def run_simulation_loop(self, simulation_id: str):
         """Run simulation loop for a specific simulation"""
@@ -404,7 +443,7 @@ class Live2Server:
             if not simulation.is_paused:
                 simulation.step()
             
-            await asyncio.sleep(0.01)  # 100 FPS simulation
+            await asyncio.sleep(0.02)  # 50 FPS simulation for better performance
     
     def start_simulation_loop(self, simulation_id: str):
         """Start simulation loop"""
@@ -448,6 +487,14 @@ class Live2Server:
                 self.simulation_tasks.pop(sim_id, None)
             self.active_connections.pop(sim_id, None)
             self.simulations.pop(sim_id, None)
+        
+        # Clear any remaining broadcast tasks
+        for sim_id in list(self.broadcast_tasks.keys()):
+            try:
+                self.broadcast_tasks[sim_id].cancel()
+            except Exception:
+                pass
+            self.broadcast_tasks.pop(sim_id, None)
 
 # Global server instance
 server = Live2Server()
@@ -461,4 +508,4 @@ if __name__ == "__main__":
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="localhost", port=8000)
