@@ -504,10 +504,11 @@ class SimulationStepper:
         
         return data
     
-    def get_novel_substances(self, count: int = 10) -> List[Dict]:
+    def get_novel_substances(self, limit: int = 10) -> List[Dict]:
         """Get recent novel substances"""
-        recent_substances = self.catalog.get_recent_substances(count)
-        
+        limit = max(1, min(int(limit), 200))
+        recent_substances = self.catalog.get_recent_substances(limit)
+
         return [substance.to_dict() for substance in recent_substances]
     
     def save_snapshot(self, filename: str):

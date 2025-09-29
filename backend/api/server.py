@@ -225,15 +225,32 @@ class Live2Server:
             return {"success": True, "message": "Simulation reset"}
         
         @self.app.get("/simulation/{simulation_id}/novel-substances")
-        async def get_novel_substances(simulation_id: str, count: int = 10):
-            """Get recent novel substances"""
+        async def get_novel_substances(
+            simulation_id: str,
+            limit: int = 10,
+            count: Optional[int] = None,
+        ):
+            """Get novel substances discovered in simulation"""
             if simulation_id not in self.simulations:
                 raise HTTPException(status_code=404, detail="Simulation not found")
-            
+
+            if count is not None:
+                limit = count
+
+            limit = max(1, min(limit, 200))
+
             simulation = self.simulations[simulation_id]
-            substances = simulation.get_novel_substances(count)
-            
-            return {"substances": substances}
+
+            try:
+                substances = simulation.get_novel_substances(limit)
+            except AttributeError:
+                if hasattr(simulation, "catalog") and hasattr(simulation.catalog, "get_recent_substances"):
+                    recent = simulation.catalog.get_recent_substances(limit)
+                    substances = [substance.to_dict() for substance in recent]
+                else:
+                    substances = []
+
+            return {"substances": substances, "limit": limit}
         
         @self.app.post("/simulation/{simulation_id}/snapshot/save")
         async def save_snapshot(simulation_id: str, filename: str = None):
@@ -271,27 +288,6 @@ class Live2Server:
             metrics = simulation.aggregator.get_aggregated_stats()
             
             return {"metrics": metrics}
-        
-        @self.app.get("/simulation/{simulation_id}/novel-substances")
-        async def get_novel_substances(simulation_id: str, limit: int = 10):
-            """Get novel substances discovered in simulation"""
-            if simulation_id not in self.simulations:
-                raise HTTPException(status_code=404, detail="Simulation not found")
-            
-            simulation = self.simulations[simulation_id]
-            
-            # Get novel substances from simulation state or catalog
-            try:
-                if hasattr(simulation, 'catalog') and hasattr(simulation.catalog, 'get_novel_substances'):
-                    substances = simulation.catalog.get_novel_substances(limit)
-                else:
-                    # Fallback: return empty list or mock data
-                    substances = []
-                
-                return {"substances": substances}
-            except Exception as e:
-                logger.warning(f"Failed to get novel substances for simulation {simulation_id}: {e}")
-                return {"substances": []}
         
         @self.app.websocket("/simulation/{simulation_id}/stream")
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):

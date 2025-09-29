@@ -29,34 +29,76 @@
     **nowych** substancji), złożoność grafów, rozkłady atrybutów.\
 -   **Powtarzalność**: seedy RNG, snapshoty (checkpointy) stanu.
 
+### 0.1 Obserwacje po weryfikacji v1 i szybkie usprawnienia
+
+-   **Jedno źródło prawdy dla API i planu** – unikać duplikacji endpointów
+    oraz niespójnych kontraktów; każda funkcja powinna mieć „owner'a” w
+    planie i w kodzie.
+-   **Trzymajmy się pętli iteracyjnej**: `Plan → Implementacja → Pomiar →
+    Retrospekcja`. Każda iteracja kończy się krótkim raportem i audytem
+    metryk (w repo `reports/` + wpis w changelogu).
+-   **Priorytetyzacja przez "safety rails"**: zanim rozszerzymy fizykę,
+    domykamy stabilność, monitoring oraz regresje API. Bez działających
+    testów i obserwowalności nie przechodzimy do kolejnych faz.
+
+### 0.2 Rytm pracy (operational cadence)
+
+1. **Poniedziałek** – aktualizacja roadmapy (ten dokument) o
+   zrealizowane punkty i nowe odkrycia z ostatniego tygodnia.
+2. **Wtorek–Czwartek** – implementacja sprintowa + codzienny log
+   (skrócony changelog) w `reports/devlog.md`.
+3. **Piątek** – `stability run` (12h), analiza KPI, aktualizacja backlogu
+   ryzyk.
+4. **Stały kanał feedbacku** – wszystkie nowe pomysły / dema trafiają do
+   sekcji „Discovery Backlog” poniżej.
+
+### 0.3 Discovery Backlog (utrzymywać max 10 pozycji)
+
+1. Light-weight serializer dla klastrów (odchudzi stream o 30–40%).
+2. Narzędzia do inspekcji konfiguracji (diff seeda / parametrów między
+   snapshotami).
+3. Minimalna wizualizacja 3D (ortogonalna projekcja) jako proof-of-concept
+   dla fazy 2.4.
+4. Integracja z `wandb` / `mlflow` dla logów eksperymentalnych.
+5. Tryb headless (CLI) do batchowych runów na klastrze.
+6. Mechanizm walidacji kontraktów API (schemat JSON) – spięty z CI.
+7. Automatyczne generowanie changelogu na podstawie commitów/PR (konwencje
+   Conventional Commits).
+8. Samocertyfikacja wersji (semver + plik `VERSION`).
+9. Lekka biblioteka JS do dekodowania strumienia (wydzielić z frontendu).
+10. Analiza `novelty` w czasie rzeczywistym z adaptacyjnym progiem alertów.
+
 ------------------------------------------------------------------------
 
 ## 1) Zakres v1 (MVP)
 
-**Musi zawierać**: 1. **Siatka 2D** H×W (domyślnie 256×256), periodyczne
-brzegi.\
-2. **Dwa tryby uruchomienia**: - **A) Preset Prebiotic**: ciągłe
-stężenia kilku „chemikaliów" + parę reakcji (np. HCN→NH₂CHO) do
-weryfikacji pipeline'u i wizualizacji. - **B) Open Chemistry**
-*(domyślny)*: cząsteczki off-lattice, potencjały, tworzenie/zrywanie
-wiązań, **rejestr nowych substancji** (hash grafu).\
-3. **Źródła energii**: impulsy czasoprzestrzenne (UV/błyskawice),
-rozchodzące się plamy energii z zanikiem.\
+**Definition of Done v1 (MVP)** – wszystkie punkty poniżej muszą być
+odhaczone, zanim przejdziemy do fazy 1:
+
+1. **Siatka 2D** H×W (domyślnie 256×256), periodyczne brzegi oraz
+   aktualizowany spatial hash (✅ w repo; utrzymywać testy regresyjne).
+2. **Tryby uruchomienia**: - **A) Preset Prebiotic**: ciągłe stężenia,
+   podstawowe reakcje, walidacja strumienia. - **B) Open Chemistry**
+   *(domyślny)*: cząsteczki off-lattice, potencjały, wiązania,
+   katalogowanie nowych substancji.
+3. **Źródła energii**: impulsy czasoprzestrzenne + zanikanie;
+   parametryzowane z poziomu configu i snapshotów.
 4. **Transmutacje**: rzadkie mutacje atrybutów cząstek w obszarach
-wysokiej energii → **narodziny nowych klas „pierwiastków"**.\
-5. **Detektory nowości**: liczenie i logowanie pojawień się **nowych
-substancji** (ID grafu), ich rozmiaru, czasu życia; metryka novelty
-vs. historia.\
+   wysokiej energii → **narodziny nowych klas „pierwiastków"** (obecnie
+   TODO – zaplanowane w sprincie 0.3).
+5. **Detektory nowości**: logowanie pojawień się nowych substancji (ID
+   grafu), rozmiaru, czasu życia; pipeline `metrics → aggregator → API →
+   frontend`.
 6. **Frontend** (React + TS): heatmapy (gęstość/energia), licznik
-nowości, podgląd kilku wylosowanych klastrów jako grafów (SVG),
-pauza/wznowienie, wybór trybu.\
-7. **API** (FastAPI + WebSocket): stream ramek (binarny), endpointy
-sterujące, zrzuty snapshotów.\
-8. **Snapshoty**: zapis/odczyt stanu (particles, grafy, parametry,
-seed).\
-9. **Testy**: jednostkowe (hash grafu, katalog), property-based
-(inwarianty), testy wydajności (profiling), testy długiego biegu
-(utrzymanie novelty\>0 w czasie).
+   nowości, podgląd klastrów jako grafów (SVG), sterowanie start/pause,
+   wybór trybu. Zadbajmy o fallback „headless” (CLI) – wymóg QA.
+7. **API** (FastAPI + WebSocket): spójne endpointy REST + binarny stream
+   (msgpack) z docelowym 15 FPS. Kontrakt opisany w `backend/api/protocol.md`.
+8. **Snapshoty**: zapis/odczyt stanu (particles, grafy, parametry, seed)
+   + test regresyjny snapshotów.
+9. **Testy**: jednostkowe, property-based (inwarianty energii/masy),
+   wydajnościowe, long-run (novelty\>0). Coverage min. 70% przy
+   zakończeniu v1.
 
 **Poza zakresem v1** (opcjonalne w v1.1+): błony/kompartmenty, gradienty
 pH, formalne bilanse termodynamiczne, ewolucja potencjałów środowiska w
