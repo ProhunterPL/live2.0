@@ -9,6 +9,94 @@ import time
 from typing import List, Tuple, Dict, Optional
 from ..config import SimulationConfig
 
+# Compile-time constants
+GRID_WIDTH_COMPILE = 256
+GRID_HEIGHT_COMPILE = 256
+MAX_SOURCES_COMPILE = 10
+
+# Global Taichi fields
+energy_field_global = None
+source_positions_field = None
+source_intensities_field = None
+source_radii_field = None
+source_active_field = None
+source_count_field = None
+energy_decay_rate_field = None
+energy_diffusion_rate_field = None
+energy_threshold_field = None
+temp_field_global = None
+
+def init_energy_fields():
+    """Initialize global Taichi fields for energy"""
+    global energy_field_global, source_positions_field, source_intensities_field
+    global source_radii_field, source_active_field, source_count_field
+    global energy_decay_rate_field, energy_diffusion_rate_field, energy_threshold_field
+    global temp_field_global
+    
+    energy_field_global = ti.field(dtype=ti.f32, shape=(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE))
+    source_positions_field = ti.Vector.field(2, dtype=ti.f32, shape=(MAX_SOURCES_COMPILE,))
+    source_intensities_field = ti.field(dtype=ti.f32, shape=(MAX_SOURCES_COMPILE,))
+    source_radii_field = ti.field(dtype=ti.f32, shape=(MAX_SOURCES_COMPILE,))
+    source_active_field = ti.field(dtype=ti.i32, shape=(MAX_SOURCES_COMPILE,))
+    source_count_field = ti.field(dtype=ti.i32, shape=())
+    energy_decay_rate_field = ti.field(dtype=ti.f32, shape=())
+    energy_diffusion_rate_field = ti.field(dtype=ti.f32, shape=())
+    energy_threshold_field = ti.field(dtype=ti.f32, shape=())
+    temp_field_global = ti.field(dtype=ti.f32, shape=(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE))
+
+# Module-level kernels
+@ti.kernel
+def reset_energy_kernel():
+    """Reset energy system - module-level kernel"""
+    # Clear energy field
+    for i, j in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+        energy_field_global[i, j] = 0.0
+    
+    # Clear energy sources
+    for i in range(MAX_SOURCES_COMPILE):
+        source_active_field[i] = 0
+        source_intensities_field[i] = 0.0
+        source_radii_field[i] = 0.0
+    
+    source_count_field[None] = 0
+
+@ti.kernel
+def update_energy_field_kernel(dt: ti.f32):
+    """Update energy field - module-level kernel"""
+    # Apply energy sources
+    for i in range(MAX_SOURCES_COMPILE):
+        if source_active_field[i] == 1:
+            source_pos = source_positions_field[i]
+            intensity = source_intensities_field[i]
+            radius = source_radii_field[i]
+            
+            # Add energy in circular region around source
+            for x, y in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+                dx = x - source_pos[0]
+                dy = y - source_pos[1]
+                dist = ti.sqrt(dx * dx + dy * dy)
+                
+                if dist <= radius:
+                    energy_amount = intensity * dt * (1.0 - dist / radius)
+                    energy_field_global[x, y] += energy_amount
+    
+    # Apply diffusion
+    for i, j in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+        temp_field_global[i, j] = energy_field_global[i, j]
+    
+    for i in range(1, GRID_WIDTH_COMPILE - 1):
+        for j in range(1, GRID_HEIGHT_COMPILE - 1):
+            diffusion_rate = energy_diffusion_rate_field[None]
+            laplacian = (temp_field_global[i-1, j] + temp_field_global[i+1, j] + 
+                        temp_field_global[i, j-1] + temp_field_global[i, j+1] - 
+                        4.0 * temp_field_global[i, j])
+            energy_field_global[i, j] += diffusion_rate * laplacian * dt
+    
+    # Apply decay
+    decay_rate = energy_decay_rate_field[None]
+    for i, j in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+        energy_field_global[i, j] *= decay_rate
+
 @ti.data_oriented
 class EnergySystem:
     """Manages energy distribution and sources in the simulation"""
@@ -18,23 +106,24 @@ class EnergySystem:
         self.width = config.grid_width
         self.height = config.grid_height
         
-        # Energy field
-        self.energy_field = ti.field(dtype=ti.f32, shape=(self.width, self.height))
-        # Temp field for diffusion (preallocated to avoid Taichi-scope allocation)
-        self._temp_field = ti.field(dtype=ti.f32, shape=(self.width, self.height))
+        # Initialize global fields if not already done
+        if energy_field_global is None:
+            init_energy_fields()
+        
+        # Use global fields
+        self.energy_field = energy_field_global
+        self._temp_field = temp_field_global
+        self.source_positions = source_positions_field
+        self.source_intensities = source_intensities_field
+        self.source_radii = source_radii_field
+        self.source_active = source_active_field
+        self.source_count = source_count_field
+        self.energy_decay_rate = energy_decay_rate_field
+        self.energy_diffusion_rate = energy_diffusion_rate_field
+        self.energy_threshold = energy_threshold_field
         
         # Energy sources
-        self.max_sources = 10
-        self.source_positions = ti.Vector.field(2, dtype=ti.f32, shape=(self.max_sources,))
-        self.source_intensities = ti.field(dtype=ti.f32, shape=(self.max_sources,))
-        self.source_radii = ti.field(dtype=ti.f32, shape=(self.max_sources,))
-        self.source_active = ti.field(dtype=ti.i32, shape=(self.max_sources,))
-        self.source_count = ti.field(dtype=ti.i32, shape=())
-        
-        # Energy parameters
-        self.energy_decay_rate = ti.field(dtype=ti.f32, shape=())
-        self.energy_diffusion_rate = ti.field(dtype=ti.f32, shape=())
-        self.energy_threshold = ti.field(dtype=ti.f32, shape=())
+        self.max_sources = MAX_SOURCES_COMPILE
         
         # Initialize parameters
         self.energy_decay_rate[None] = config.energy_decay
@@ -44,20 +133,9 @@ class EnergySystem:
         # Initialize
         self.reset()
     
-    @ti.kernel
     def reset(self):
         """Reset energy system"""
-        # Clear energy field
-        for i, j in ti.ndrange(self.width, self.height):
-            self.energy_field[i, j] = 0.0
-        
-        # Clear energy sources
-        for i in range(self.max_sources):
-            self.source_active[i] = 0
-            self.source_intensities[i] = 0.0
-            self.source_radii[i] = 0.0
-        
-        self.source_count[None] = 0
+        reset_energy_kernel()
     
     def add_energy_source_py(self, pos, intensity: float, radius: float, duration: float = 0.0) -> int:
         """Add an energy source from Python scope (no Taichi kernel returns)."""
@@ -83,44 +161,9 @@ class EnergySystem:
         
         self.source_active[idx] = 0
     
-    @ti.kernel
-    def update_energy_field(self, dt: ti.f32):
+    def update_energy_field(self, dt: float):
         """Update energy field with sources, diffusion, and decay"""
-        # Apply energy sources
-        for i in range(self.max_sources):
-            if self.source_active[i] == 1:
-                source_pos = self.source_positions[i]
-                intensity = self.source_intensities[i]
-                radius = self.source_radii[i]
-                
-                # Add energy in circular area around source
-                for x, y in ti.ndrange(self.width, self.height):
-                    dx = x - source_pos[0]
-                    dy = y - source_pos[1]
-                    
-                    # Handle periodic boundary conditions
-                    if dx > self.width / 2:
-                        dx -= self.width
-                    elif dx < -self.width / 2:
-                        dx += self.width
-                    
-                    if dy > self.height / 2:
-                        dy -= self.height
-                    elif dy < -self.height / 2:
-                        dy += self.height
-                    
-                    distance = ti.sqrt(dx * dx + dy * dy)
-                    
-                    if distance <= radius:
-                        # Energy falls off with distance
-                        energy_factor = 1.0 - (distance / radius)
-                        energy_factor = ti.max(energy_factor, 0.0)
-                        self.energy_field[x, y] += intensity * energy_factor * dt
-        
-        # Apply decay only (skip diffusion for now to avoid field creation in kernel)
-        decay_rate = self.energy_decay_rate[None]
-        for i, j in ti.ndrange(self.width, self.height):
-            self.energy_field[i, j] *= (1.0 - decay_rate * dt)
+        update_energy_field_kernel(dt)
     
     @ti.kernel
     def apply_diffusion(self, dt: ti.f32):

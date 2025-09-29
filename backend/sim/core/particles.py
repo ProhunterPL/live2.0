@@ -21,26 +21,114 @@ energy = None
 age = None
 last_mutation = None
 
+# Compile-time constant for max particles
+MAX_PARTICLES_COMPILE = 10000
+
 def init_particle_fields():
     """Initialize Taichi fields after ti.init() has been called"""
     global positions, velocities, attributes, active, particle_count
     global type_ids, binding_sites, binding_strength
     global energy, age, last_mutation
     
-    positions = ti.Vector.field(2, dtype=ti.f32, shape=(10000,))
-    velocities = ti.Vector.field(2, dtype=ti.f32, shape=(10000,))
-    attributes = ti.Vector.field(4, dtype=ti.f32, shape=(10000,))
-    active = ti.field(dtype=ti.i32, shape=(10000,))
+    positions = ti.Vector.field(2, dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    velocities = ti.Vector.field(2, dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    attributes = ti.Vector.field(4, dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    active = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
     particle_count = ti.field(dtype=ti.i32, shape=())
     
-    type_ids = ti.field(dtype=ti.i32, shape=(10000,))
-    binding_sites = ti.field(dtype=ti.i32, shape=(10000,))
-    binding_strength = ti.field(dtype=ti.f32, shape=(10000,))
+    type_ids = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    binding_sites = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    binding_strength = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
     
     # Dynamic properties
-    energy = ti.field(dtype=ti.f32, shape=(10000,))
-    age = ti.field(dtype=ti.f32, shape=(10000,))
-    last_mutation = ti.field(dtype=ti.f32, shape=(10000,))
+    energy = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    age = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    last_mutation = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+
+# Define kernels at module level with compile-time constants
+@ti.kernel
+def reset_particles_kernel():
+    """Reset all particles - module-level kernel"""
+    for i in range(MAX_PARTICLES_COMPILE):
+        active[i] = 0
+        energy[i] = 0.0
+        age[i] = 0.0
+        last_mutation[i] = 0.0
+    particle_count[None] = 0
+
+@ti.kernel
+def update_positions_kernel(dt: ti.f32):
+    """Update particle positions - module-level kernel"""
+    for i in range(MAX_PARTICLES_COMPILE):
+        if active[i] == 1:
+            positions[i] += velocities[i] * dt
+            age[i] += dt
+
+@ti.kernel
+def apply_forces_kernel(forces: ti.template(), dt: ti.f32):
+    """Apply forces to particles - module-level kernel"""
+    for i in range(MAX_PARTICLES_COMPILE):
+        if active[i] == 1:
+            mass = attributes[i][0]
+            if mass > 0:
+                acceleration = forces[i] / mass
+                velocities[i] += acceleration * dt
+
+@ti.kernel
+def remove_particle_kernel(idx: ti.i32):
+    """Remove a particle - module-level kernel"""
+    if idx >= 0 and idx < MAX_PARTICLES_COMPILE:
+        active[idx] = 0
+
+@ti.kernel
+def add_energy_kernel(energy_amount: ti.template()):
+    """Add energy to particles - module-level kernel"""
+    for i in range(MAX_PARTICLES_COMPILE):
+        if active[i] == 1:
+            energy[i] += energy_amount[i]
+
+@ti.kernel
+def decay_energy_kernel(decay_rate: ti.f32):
+    """Decay particle energy - module-level kernel"""
+    for i in range(MAX_PARTICLES_COMPILE):
+        if active[i] == 1:
+            energy[i] *= decay_rate
+
+@ti.kernel
+def mutate_particle_kernel(idx: ti.i32, mutation_strength: ti.f32, 
+                           current_time: ti.f32, rng: ti.template()):
+    """Apply mutation to particle - module-level kernel"""
+    if idx >= 0 and idx < MAX_PARTICLES_COMPILE and active[idx] == 1:
+        # Check if enough time has passed since last mutation
+        if current_time - last_mutation[idx] >= 1.0:
+            # Mutate attributes
+            for j in range(4):
+                mutation = rng.next_gaussian(0.0, mutation_strength)
+                attributes[idx][j] += mutation
+                
+                # Keep mass positive
+                if j == 0 and attributes[idx][j] <= 0:
+                    attributes[idx][j] = 0.1
+            
+            # Update mutation time
+            last_mutation[idx] = current_time
+
+@ti.kernel
+def get_particle_neighbors_kernel(idx: ti.i32, positions_field: ti.template(),
+                                 radius: ti.f32, neighbors: ti.template()) -> ti.i32:
+    """Get neighbors of a particle - module-level kernel"""
+    count = 0
+    if idx >= 0 and idx < MAX_PARTICLES_COMPILE and active[idx] == 1:
+        pos = positions[idx]
+        for i in range(MAX_PARTICLES_COMPILE):
+            if active[i] == 1 and i != idx:
+                diff = positions[i] - pos
+                dist_sq = diff[0] * diff[0] + diff[1] * diff[1]
+                if dist_sq < radius * radius:
+                    if count < neighbors.shape[0]:
+                        neighbors[count] = i
+                        count += 1
+    return count
 
 @ti.data_oriented
 class ParticleSystem:
@@ -78,16 +166,9 @@ class ParticleSystem:
         # Initialize
         self.reset()
     
-    @ti.kernel
     def reset(self):
         """Reset particle system to initial state"""
-        for i in range(self.max_particles):
-            self.active[i] = 0
-            self.energy[i] = 0.0
-            self.age[i] = 0.0
-            self.last_mutation[i] = 0.0
-        
-        self.particle_count[None] = 0
+        reset_particles_kernel()
     
     def register_particle_type(self, name: str, mass: float = 1.0, 
                             charge: Tuple[float, float, float] = (0.0, 0.0, 0.0),
@@ -125,89 +206,36 @@ class ParticleSystem:
         self.particle_count[None] = idx + 1
         return idx
     
-    @ti.kernel
-    def remove_particle(self, idx: ti.i32):
+    def remove_particle(self, idx: int):
         """Remove particle by index"""
-        if idx < 0 or idx >= self.max_particles:
-            return
-        
-        self.active[idx] = 0
+        remove_particle_kernel(idx)
     
-    @ti.kernel
-    def update_positions(self, dt: ti.f32):
+    def update_positions(self, dt: float):
         """Update particle positions using velocity"""
-        for i in range(self.max_particles):
-            if self.active[i] == 1:
-                self.positions[i] += self.velocities[i] * dt
-                self.age[i] += dt
+        update_positions_kernel(dt)
     
-    @ti.kernel
-    def apply_forces(self, forces: ti.template(), dt: ti.f32):
+    def apply_forces(self, forces, dt: float):
         """Apply forces to particles and update velocities"""
-        for i in range(self.max_particles):
-            if self.active[i] == 1:
-                mass = self.attributes[i][0]
-                if mass > 0:
-                    acceleration = forces[i] / mass
-                    self.velocities[i] += acceleration * dt
+        apply_forces_kernel(forces, dt)
     
-    @ti.kernel
-    def add_energy(self, energy_amount: ti.template()):
+    def add_energy(self, energy_amount):
         """Add energy to particles"""
-        for i in range(self.max_particles):
-            if self.active[i] == 1:
-                self.energy[i] += energy_amount[i]
+        add_energy_kernel(energy_amount)
     
-    @ti.kernel
-    def decay_energy(self, decay_rate: ti.f32):
+    def decay_energy(self, decay_rate: float):
         """Apply energy decay to all particles"""
-        for i in range(self.max_particles):
-            if self.active[i] == 1:
-                self.energy[i] *= decay_rate
+        decay_energy_kernel(decay_rate)
     
-    @ti.kernel
-    def mutate_particle(self, idx: ti.i32, mutation_strength: ti.f32, 
-                       current_time: ti.f32, rng: ti.template()):
+    def mutate_particle(self, idx: int, mutation_strength: float, 
+                       current_time: float, rng):
         """Apply mutation to particle attributes"""
-        if idx < 0 or idx >= self.max_particles or self.active[idx] == 0:
-            return
-        
-        # Check if enough time has passed since last mutation
-        if current_time - self.last_mutation[idx] < 1.0:  # Minimum 1 time unit between mutations
-            return
-        
-        # Mutate attributes
-        for j in range(4):
-            mutation = rng.next_gaussian(0.0, mutation_strength)
-            self.attributes[idx][j] += mutation
-            
-            # Keep mass positive
-            if j == 0 and self.attributes[idx][j] <= 0:
-                self.attributes[idx][j] = 0.1
-        
-        # Update mutation time
-        self.last_mutation[idx] = current_time
+        # Call module-level kernel
+        mutate_particle_kernel(idx, mutation_strength, current_time, rng)
     
-    @ti.kernel
-    def get_particle_neighbors(self, idx: ti.i32, positions: ti.template(),
-                             radius: ti.f32, neighbors: ti.template()) -> ti.i32:
+    def get_particle_neighbors(self, idx: int, positions,
+                             radius: float, neighbors) -> int:
         """Get neighbors of a particle within radius"""
-        if idx < 0 or idx >= self.max_particles or self.active[idx] == 0:
-            return 0
-        
-        pos = self.positions[idx]
-        count = 0
-        
-        for i in range(self.max_particles):
-            if i != idx and self.active[i] == 1:
-                other_pos = self.positions[i]
-                distance = (pos - other_pos).norm()
-                
-                if distance <= radius and count < neighbors.shape[0]:
-                    neighbors[count] = i
-                    count += 1
-        
-        return count
+        return get_particle_neighbors_kernel(idx, positions, radius, neighbors)
     
     def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Get data for all active particles"""

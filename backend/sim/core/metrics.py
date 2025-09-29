@@ -10,6 +10,104 @@ from typing import Dict, List, Tuple, Optional
 from collections import deque
 from .catalog import SubstanceCatalog
 
+# Compile-time constants
+MAX_PARTICLES_COMPILE = 10000
+GRID_WIDTH_COMPILE = 256
+GRID_HEIGHT_COMPILE = 256
+
+# Global Taichi fields
+particle_count_field = None
+total_energy_field = None
+total_mass_field = None
+bond_count_field = None
+cluster_count_field = None
+energy_field_sum_field = None
+energy_field_max_field = None
+energy_field_mean_field = None
+
+def init_metrics_fields():
+    """Initialize global Taichi fields for metrics"""
+    global particle_count_field, total_energy_field, total_mass_field
+    global bond_count_field, cluster_count_field, energy_field_sum_field
+    global energy_field_max_field, energy_field_mean_field
+    
+    particle_count_field = ti.field(dtype=ti.i32, shape=())
+    total_energy_field = ti.field(dtype=ti.f32, shape=())
+    total_mass_field = ti.field(dtype=ti.f32, shape=())
+    bond_count_field = ti.field(dtype=ti.i32, shape=())
+    cluster_count_field = ti.field(dtype=ti.i32, shape=())
+    energy_field_sum_field = ti.field(dtype=ti.f32, shape=())
+    energy_field_max_field = ti.field(dtype=ti.f32, shape=())
+    energy_field_mean_field = ti.field(dtype=ti.f32, shape=())
+
+# Module-level kernels
+@ti.kernel
+def reset_metrics_kernel():
+    """Reset all metrics - module-level kernel"""
+    particle_count_field[None] = 0
+    total_energy_field[None] = 0.0
+    total_mass_field[None] = 0.0
+    bond_count_field[None] = 0
+    cluster_count_field[None] = 0
+    energy_field_sum_field[None] = 0.0
+    energy_field_max_field[None] = 0.0
+    energy_field_mean_field[None] = 0.0
+
+@ti.kernel
+def update_particle_metrics_kernel(active: ti.template(), attributes: ti.template(),
+                                  energy: ti.template(), particle_count: ti.i32):
+    """Update particle metrics - module-level kernel"""
+    particle_count_field[None] = particle_count
+    
+    total_energy = 0.0
+    total_mass = 0.0
+    
+    for i in range(MAX_PARTICLES_COMPILE):
+        if active[i] == 1:
+            total_energy += energy[i]
+            total_mass += attributes[i][0]
+    
+    total_energy_field[None] = total_energy
+    total_mass_field[None] = total_mass
+
+@ti.kernel
+def update_bond_metrics_kernel(bond_matrix: ti.template(), particle_count: ti.i32):
+    """Update bond metrics - module-level kernel"""
+    bond_count = 0
+    
+    for i in range(particle_count):
+        for j in range(i + 1, particle_count):
+            if bond_matrix[i, j] > 0.0:
+                bond_count += 1
+    
+    bond_count_field[None] = bond_count
+
+@ti.kernel
+def update_cluster_metrics_kernel(cluster_sizes: ti.template(), particle_count: ti.i32):
+    """Update cluster metrics - module-level kernel"""
+    cluster_count = 0
+    
+    for i in range(MAX_PARTICLES_COMPILE):
+        if cluster_sizes[i] > 1:
+            cluster_count += 1
+    
+    cluster_count_field[None] = cluster_count
+
+@ti.kernel
+def update_energy_field_metrics_kernel(energy_field: ti.template()):
+    """Update energy field metrics - module-level kernel"""
+    field_sum = 0.0
+    field_max = 0.0
+    
+    for i, j in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+        value = energy_field[i, j]
+        field_sum += value
+        field_max = ti.max(field_max, value)
+    
+    energy_field_sum_field[None] = field_sum
+    energy_field_max_field[None] = field_max
+    energy_field_mean_field[None] = field_sum / (GRID_WIDTH_COMPILE * GRID_HEIGHT_COMPILE)
+
 @ti.data_oriented
 class MetricsCollector:
     """Collects and tracks simulation metrics"""
@@ -18,17 +116,19 @@ class MetricsCollector:
         self.max_particles = max_particles
         self.history_size = history_size
         
-        # Real-time metrics
-        self.particle_count = ti.field(dtype=ti.i32, shape=())
-        self.total_energy = ti.field(dtype=ti.f32, shape=())
-        self.total_mass = ti.field(dtype=ti.f32, shape=())
-        self.bond_count = ti.field(dtype=ti.i32, shape=())
-        self.cluster_count = ti.field(dtype=ti.i32, shape=())
+        # Initialize global fields if not already done
+        if particle_count_field is None:
+            init_metrics_fields()
         
-        # Energy distribution
-        self.energy_field_sum = ti.field(dtype=ti.f32, shape=())
-        self.energy_field_max = ti.field(dtype=ti.f32, shape=())
-        self.energy_field_mean = ti.field(dtype=ti.f32, shape=())
+        # Use global fields
+        self.particle_count = particle_count_field
+        self.total_energy = total_energy_field
+        self.total_mass = total_mass_field
+        self.bond_count = bond_count_field
+        self.cluster_count = cluster_count_field
+        self.energy_field_sum = energy_field_sum_field
+        self.energy_field_max = energy_field_max_field
+        self.energy_field_mean = energy_field_mean_field
         
         # Initialize
         self.reset()
@@ -37,73 +137,25 @@ class MetricsCollector:
         self.metrics_history = deque(maxlen=history_size)
         self.start_time = time.time()
     
-    @ti.kernel
     def reset(self):
         """Reset all metrics"""
-        self.particle_count[None] = 0
-        self.total_energy[None] = 0.0
-        self.total_mass[None] = 0.0
-        self.bond_count[None] = 0
-        self.cluster_count[None] = 0
-        self.energy_field_sum[None] = 0.0
-        self.energy_field_max[None] = 0.0
-        self.energy_field_mean[None] = 0.0
+        reset_metrics_kernel()
     
-    @ti.kernel
-    def update_particle_metrics(self, active: ti.template(), attributes: ti.template(),
-                               energy: ti.template(), particle_count: ti.i32):
+    def update_particle_metrics(self, active, attributes, energy, particle_count: int):
         """Update particle-related metrics"""
-        self.particle_count[None] = particle_count
-        
-        total_energy = 0.0
-        total_mass = 0.0
-        
-        for i in range(self.max_particles):
-            if active[i] == 1:
-                total_energy += energy[i]
-                total_mass += attributes[i][0]
-        
-        self.total_energy[None] = total_energy
-        self.total_mass[None] = total_mass
+        update_particle_metrics_kernel(active, attributes, energy, particle_count)
     
-    @ti.kernel
-    def update_bond_metrics(self, bond_matrix: ti.template(), particle_count: ti.i32):
+    def update_bond_metrics(self, bond_matrix, particle_count: int):
         """Update bond-related metrics"""
-        bond_count = 0
-        
-        for i in range(particle_count):
-            for j in range(i + 1, particle_count):
-                if bond_matrix[i, j] > 0:
-                    bond_count += 1
-        
-        self.bond_count[None] = bond_count
+        update_bond_metrics_kernel(bond_matrix, particle_count)
     
-    @ti.kernel
-    def update_cluster_metrics(self, cluster_sizes: ti.template(), particle_count: ti.i32):
+    def update_cluster_metrics(self, cluster_sizes, particle_count: int):
         """Update cluster-related metrics"""
-        cluster_count = 0
-        
-        for i in range(particle_count):
-            if cluster_sizes[i] > 0:
-                cluster_count += 1
-        
-        self.cluster_count[None] = cluster_count
+        update_cluster_metrics_kernel(cluster_sizes, particle_count)
     
-    @ti.kernel
-    def update_energy_field_metrics(self, energy_field: ti.template(), 
-                                  width: ti.i32, height: ti.i32):
+    def update_energy_field_metrics(self, energy_field, width: int, height: int):
         """Update energy field metrics"""
-        total_energy = 0.0
-        max_energy = 0.0
-        
-        for i, j in ti.ndrange(width, height):
-            energy_val = energy_field[i, j]
-            total_energy += energy_val
-            max_energy = ti.max(max_energy, energy_val)
-        
-        self.energy_field_sum[None] = total_energy
-        self.energy_field_max[None] = max_energy
-        self.energy_field_mean[None] = total_energy / (width * height)
+        update_energy_field_metrics_kernel(energy_field)
     
     def record_metrics(self, additional_metrics: Dict = None):
         """Record current metrics to history"""

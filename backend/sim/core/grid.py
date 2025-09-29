@@ -8,30 +8,100 @@ import numpy as np
 from typing import Tuple, List
 from ..config import SimulationConfig
 
-# Global variables for Taichi fields (will be initialized later)
-particle_positions = None
-particle_attributes = None
-particle_active = None
-particle_count = None
-spatial_hash = None
-cell_counts = None
-energy_field = None
+# Compile-time constants
+MAX_PARTICLES_COMPILE = 10000
+GRID_WIDTH_COMPILE = 256
+GRID_HEIGHT_COMPILE = 256
+GRID_CELLS_X_COMPILE = 128  # GRID_WIDTH_COMPILE / 2.0
+GRID_CELLS_Y_COMPILE = 128  # GRID_HEIGHT_COMPILE / 2.0
+MAX_PARTICLES_PER_CELL_COMPILE = 32
 
-def init_taichi_fields(max_particles: int, grid_cells_x: int, grid_cells_y: int,
-                       energy_width: int, energy_height: int, max_particles_per_cell: int = 32):
-    """Initialize Taichi fields after ti.init() has been called"""
-    global particle_positions, particle_attributes, particle_active, particle_count
-    global spatial_hash, cell_counts, energy_field
+# Global Taichi fields
+particle_positions_field = None
+particle_attributes_field = None
+particle_active_field = None
+particle_count_field = None
+spatial_hash_field = None
+cell_counts_field = None
+energy_field_global = None
+
+def init_taichi_fields():
+    """Initialize global Taichi fields for grid"""
+    global particle_positions_field, particle_attributes_field, particle_active_field
+    global particle_count_field, spatial_hash_field, cell_counts_field, energy_field_global
     
-    particle_positions = ti.Vector.field(2, dtype=ti.f32, shape=(max_particles,))
-    particle_attributes = ti.Vector.field(4, dtype=ti.f32, shape=(max_particles,))
-    particle_active = ti.field(dtype=ti.i32, shape=(max_particles,))
-    particle_count = ti.field(dtype=ti.i32, shape=())
+    particle_positions_field = ti.Vector.field(2, dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    particle_attributes_field = ti.Vector.field(4, dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    particle_active_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    particle_count_field = ti.field(dtype=ti.i32, shape=())
     
-    spatial_hash = ti.field(dtype=ti.i32, shape=(grid_cells_x, grid_cells_y, max_particles_per_cell))
-    cell_counts = ti.field(dtype=ti.i32, shape=(grid_cells_x, grid_cells_y))
+    spatial_hash_field = ti.field(dtype=ti.i32, shape=(GRID_CELLS_X_COMPILE, GRID_CELLS_Y_COMPILE, MAX_PARTICLES_PER_CELL_COMPILE))
+    cell_counts_field = ti.field(dtype=ti.i32, shape=(GRID_CELLS_X_COMPILE, GRID_CELLS_Y_COMPILE))
     
-    energy_field = ti.field(dtype=ti.f32, shape=(energy_width, energy_height))
+    energy_field_global = ti.field(dtype=ti.f32, shape=(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE))
+
+# Module-level kernels
+@ti.kernel
+def reset_grid_kernel():
+    """Reset grid - module-level kernel"""
+    # Reset all particles
+    for i in range(MAX_PARTICLES_COMPILE):
+        particle_active_field[i] = 0
+    
+    particle_count_field[None] = 0
+    
+    # Clear spatial hash
+    for i, j in ti.ndrange(GRID_CELLS_X_COMPILE, GRID_CELLS_Y_COMPILE):
+        cell_counts_field[i, j] = 0
+        for k in range(MAX_PARTICLES_PER_CELL_COMPILE):
+            spatial_hash_field[i, j, k] = -1
+    
+    # Clear energy field
+    for i, j in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+        energy_field_global[i, j] = 0.0
+
+@ti.kernel
+def update_spatial_hash_kernel():
+    """Update spatial hash table - module-level kernel"""
+    # Clear hash table
+    for i, j in ti.ndrange(GRID_CELLS_X_COMPILE, GRID_CELLS_Y_COMPILE):
+        cell_counts_field[i, j] = 0
+        for k in range(MAX_PARTICLES_PER_CELL_COMPILE):
+            spatial_hash_field[i, j, k] = -1
+    
+    # Rebuild hash table
+    for i in range(MAX_PARTICLES_COMPILE):
+        if particle_active_field[i] == 1:
+            pos = particle_positions_field[i]
+            cell_x = int(pos[0] / 2.0)  # cell_size = 2.0
+            cell_y = int(pos[1] / 2.0)
+            
+            # Wrap to grid bounds
+            cell_x = cell_x % GRID_CELLS_X_COMPILE
+            cell_y = cell_y % GRID_CELLS_Y_COMPILE
+            
+            # Add to hash table
+            count = cell_counts_field[cell_x, cell_y]
+            if count < MAX_PARTICLES_PER_CELL_COMPILE:
+                spatial_hash_field[cell_x, cell_y, count] = i
+                cell_counts_field[cell_x, cell_y] = count + 1
+
+@ti.kernel
+def apply_periodic_boundary_kernel():
+    """Apply periodic boundary conditions - module-level kernel"""
+    for i in range(MAX_PARTICLES_COMPILE):
+        if particle_active_field[i] == 1:
+            pos = particle_positions_field[i]
+            # Wrap positions to grid bounds
+            pos[0] = pos[0] % GRID_WIDTH_COMPILE
+            pos[1] = pos[1] % GRID_HEIGHT_COMPILE
+            particle_positions_field[i] = pos
+
+@ti.kernel
+def decay_energy_field_kernel(decay_rate: ti.f32):
+    """Decay energy field - module-level kernel"""
+    for i, j in ti.ndrange(GRID_WIDTH_COMPILE, GRID_HEIGHT_COMPILE):
+        energy_field_global[i, j] *= decay_rate
 
 @ti.data_oriented
 class Grid:
@@ -49,51 +119,29 @@ class Grid:
         self.grid_cells_y = int(np.ceil(self.height / self.cell_size))
         self.max_particles_per_cell = 32
 
-        # Initialize Taichi fields if not already done
-        if particle_positions is None:
-            init_taichi_fields(
-                max_particles=self.max_particles,
-                grid_cells_x=self.grid_cells_x,
-                grid_cells_y=self.grid_cells_y,
-                energy_width=self.width,
-                energy_height=self.height,
-                max_particles_per_cell=self.max_particles_per_cell,
-            )
+        # Initialize global fields if not already done
+        if particle_positions_field is None:
+            init_taichi_fields()
         
-        # Use module-level fields
-        self.particle_positions = particle_positions
-        self.particle_attributes = particle_attributes
-        self.particle_active = particle_active
-        self.particle_count = particle_count
+        # Use global fields
+        self.particle_positions = particle_positions_field
+        self.particle_attributes = particle_attributes_field
+        self.particle_active = particle_active_field
+        self.particle_count = particle_count_field
         
         # Hash table: cell -> list of particle indices
-        self.spatial_hash = spatial_hash
-        self.cell_counts = cell_counts
+        self.spatial_hash = spatial_hash_field
+        self.cell_counts = cell_counts_field
         
         # Energy field
-        self.energy_field = energy_field
+        self.energy_field = energy_field_global
         
         # Initialize
         self.reset()
     
-    @ti.kernel
     def reset(self):
         """Reset grid to initial state"""
-        # Reset all particles
-        for i in range(self.max_particles):
-            self.particle_active[i] = 0
-        
-        self.particle_count[None] = 0
-        
-        # Clear spatial hash
-        for i, j in ti.ndrange(self.grid_cells_x, self.grid_cells_y):
-            self.cell_counts[i, j] = 0
-            for k in range(self.max_particles_per_cell):
-                self.spatial_hash[i, j, k] = -1
-        
-        # Clear energy field
-        for i, j in ti.ndrange(self.width, self.height):
-            self.energy_field[i, j] = 0.0
+        reset_grid_kernel()
     
     @ti.kernel
     def add_particle(self, pos: ti.template(), attributes: ti.template()) -> ti.i32:
@@ -117,37 +165,9 @@ class Grid:
         
         self.particle_active[idx] = 0
     
-    @ti.kernel
     def update_spatial_hash(self):
         """Update spatial hash table for neighbor finding"""
-        # Clear hash table
-        for i, j in ti.ndrange(self.grid_cells_x, self.grid_cells_y):
-            self.cell_counts[i, j] = 0
-            for k in range(self.max_particles_per_cell):
-                self.spatial_hash[i, j, k] = -1
-        
-        # Fill hash table
-        for p in range(self.particle_positions.shape[0]):
-            if self.particle_active[p] == 1:
-                pos = self.particle_positions[p]
-                
-                # Wrap position to grid bounds
-                wrapped_x = pos[0] % self.width
-                wrapped_y = pos[1] % self.height
-                
-                # Calculate cell coordinates
-                cell_x = int(wrapped_x / self.cell_size)
-                cell_y = int(wrapped_y / self.cell_size)
-                
-                # Clamp to valid range
-                cell_x = ti.max(0, ti.min(cell_x, self.grid_cells_x - 1))
-                cell_y = ti.max(0, ti.min(cell_y, self.grid_cells_y - 1))
-                
-                # Add to hash table
-                count = self.cell_counts[cell_x, cell_y]
-                if count < self.max_particles_per_cell:
-                    self.spatial_hash[cell_x, cell_y, count] = p
-                    self.cell_counts[cell_x, cell_y] += 1
+        update_spatial_hash_kernel()
     
     @ti.kernel
     def get_neighbors(self, pos: ti.template(), radius: ti.f32, neighbors: ti.template()) -> ti.i32:
@@ -197,22 +217,13 @@ class Grid:
         
         return count
     
-    @ti.kernel
     def apply_periodic_boundary(self):
         """Apply periodic boundary conditions to all particles"""
-        for i in range(self.particle_positions.shape[0]):
-            if self.particle_active[i] == 1:
-                pos = self.particle_positions[i]
-                self.particle_positions[i] = ti.Vector([
-                    pos[0] % self.width,
-                    pos[1] % self.height
-                ])
+        apply_periodic_boundary_kernel()
     
-    @ti.kernel
-    def decay_energy_field(self, decay_rate: ti.f32):
+    def decay_energy_field(self, decay_rate: float):
         """Apply energy decay to the energy field"""
-        for i, j in ti.ndrange(self.width, self.height):
-            self.energy_field[i, j] *= decay_rate
+        decay_energy_field_kernel(decay_rate)
     
     def get_particle_data(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get particle data as numpy arrays for external use"""

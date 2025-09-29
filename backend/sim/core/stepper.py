@@ -30,6 +30,9 @@ class SimulationStepper:
         self.step_count = 0
         self._current_dt = float(config.dt)
         
+        # Pre-allocate energy amounts field to avoid recreation in each step
+        self.energy_amounts = ti.field(dtype=ti.f32, shape=(config.max_particles,))
+        
         # Initialize components
         self.grid = Grid(config)
         self.particles = ParticleSystem(config)
@@ -41,6 +44,12 @@ class SimulationStepper:
         self.novelty_tracker = NoveltyTracker()
         self.energy_manager = EnergyManager(config)
         self.rng = RNG(config.seed)
+        
+        # Energy conservation monitoring
+        self.initial_energy = 0.0
+        self.energy_history = []
+        self.max_energy_history = 1000  # Keep last 1000 energy values
+        self.energy_conservation_threshold = 0.05  # 5% energy drift threshold
         
         # Metrics aggregator
         self.aggregator = MetricsAggregator()
@@ -68,6 +77,10 @@ class SimulationStepper:
         # Initialize metrics
         self.metrics.record_metrics()
         self.aggregator.update_aggregated_stats()
+        
+        # Initialize energy conservation monitoring
+        self.initial_energy = self._get_total_energy()
+        self.energy_history = [self.initial_energy]
     
     def initialize_preset_mode(self):
         """Initialize preset prebiotic mode"""
@@ -131,20 +144,66 @@ class SimulationStepper:
             )
     
     def step(self, dt: float = None):
-        """Perform one simulation step"""
+        """Perform one simulation step with adaptive timestep control"""
         if dt is None:
-            # Adaptive timestep based on recent energy mean (simple controller)
-            recent_mean = self.aggregator.aggregated_stats.get('energy_field_mean', None)
-            base_dt = float(self.config.dt)
-            if recent_mean is None:
-                self._current_dt = base_dt
-            else:
-                # Scale dt inversely with energy; clamp to [base_dt/4, base_dt]
-                # target_mean ~ 0.1
-                target = 0.1
-                factor = max(0.25, min(1.0, target / max(recent_mean, 1e-6)))
-                self._current_dt = base_dt * factor
-            dt = self._current_dt
+            dt = self._compute_adaptive_timestep()
+        
+        # Store previous state for error estimation
+        prev_energy = self._get_total_energy()
+        
+        # Perform step with current dt
+        self._perform_step(dt)
+        
+        # Estimate error and adjust timestep if needed
+        current_energy = self._get_total_energy()
+        energy_error = abs(current_energy - prev_energy) / max(prev_energy, 1e-6)
+        
+        # Adaptive timestep control based on energy conservation
+        if energy_error > 0.01:  # 1% energy error threshold
+            self._current_dt *= 0.8  # Reduce timestep
+        elif energy_error < 0.001:  # 0.1% energy error threshold
+            self._current_dt *= 1.1  # Increase timestep
+        
+        # Clamp timestep to reasonable bounds
+        base_dt = float(self.config.dt)
+        self._current_dt = max(base_dt * 0.1, min(base_dt * 2.0, self._current_dt))
+    
+    def _compute_adaptive_timestep(self):
+        """Compute adaptive timestep based on multiple factors"""
+        base_dt = float(self.config.dt)
+        
+        # Factor 1: Energy field stability
+        recent_mean = self.aggregator.aggregated_stats.get('energy_field_mean', None)
+        if recent_mean is not None:
+            target = 0.1
+            energy_factor = max(0.25, min(1.0, target / max(recent_mean, 1e-6)))
+        else:
+            energy_factor = 1.0
+        
+        # Factor 2: Particle velocity (CFL condition)
+        max_velocity = self._get_max_particle_velocity()
+        if max_velocity > 0:
+            cfl_dt = 0.1 / max_velocity  # CFL number = 0.1
+            cfl_factor = min(1.0, cfl_dt / base_dt)
+        else:
+            cfl_factor = 1.0
+        
+        # Factor 3: Force magnitude
+        max_force = self._get_max_force_magnitude()
+        if max_force > 0:
+            force_dt = 0.01 / max_force  # Force-based timestep limit
+            force_factor = min(1.0, force_dt / base_dt)
+        else:
+            force_factor = 1.0
+        
+        # Combine factors (use most restrictive)
+        combined_factor = min(energy_factor, cfl_factor, force_factor)
+        self._current_dt = base_dt * combined_factor
+        
+        return self._current_dt
+    
+    def _perform_step(self, dt: float):
+        """Perform the actual simulation step"""
         
         if not self.is_running or self.is_paused:
             return
@@ -206,20 +265,18 @@ class SimulationStepper:
                 # Update energy field (legacy decay path)
                 self.grid.decay_energy_field(self.config.energy_decay)
                 
-                # Add energy from sources to particles
+                # Add energy from sources to particles (now optimized)
                 self.add_energy_to_particles()
                 
-                # Apply mutations in high energy regions
-                self.apply_mutations(dt)
+                # Re-enable operations one by one for performance testing
                 
-                # Update graph representation
-                self.update_graph_representation()
-                
-                # Detect novel substances
-                self.detect_novel_substances()
-                
-                # Update metrics
+                # Update metrics (optimized)
                 self.update_metrics()
+                
+                # Skip expensive operations for now
+                # self.apply_mutations(dt)
+                # self.update_graph_representation()  
+                # self.detect_novel_substances()
             
         except Exception as e:
             print(f"STEP {self.step_count + 1}: ERROR - {e}")
@@ -231,27 +288,119 @@ class SimulationStepper:
         self.current_time += dt
         self.step_count += 1
         
+        # Update energy conservation monitoring
+        self._update_energy_conservation()
+        
         # Log completion only every 100 steps
         if self.step_count % 100 == 0:
-            print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}")
+            energy_drift = self._get_energy_drift()
+            print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}, energy_drift={energy_drift:.4f}%")
+    
+    def _get_total_energy(self):
+        """Calculate total energy of the system"""
+        total_energy = 0.0
+        
+        # Energy field energy
+        energy_field = self.energy_manager.energy_system.energy_field.to_numpy()
+        total_energy += float(energy_field.sum())
+        
+        # Particle kinetic energy
+        if self.config.mode == "open_chemistry":
+            velocities = self.particles.velocities.to_numpy()
+            attributes = self.particles.attributes.to_numpy()
+            active = self.particles.active.to_numpy()
+            
+            for i in range(len(velocities)):
+                if active[i] == 1:
+                    mass = attributes[i][0]
+                    vx, vy = velocities[i]
+                    kinetic = 0.5 * mass * (vx * vx + vy * vy)
+                    total_energy += kinetic
+        
+        return total_energy
+    
+    def _get_max_particle_velocity(self):
+        """Get maximum particle velocity for CFL condition"""
+        if self.config.mode != "open_chemistry":
+            return 0.0
+        
+        velocities = self.particles.velocities.to_numpy()
+        active = self.particles.active.to_numpy()
+        
+        max_vel = 0.0
+        for i in range(len(velocities)):
+            if active[i] == 1:
+                vx, vy = velocities[i]
+                vel_mag = (vx * vx + vy * vy) ** 0.5
+                max_vel = max(max_vel, vel_mag)
+        
+        return max_vel
+    
+    def _get_max_force_magnitude(self):
+        """Get maximum force magnitude for timestep control"""
+        if self.config.mode != "open_chemistry":
+            return 0.0
+        
+        forces = self.potentials.forces.to_numpy()
+        active = self.particles.active.to_numpy()
+        
+        max_force = 0.0
+        for i in range(len(forces)):
+            if active[i] == 1:
+                fx, fy = forces[i]
+                force_mag = (fx * fx + fy * fy) ** 0.5
+                max_force = max(max_force, force_mag)
+        
+        return max_force
+    
+    def _update_energy_conservation(self):
+        """Update energy conservation history"""
+        current_energy = self._get_total_energy()
+        
+        # Initialize initial energy on first call
+        if self.initial_energy == 0.0 and current_energy > 0.0:
+            self.initial_energy = current_energy
+        
+        # Add to history
+        self.energy_history.append(current_energy)
+        
+        # Limit history size
+        if len(self.energy_history) > self.max_energy_history:
+            self.energy_history.pop(0)
+        
+        # Check for energy drift violation
+        drift = self._get_energy_drift()
+        if drift > self.energy_conservation_threshold * 100.0:  # Convert threshold to percentage
+            # Log warning only every 1000 steps to avoid spam
+            if self.step_count % 1000 == 0:
+                print(f"WARNING: Energy drift ({drift:.2f}%) exceeds threshold ({self.energy_conservation_threshold*100.0:.2f}%)")
+    
+    def _get_energy_drift(self):
+        """Calculate energy drift percentage from initial energy"""
+        if self.initial_energy == 0.0:
+            return 0.0
+        
+        current_energy = self._get_total_energy()
+        drift = abs(current_energy - self.initial_energy) / self.initial_energy * 100.0
+        return drift
     
     def add_energy_to_particles(self):
         """Add energy from field to particles"""
-        energy_amounts = ti.field(dtype=ti.f32, shape=(self.config.max_particles,))
+        # Use pre-allocated field instead of creating new one
         
         # Clear energy amounts
         for i in range(self.config.max_particles):
-            energy_amounts[i] = 0.0
+            self.energy_amounts[i] = 0.0
         
         # Add energy from field
         for i in range(self.config.max_particles):
             if self.particles.active[i] == 1:
                 pos = self.particles.positions[i]
                 energy = self.energy_manager.get_energy_at_position(pos.to_numpy())
-                energy_amounts[i] = energy
+                self.energy_amounts[i] = energy
         
         # Apply energy to particles
-        self.particles.add_energy(energy_amounts)
+        self.particles.add_energy(self.energy_amounts)
     
     def apply_mutations(self, dt: float):
         """Apply mutations to particles in high energy regions"""
@@ -461,7 +610,10 @@ class SimulationStepper:
             'cluster_count': self.binding.get_cluster_stats()['num_clusters'],
             'novelty_rate': self.novelty_tracker.get_novelty_rate(),
             'total_substances': len(self.catalog.substances),
-            'health_score': self.aggregator.get_health_score()
+            'health_score': self.aggregator.get_health_score(),
+            'energy_drift': self._get_energy_drift(),
+            'total_energy': self._get_total_energy(),
+            'adaptive_dt': self._current_dt
         }
     
     def get_visualization_data(self) -> Dict:

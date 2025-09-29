@@ -306,9 +306,8 @@ class Live2Server:
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):
             """WebSocket endpoint for real-time data streaming"""
             logger.info(f"WebSocket connection attempt for simulation {simulation_id}")
-            await websocket.accept()
-            logger.info(f"WebSocket accepted for simulation {simulation_id}")
             
+            # Validate simulation exists before accepting connection
             if simulation_id not in self.simulations:
                 logger.error(f"Simulation {simulation_id} not found")
                 try:
@@ -316,6 +315,9 @@ class Live2Server:
                 except Exception as e:
                     logger.warning(f"Failed to close WebSocket for simulation {simulation_id}: {e}")
                 return
+            
+            await websocket.accept()
+            logger.info(f"WebSocket accepted for simulation {simulation_id}")
             
             # Add connection to active connections
             if simulation_id not in self.active_connections:
@@ -398,16 +400,26 @@ class Live2Server:
                 
                 # Convert numpy types to native Python types for serialization
                 def convert_numpy_types(obj):
-                    if isinstance(obj, np.integer):
-                        return int(obj)
-                    elif isinstance(obj, np.floating):
-                        return float(obj)
-                    elif isinstance(obj, np.ndarray):
+                    import numpy as np
+                    if isinstance(obj, np.ndarray):
                         return obj.tolist()
                     elif isinstance(obj, dict):
                         return {k: convert_numpy_types(v) for k, v in obj.items()}
                     elif isinstance(obj, list):
                         return [convert_numpy_types(item) for item in obj]
+                    elif isinstance(obj, tuple):
+                        return tuple(convert_numpy_types(item) for item in obj)
+                    elif hasattr(obj, 'dtype'):  # Any numpy scalar
+                        if np.issubdtype(obj.dtype, np.integer):
+                            return int(obj)
+                        elif np.issubdtype(obj.dtype, np.floating):
+                            return float(obj)
+                        elif np.issubdtype(obj.dtype, np.bool_):
+                            return bool(obj)
+                        else:
+                            return obj.item() if hasattr(obj, 'item') else str(obj)
+                    elif hasattr(obj, 'item'):  # Handle numpy scalars
+                        return obj.item()
                     else:
                         return obj
                 
@@ -504,6 +516,28 @@ class Live2Server:
             except Exception:
                 pass
             self.broadcast_tasks.pop(sim_id, None)
+    
+    def cleanup_inactive_simulations(self):
+        """Clean up simulations that have no active connections"""
+        inactive_sims = []
+        for sim_id, connections in self.active_connections.items():
+            if not connections:  # No active connections
+                inactive_sims.append(sim_id)
+        
+        for sim_id in inactive_sims:
+            logger.info(f"Cleaning up inactive simulation {sim_id}")
+            # Stop broadcast task
+            if sim_id in self.broadcast_tasks:
+                task = self.broadcast_tasks[sim_id]
+                if not task.done():
+                    task.cancel()
+                self.broadcast_tasks.pop(sim_id, None)
+            
+            # Remove from active connections
+            self.active_connections.pop(sim_id, None)
+            
+            # Remove simulation
+            self.simulations.pop(sim_id, None)
 
 # Global server instance
 server = Live2Server()

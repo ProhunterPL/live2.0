@@ -8,6 +8,155 @@ import numpy as np
 from typing import List, Tuple, Dict, Set
 from ..config import SimulationConfig
 
+# Compile-time constants
+MAX_PARTICLES_COMPILE = 10000
+PARTICLE_RADIUS_COMPILE = 0.5
+
+# Global Taichi fields
+bond_matrix_field = None
+bond_active_field = None
+cluster_id_field = None
+cluster_sizes_field = None
+next_cluster_id_field = None
+bond_energy_field = None
+bond_age_field = None
+
+def init_binding_fields():
+    """Initialize global Taichi fields for binding"""
+    global bond_matrix_field, bond_active_field, cluster_id_field
+    global cluster_sizes_field, next_cluster_id_field, bond_energy_field, bond_age_field
+    
+    bond_matrix_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
+    bond_active_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
+    cluster_id_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    cluster_sizes_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    next_cluster_id_field = ti.field(dtype=ti.i32, shape=())
+    bond_energy_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
+    bond_age_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
+
+# Module-level kernels
+@ti.kernel
+def reset_binding_kernel():
+    """Reset binding system - module-level kernel"""
+    for i, j in ti.ndrange(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE):
+        bond_matrix_field[i, j] = 0.0
+        bond_active_field[i, j] = 0
+        bond_energy_field[i, j] = 0.0
+        bond_age_field[i, j] = 0.0
+    
+    for i in range(MAX_PARTICLES_COMPILE):
+        cluster_id_field[i] = -1
+        cluster_sizes_field[i] = 0
+    
+    next_cluster_id_field[None] = 0
+
+@ti.kernel
+def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
+                       active: ti.template(), particle_count: ti.i32, dt: ti.f32):
+    """Update bond formation and breaking - module-level kernel"""
+    # Update bond ages
+    for i, j in ti.ndrange(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE):
+        if bond_active_field[i, j] == 1:
+            bond_age_field[i, j] += dt
+    
+    # Check for new bonds
+    for i in range(particle_count):
+        if active[i] == 1:
+            for j in range(i + 1, particle_count):
+                if active[j] == 1 and bond_active_field[i, j] == 0:
+                    # Check if particles should form a bond
+                    if should_form_bond_func(i, j, positions, attributes):
+                        # Form bond inline
+                        bond_active_field[i, j] = 1
+                        bond_active_field[j, i] = 1
+                        bond_matrix_field[i, j] = 1.0
+                        bond_matrix_field[j, i] = 1.0
+    
+    # Check for bond breaking
+    for i, j in ti.ndrange(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE):
+        if bond_active_field[i, j] == 1:
+            if should_break_bond_func(i, j, positions, attributes):
+                # Break bond inline
+                bond_active_field[i, j] = 0
+                bond_active_field[j, i] = 0
+                bond_matrix_field[i, j] = 0.0
+                bond_matrix_field[j, i] = 0.0
+
+@ti.func
+def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
+                         attributes: ti.template()) -> ti.i32:
+    """Check if two particles should form a bond"""
+    pos_i = positions[i]
+    pos_j = positions[j]
+    
+    # Calculate distance
+    r_vec = pos_i - pos_j
+    r = r_vec.norm()
+    
+    # Check distance threshold
+    result = 0
+    if r <= PARTICLE_RADIUS_COMPILE * 2.5:  # Within binding range
+        # Check binding compatibility
+        mass_i = attributes[i][0]
+        mass_j = attributes[j][0]
+        charge_i = attributes[i][1]
+        charge_j = attributes[j][1]
+        
+        # Simple compatibility check
+        mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
+        charge_compatibility = 1.0 - ti.abs(charge_i - charge_j) / ti.max(ti.abs(charge_i), ti.abs(charge_j), 1.0)
+        
+        if mass_ratio > 0.5 and charge_compatibility > 0.3:
+            result = 1
+    
+    return result
+
+@ti.func
+def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
+                          attributes: ti.template()) -> ti.i32:
+    """Check if a bond should be broken"""
+    pos_i = positions[i]
+    pos_j = positions[j]
+    
+    # Calculate distance
+    r_vec = pos_i - pos_j
+    r = r_vec.norm()
+    
+    # Break bond if too far apart
+    result = 0
+    if r > PARTICLE_RADIUS_COMPILE * 4.0:  # Beyond breaking threshold
+        result = 1
+    
+    return result
+
+@ti.kernel
+def update_clusters_kernel(active: ti.template(), particle_count: ti.i32):
+    """Update cluster assignments - module-level kernel"""
+    # Reset cluster assignments
+    for i in range(MAX_PARTICLES_COMPILE):
+        cluster_id_field[i] = -1
+        cluster_sizes_field[i] = 0
+    
+    next_cluster_id_field[None] = 0
+    
+    # Simple cluster detection based on bonds
+    for i in range(particle_count):
+        if active[i] == 1 and cluster_id_field[i] == -1:
+            # Start new cluster
+            cluster_id = next_cluster_id_field[None]
+            next_cluster_id_field[None] += 1
+            
+            # Assign cluster ID to this particle
+            cluster_id_field[i] = cluster_id
+            cluster_sizes_field[cluster_id] = 1
+            
+            # Find all connected particles (simple flood fill)
+            for j in range(particle_count):
+                if active[j] == 1 and cluster_id_field[j] == -1:
+                    if bond_active_field[i, j] == 1:
+                        cluster_id_field[j] = cluster_id
+                        cluster_sizes_field[cluster_id] += 1
+
 @ti.data_oriented
 class BindingSystem:
     """Manages particle binding and bond formation"""
@@ -16,72 +165,29 @@ class BindingSystem:
         self.config = config
         self.max_particles = config.max_particles
         
-        # Bond tracking
-        self.bond_matrix = ti.field(dtype=ti.f32, 
-                                  shape=(self.max_particles, self.max_particles))
-        self.bond_active = ti.field(dtype=ti.i32,
-                                  shape=(self.max_particles, self.max_particles))
+        # Initialize global fields if not already done
+        if bond_matrix_field is None:
+            init_binding_fields()
         
-        # Cluster tracking
-        self.cluster_id = ti.field(dtype=ti.i32, shape=(self.max_particles,))
-        self.cluster_sizes = ti.field(dtype=ti.i32, shape=(self.max_particles,))
-        self.next_cluster_id = ti.field(dtype=ti.i32, shape=())
-        
-        # Bond properties
-        self.bond_energy = ti.field(dtype=ti.f32, 
-                                   shape=(self.max_particles, self.max_particles))
-        self.bond_age = ti.field(dtype=ti.f32,
-                               shape=(self.max_particles, self.max_particles))
+        # Use global fields
+        self.bond_matrix = bond_matrix_field
+        self.bond_active = bond_active_field
+        self.cluster_id = cluster_id_field
+        self.cluster_sizes = cluster_sizes_field
+        self.next_cluster_id = next_cluster_id_field
+        self.bond_energy = bond_energy_field
+        self.bond_age = bond_age_field
         
         # Initialize
         self.reset()
     
-    @ti.kernel
     def reset(self):
         """Reset binding system"""
-        for i, j in ti.ndrange(self.max_particles, self.max_particles):
-            self.bond_matrix[i, j] = 0.0
-            self.bond_active[i, j] = 0
-            self.bond_energy[i, j] = 0.0
-            self.bond_age[i, j] = 0.0
-        
-        for i in range(self.max_particles):
-            self.cluster_id[i] = -1
-            self.cluster_sizes[i] = 0
-        
-        self.next_cluster_id[None] = 0
+        reset_binding_kernel()
     
-    @ti.kernel
-    def update_bonds(self, positions: ti.template(), attributes: ti.template(),
-                    active: ti.template(), particle_count: ti.i32, dt: ti.f32):
+    def update_bonds(self, positions, attributes, active, particle_count: int, dt: float):
         """Update bond formation and breaking based on particle interactions"""
-        # Update bond ages
-        for i, j in ti.ndrange(self.max_particles, self.max_particles):
-            if self.bond_active[i, j] == 1:
-                self.bond_age[i, j] += dt
-        
-        # Check for new bonds
-        for i in range(particle_count):
-            if active[i] == 1:
-                for j in range(i + 1, particle_count):
-                    if active[j] == 1 and self.bond_active[i, j] == 0:
-                        # Check if particles should form a bond
-                        if self.should_form_bond(i, j, positions, attributes):
-                            # Form bond inline to avoid kernel-to-kernel calls
-                            self.bond_active[i, j] = 1
-                            self.bond_active[j, i] = 1
-                            self.bond_matrix[i, j] = 1.0
-                            self.bond_matrix[j, i] = 1.0
-        
-        # Check for bond breaking
-        for i, j in ti.ndrange(self.max_particles, self.max_particles):
-            if self.bond_active[i, j] == 1:
-                if self.should_break_bond(i, j, positions, attributes):
-                    # Break bond inline to avoid kernel-to-kernel calls
-                    self.bond_active[i, j] = 0
-                    self.bond_active[j, i] = 0
-                    self.bond_matrix[i, j] = 0.0
-                    self.bond_matrix[j, i] = 0.0
+        update_bonds_kernel(positions, attributes, active, particle_count, dt)
     
     @ti.func
     def should_form_bond(self, i: ti.i32, j: ti.i32, positions: ti.template(),
@@ -219,31 +325,9 @@ class BindingSystem:
             self.bond_age[i, j] = 0.0
             self.bond_age[j, i] = 0.0
     
-    @ti.kernel
-    def update_clusters(self, active: ti.template(), particle_count: ti.i32):
+    def update_clusters(self, active, particle_count: int):
         """Update cluster assignments using union-find algorithm"""
-        # Initialize cluster IDs
-        for i in range(particle_count):
-            if active[i] == 1:
-                self.cluster_id[i] = i
-            else:
-                self.cluster_id[i] = -1
-        
-        # Union connected particles
-        for i in range(particle_count):
-            if active[i] == 1:
-                for j in range(i + 1, particle_count):
-                    if active[j] == 1 and self.bond_active[i, j] == 1:
-                        self.union_clusters(i, j)
-        
-        # Calculate cluster sizes
-        for i in range(self.max_particles):
-            self.cluster_sizes[i] = 0
-        
-        for i in range(particle_count):
-            if active[i] == 1:
-                root = self.find_cluster_root(i)
-                self.cluster_sizes[root] += 1
+        update_clusters_kernel(active, particle_count)
     
     @ti.func
     def find_cluster_root(self, i: ti.i32) -> ti.i32:
