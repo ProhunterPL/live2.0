@@ -626,6 +626,11 @@ class SimulationStepper:
         energy_field = self.energy_manager.energy_system.energy_field.to_numpy()
         data['energy_field'] = energy_field.tolist()
         
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"DEBUG: get_visualization_data - mode: {self.config.mode}")
+        logger.info(f"DEBUG: energy_field shape: {energy_field.shape}, max: {energy_field.max()}, min: {energy_field.min()}")
+        
         if self.config.mode == "preset_prebiotic":
             # Provide concentration fields for preset mode
             if self.preset_simulator is not None:
@@ -639,7 +644,9 @@ class SimulationStepper:
                         data['concentration_species'] = list(conc.keys())
                         # Back-compat: also provide single-key concentrations for older clients
                         data['concentrations'] = {first_key: conc[first_key].tolist()}
-                except Exception:
+                        logger.info(f"DEBUG: preset mode - concentration field shape: {conc[first_key].shape}")
+                except Exception as e:
+                    logger.info(f"DEBUG: preset mode error: {e}")
                     pass
         else:
             # Provide particle/bond/cluster data for open chemistry
@@ -653,6 +660,10 @@ class SimulationStepper:
             }
             data['bonds'] = bonds
             data['clusters'] = clusters
+            
+            logger.info(f"DEBUG: open chemistry mode - particles: {len(positions)}, bonds: {len(bonds)}")
+            if len(positions) > 0:
+                logger.info(f"DEBUG: sample particle position: {positions[0]}")
         
         return data
     

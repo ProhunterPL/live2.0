@@ -73,7 +73,19 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !memoizedData) return
+    if (!canvas || !memoizedData) {
+      console.log('HeatmapCanvas: No canvas or data', { canvas: !!canvas, data: !!memoizedData })
+      return
+    }
+
+    console.log('HeatmapCanvas: Rendering with data:', {
+      particles: memoizedData.particles,
+      energy_field: memoizedData.energy_field?.length,
+      bonds: memoizedData.bonds?.length,
+      showParticles,
+      showEnergy,
+      showBonds
+    })
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -151,7 +163,12 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     const fieldWidth = energyField[0]?.length || 0
     const fieldHeight = energyField.length || 0
     
-    if (fieldWidth === 0 || fieldHeight === 0) return
+    console.log('drawEnergyField:', { fieldWidth, fieldHeight, energyField: energyField.slice(0, 2) })
+    
+    if (fieldWidth === 0 || fieldHeight === 0) {
+      console.log('drawEnergyField: Empty field')
+      return
+    }
 
     const cellWidth = width / fieldWidth
     const cellHeight = height / fieldHeight
@@ -164,7 +181,12 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
       }
     }
 
-    if (maxEnergy === 0) return
+    console.log('drawEnergyField: maxEnergy =', maxEnergy)
+
+    if (maxEnergy === 0) {
+      console.log('drawEnergyField: No energy to draw')
+      return
+    }
 
     // Draw energy field
     for (let y = 0; y < fieldHeight; y++) {
@@ -259,7 +281,16 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     width: number,
     height: number
   ) => {
-    if (!particles.positions || !particles.attributes) return
+    console.log('drawParticles:', { 
+      positions: particles.positions?.length, 
+      attributes: particles.attributes?.length,
+      samplePos: particles.positions?.slice(0, 3)
+    })
+    
+    if (!particles.positions || !particles.attributes) {
+      console.log('drawParticles: Missing positions or attributes')
+      return
+    }
     
     particles.positions.forEach((pos, index) => {
       const attr = particles.attributes[index]
