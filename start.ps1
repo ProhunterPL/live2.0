@@ -28,8 +28,8 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host ""
     Write-Host "🌐 Access the application:" -ForegroundColor Cyan
     Write-Host "   Frontend: http://localhost:3000" -ForegroundColor White
-    Write-Host "   Backend:  http://localhost:8000" -ForegroundColor White
-    Write-Host "   API Docs: http://localhost:8000/docs" -ForegroundColor White
+    Write-Host "   Backend:  http://localhost:8001" -ForegroundColor White
+    Write-Host "   API Docs: http://localhost:8001/docs" -ForegroundColor White
     Write-Host ""
     Write-Host "📊 Check status: docker compose ps" -ForegroundColor Yellow
     Write-Host "📋 View logs:   docker compose logs -f" -ForegroundColor Yellow

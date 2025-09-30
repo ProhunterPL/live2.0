@@ -2,10 +2,10 @@
 
 Write-Host "Uruchamianie backend Live 2.0..." -ForegroundColor Green
 
-# Sprawdź czy port 8000 jest zajęty
-$portCheck = netstat -ano | Select-String ":8000 "
+# Sprawdź czy port 8001 jest zajęty
+$portCheck = netstat -ano | Select-String ":8001 "
 if ($portCheck) {
-    Write-Host "⚠️  Port 8000 jest już zajęty!" -ForegroundColor Yellow
+    Write-Host "⚠️  Port 8001 jest już zajęty!" -ForegroundColor Yellow
     Write-Host "Uruchamianie skryptu czyszczącego..." -ForegroundColor Cyan
     & ".\cleanup_processes.ps1"
     
@@ -13,9 +13,9 @@ if ($portCheck) {
     Start-Sleep -Seconds 2
     
     # Sprawdź ponownie
-    $portCheck2 = netstat -ano | Select-String ":8000 "
+    $portCheck2 = netstat -ano | Select-String ":8001 "
     if ($portCheck2) {
-        Write-Host "❌ Port 8000 nadal jest zajęty. Uruchom ręcznie: .\cleanup_processes.ps1" -ForegroundColor Red
+        Write-Host "❌ Port 8001 nadal jest zajęty. Uruchom ręcznie: .\cleanup_processes.ps1" -ForegroundColor Red
         exit 1
     }
 }
@@ -37,8 +37,8 @@ $env:PYTHONPATH = (Get-Location).Path
 
 Write-Host ""
 Write-Host "Uruchamianie serwera backend..." -ForegroundColor Cyan
-Write-Host "Lokalizacja: http://localhost:8000" -ForegroundColor White
-Write-Host "API Docs: http://localhost:8000/docs" -ForegroundColor White
+Write-Host "Lokalizacja: http://localhost:8001" -ForegroundColor White
+Write-Host "API Docs: http://localhost:8001/docs" -ForegroundColor White
 Write-Host ""
 Write-Host "Aby zatrzymać serwer: Ctrl+C" -ForegroundColor Yellow
 Write-Host "------------------------------" -ForegroundColor Gray

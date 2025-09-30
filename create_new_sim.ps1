@@ -20,13 +20,13 @@ $body = @{
     mode = 'open_chemistry'
 } | ConvertTo-Json -Depth 3
 
-$response = Invoke-RestMethod -Uri 'http://localhost:8000/simulation/create' -Method POST -Headers $headers -Body $body
+$response = Invoke-RestMethod -Uri 'http://localhost:8001/simulation/create' -Method POST -Headers $headers -Body $body
 $id = $response.simulation_id
 Write-Host "Created simulation: $id"
 
-Invoke-RestMethod -Uri "http://localhost:8000/simulation/$id/start" -Method POST | Out-Null
+Invoke-RestMethod -Uri "http://localhost:8001/simulation/$id/start" -Method POST | Out-Null
 
 Start-Sleep -Seconds 3
 
-$status = Invoke-RestMethod -Uri "http://localhost:8000/simulation/$id/status"
+$status = Invoke-RestMethod -Uri "http://localhost:8001/simulation/$id/status"
 Write-Host "Time: $($status.current_time), Running: $($status.is_running), Steps: $($status.step_count)"

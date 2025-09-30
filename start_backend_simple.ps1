@@ -19,8 +19,8 @@ $env:PYTHONPATH = (Get-Location).Path
 
 Write-Host ""
 Write-Host "Uruchamianie serwera backend..." -ForegroundColor Cyan
-Write-Host "Lokalizacja: http://localhost:8000" -ForegroundColor White
-Write-Host "API Docs: http://localhost:8000/docs" -ForegroundColor White
+Write-Host "Lokalizacja: http://localhost:8001" -ForegroundColor White
+Write-Host "API Docs: http://localhost:8001/docs" -ForegroundColor White
 Write-Host ""
 Write-Host "Aby zatrzymać serwer: Ctrl+C" -ForegroundColor Yellow
 Write-Host "------------------------------" -ForegroundColor Gray

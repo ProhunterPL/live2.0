@@ -2,7 +2,7 @@
 
 Write-Host "🧪 Testing Live 2.0 API..." -ForegroundColor Yellow
 
-$baseUrl = "http://localhost:8000"
+$baseUrl = "http://localhost:8001"
 
 # Test 1: Health check
 Write-Host "`n1. Testing health endpoint..." -ForegroundColor Cyan
