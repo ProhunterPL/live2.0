@@ -24,24 +24,12 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
   const memoizedData = useMemo(() => {
     if (!data) return null
     
-    // Downsample large fields for better performance
-    const downsample = (field: number[][], factor: number = 2) => {
-      if (!field || field.length === 0) return field
-      const result: number[][] = []
-      for (let y = 0; y < field.length; y += factor) {
-        const row: number[] = []
-        for (let x = 0; x < field[0].length; x += factor) {
-          row.push(field[y][x] || 0)
-        }
-        result.push(row)
-      }
-      return result
-    }
+    // Downsampling disabled for debugging
 
     return {
       ...data,
-      energy_field: data.energy_field ? downsample(data.energy_field, 2) : data.energy_field,
-      concentration_view: data.concentration_view ? downsample(data.concentration_view, 2) : data.concentration_view
+      energy_field: data.energy_field, // Disabled downsampling for debugging
+      concentrations: data.concentrations
     }
   }, [data])
 
@@ -164,6 +152,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     const fieldHeight = energyField.length || 0
     
     console.log('drawEnergyField:', { fieldWidth, fieldHeight, energyField: energyField.slice(0, 2) })
+    console.log('Raw energy data sample:', energyField[0]?.slice(0, 10))
     
     if (fieldWidth === 0 || fieldHeight === 0) {
       console.log('drawEnergyField: Empty field')
