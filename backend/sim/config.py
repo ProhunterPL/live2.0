@@ -37,6 +37,11 @@ class SimulationConfig(BaseModel):
     vis_frequency: int = Field(default=10, gt=0)
     log_frequency: int = Field(default=100, gt=0)
     
+    # Diagnostics
+    enable_diagnostics: bool = Field(default=True)
+    diagnostics_dir: str = Field(default="diagnostics")
+    diagnostics_frequency: int = Field(default=10, gt=0, description="Log diagnostics every N steps")
+    
     # Random seed
     seed: Optional[int] = Field(default=None)
 

@@ -256,6 +256,7 @@ Thumbs.db
 
 # Project specific
 snapshots/
+diagnostics/
 *.json
 *.h5
 *.hdf5

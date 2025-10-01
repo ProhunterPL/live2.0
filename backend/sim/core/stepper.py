@@ -19,6 +19,7 @@ from .metrics import MetricsCollector, NoveltyTracker, MetricsAggregator
 from .energy import EnergyManager
 from .rng import RNG
 from .fields_ca import PresetPrebioticSimulator
+from .diagnostics import DiagnosticsLogger
 from ..io.snapshot import SnapshotSerializer
 
 class SimulationStepper:
@@ -54,6 +55,14 @@ class SimulationStepper:
         # Metrics aggregator
         self.aggregator = MetricsAggregator()
         self.aggregator.set_components(self.metrics, self.novelty_tracker, self.catalog)
+        
+        # Diagnostics logger
+        diagnostics_enabled = getattr(config, 'enable_diagnostics', True)
+        diagnostics_dir = getattr(config, 'diagnostics_dir', 'diagnostics')
+        self.diagnostics = DiagnosticsLogger(
+            output_dir=diagnostics_dir,
+            enabled=diagnostics_enabled
+        )
         
         # Mode-specific configurations
         self.preset_config = PresetPrebioticConfig()
@@ -272,6 +281,11 @@ class SimulationStepper:
                 
                 # Update metrics (optimized)
                 self.update_metrics()
+                
+                # Log diagnostics (periodically to reduce overhead)
+                diag_freq = getattr(self.config, 'diagnostics_frequency', 10)
+                if self.step_count % diag_freq == 0:
+                    self._log_diagnostics()
                 
                 # Skip expensive operations for now
                 # self.apply_mutations(dt)
@@ -558,6 +572,62 @@ class SimulationStepper:
         self.metrics.record_metrics(additional_metrics)
         self.aggregator.update_aggregated_stats()
     
+    def _log_diagnostics(self):
+        """Log diagnostics data for current step"""
+        if not self.diagnostics.enabled:
+            return
+        
+        try:
+            # Prepare simulation data for diagnostics
+            simulation_data = {}
+            
+            # Get particle positions
+            particle_count = self.particles.particle_count[None]
+            if particle_count > 0:
+                positions = self.particles.positions.to_numpy()[:particle_count]
+                simulation_data['positions'] = positions
+                
+                # Get particle attributes
+                attributes = self.particles.attributes.to_numpy()[:particle_count]
+                simulation_data['attributes'] = attributes
+                
+                # Get particle energies
+                particle_energies = self.particles.energy.to_numpy()[:particle_count]
+                simulation_data['particle_energies'] = particle_energies
+            else:
+                simulation_data['positions'] = np.array([])
+                simulation_data['attributes'] = np.array([])
+                simulation_data['particle_energies'] = np.array([])
+            
+            # Get bonds
+            bonds = []
+            bond_matrix = self.binding.bond_matrix.to_numpy()
+            for i in range(particle_count):
+                for j in range(i + 1, particle_count):
+                    strength = bond_matrix[i, j]
+                    if strength > 0:
+                        bonds.append((i, j, strength))
+            simulation_data['bonds'] = bonds
+            
+            # Get clusters
+            clusters = {}
+            cluster_stats = self.binding.get_cluster_stats()
+            if 'clusters' in cluster_stats:
+                clusters = cluster_stats['clusters']
+            simulation_data['clusters'] = clusters
+            
+            # Log to diagnostics
+            self.diagnostics.log_step(
+                step=self.step_count,
+                sim_time=self.current_time,
+                simulation_data=simulation_data
+            )
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to log diagnostics: {e}")
+    
     def start(self):
         """Start simulation"""
         self.is_running = True
@@ -575,6 +645,10 @@ class SimulationStepper:
         """Stop simulation"""
         self.is_running = False
         self.is_paused = False
+        
+        # Close diagnostics logger
+        if hasattr(self, 'diagnostics'):
+            self.diagnostics.close()
     
     def reset(self):
         """Reset simulation to initial state"""
