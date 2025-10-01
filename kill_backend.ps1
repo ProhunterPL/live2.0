@@ -10,12 +10,12 @@ if ($connections) {
         ($_ -split '\s+')[-1] | Where-Object { $_ -match '^\d+$' }
     } | Sort-Object -Unique
     
-    foreach ($pid in $pids) {
+    foreach ($processId in $pids) {
         try {
-            $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
             if ($process -and $process.ProcessName -eq "python") {
-                Write-Host "Killing Python process: PID $pid" -ForegroundColor Yellow
-                Stop-Process -Id $pid -Force
+                Write-Host "Killing Python process: PID $processId" -ForegroundColor Yellow
+                Stop-Process -Id $processId -Force
             }
         }
         catch {

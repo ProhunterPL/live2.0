@@ -116,6 +116,14 @@ class Live2Server:
         async def root():
             return {"message": "Live 2.0 Simulation API", "version": "1.0.0"}
         
+        @self.app.get("/simulations/active")
+        async def get_active_simulations():
+            """Get list of active simulation IDs"""
+            return {
+                "simulations": list(self.simulations.keys()),
+                "count": len(self.simulations)
+            }
+        
         @self.app.post("/simulation/create", response_model=SimulationResponse)
         async def create_simulation(request: SimulationRequest):
             """Create a new simulation"""

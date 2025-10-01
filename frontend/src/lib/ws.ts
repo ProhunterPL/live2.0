@@ -9,9 +9,10 @@ export class WebSocketClient {
   private ws: WebSocket | null = null
   private url: string
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
+  private maxReconnectAttempts = 3  // Reduced from 5 to 3
   private reconnectDelay = 1000
   private listeners: Map<string, Function[]> = new Map()
+  private shouldReconnect = true  // Flag to prevent reconnection for non-existent simulations
 
   constructor(url: string = 'ws://localhost:8001/simulation') {
     this.url = url
@@ -25,6 +26,10 @@ export class WebSocketClient {
         const wsUrl = isFull
           ? (urlOrId as string)
           : (urlOrId ? `${this.url}/${urlOrId}/stream` : this.url)
+        
+        // Reset reconnect flag for new connection attempts
+        this.shouldReconnect = true
+        
         console.log('WS connecting to:', wsUrl)
         this.ws = new WebSocket(wsUrl)
         this.ws.binaryType = 'arraybuffer'
@@ -64,9 +69,32 @@ export class WebSocketClient {
           console.log('WebSocket disconnected:', event.code, event.reason)
           this.emit('disconnected')
           
-          // Only reconnect if it's not a normal closure and we have a valid simulation ID
-          if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts && urlOrId) {
+          // Codes that indicate simulation doesn't exist or permanent failure:
+          // 1008 = Policy Violation (backend returns this for non-existent simulation)
+          // 1003 = Unsupported Data
+          // 1002 = Protocol Error
+          const permanentFailureCodes = [1008, 1003, 1002]
+          
+          if (permanentFailureCodes.includes(event.code)) {
+            console.warn(`WebSocket closed with code ${event.code} (simulation not found or permanent error). Stopping reconnection attempts.`)
+            this.shouldReconnect = false
+            this.emit('simulation_not_found', { code: event.code, reason: event.reason })
+            return
+          }
+          
+          // Only reconnect if:
+          // - it's not a normal closure (1000)
+          // - we haven't exceeded max attempts
+          // - we have a valid simulation ID
+          // - shouldReconnect flag is true
+          if (event.code !== 1000 && 
+              this.shouldReconnect && 
+              this.reconnectAttempts < this.maxReconnectAttempts && 
+              urlOrId) {
             this.reconnect(urlOrId)
+          } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.warn(`Max reconnection attempts (${this.maxReconnectAttempts}) reached. Giving up.`)
+            this.emit('reconnect_failed')
           }
         }
 
@@ -99,10 +127,20 @@ export class WebSocketClient {
   // no-op legacy handler removed; messages handled in onmessage
 
   disconnect() {
+    // Prevent automatic reconnection on manual disconnect
+    this.shouldReconnect = false
+    this.reconnectAttempts = 0
+    
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect')
       this.ws = null
     }
+  }
+  
+  // Method to stop reconnection attempts without closing connection
+  stopReconnecting() {
+    this.shouldReconnect = false
+    console.log('Reconnection attempts stopped')
   }
 
   send(message: any) {

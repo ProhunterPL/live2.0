@@ -120,6 +120,29 @@ export class SimulationAPI {
     return []
   }
 
+  async getActiveSimulations(): Promise<string[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/simulations/active`)
+      if (!response.ok) {
+        return []
+      }
+      const data = await response.json()
+      return data.simulations || []
+    } catch (error) {
+      console.error('Failed to get active simulations:', error)
+      return []
+    }
+  }
+
+  async checkSimulationExists(id: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/simulation/${id}/status`)
+      return response.ok
+    } catch (error) {
+      return false
+    }
+  }
+
   async resumeSimulation(id: string): Promise<any> {
     // Backend has separate resume endpoint
     const response = await fetch(`${this.baseUrl}/simulation/${id}/resume`, { method: 'POST' })

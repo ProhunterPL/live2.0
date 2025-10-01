@@ -52,7 +52,12 @@ const Controls: React.FC<ControlsProps> = ({
     try {
       const response = await api.getMetrics(simulationId)
       setMetrics(response.metrics)
-    } catch (error) {
+    } catch (error: any) {
+      // Stop polling if simulation doesn't exist
+      if (error?.message?.includes('404') || error?.message?.includes('not found')) {
+        console.warn('Simulation not found, stopping metrics updates')
+        return
+      }
       console.error('Failed to update metrics:', error)
     }
   }
@@ -63,7 +68,12 @@ const Controls: React.FC<ControlsProps> = ({
     try {
       const response = await api.getNovelSubstances(simulationId, 5)
       setNovelSubstances(response.substances)
-    } catch (error) {
+    } catch (error: any) {
+      // Stop polling if simulation doesn't exist
+      if (error?.message?.includes('404') || error?.message?.includes('not found')) {
+        console.warn('Simulation not found, stopping novel substances updates')
+        return
+      }
       console.error('Failed to update novel substances:', error)
     }
   }

@@ -141,6 +141,16 @@ const App: React.FC = () => {
         console.error('connectWebSocket called without simulationId')
         return
       }
+      
+      // Check if simulation exists before connecting
+      const exists = await api.checkSimulationExists(id)
+      if (!exists) {
+        console.warn(`Simulation ${id} not found on backend. Creating new simulation...`)
+        // Simulation doesn't exist, create a new one
+        await initializeSimulation()
+        return
+      }
+      
       // Pass only the simulationId; ws client will build the full URL
       await wsClient.connect(id)
       setIsConnected(true)
@@ -153,6 +163,18 @@ const App: React.FC = () => {
       })
       wsClient.on('error', (error: Error) => {
         console.error('WebSocket error:', error)
+        setIsConnected(false)
+      })
+      wsClient.on('simulation_not_found', () => {
+        console.warn('Simulation not found on backend. Creating new simulation...')
+        setIsConnected(false)
+        setSimulationId(null)
+        setStatus(null)
+        // Create new simulation automatically
+        initializeSimulation()
+      })
+      wsClient.on('reconnect_failed', () => {
+        console.error('Failed to reconnect after multiple attempts')
         setIsConnected(false)
       })
     } catch (error) {
@@ -238,8 +260,15 @@ const App: React.FC = () => {
     try {
       const statusData = await api.getSimulationStatus(id)
       setStatus(statusData)
-    } catch (error) {
-      console.error('Failed to update status:', error)
+    } catch (error: any) {
+      // If simulation not found (404), clear simulation ID to prevent repeated errors
+      if (error?.message?.includes('404') || error?.message?.includes('not found')) {
+        console.warn(`Simulation ${id} no longer exists. Clearing simulation ID.`)
+        setSimulationId(null)
+        setStatus(null)
+      } else {
+        console.error('Failed to update status:', error)
+      }
     }
   }
 
