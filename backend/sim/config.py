@@ -67,6 +67,15 @@ class PresetPrebioticConfig(BaseModel):
         "H2O": 0.2
     })
 
+class BondTypeConfig(BaseModel):
+    """Configuration for a bond type"""
+    name: str = Field(default="")
+    k_spring: float = Field(default=2.0, gt=0, description="Spring constant")
+    rest_len_factor: float = Field(default=1.0, gt=0, description="Rest length as factor of formation distance")
+    damping: float = Field(default=0.1, ge=0, description="Damping coefficient")
+    strength: float = Field(default=5.0, gt=0, description="Breaking strength threshold")
+    max_age: float = Field(default=100.0, gt=0, description="Maximum age before probabilistic breaking")
+
 class OpenChemistryConfig(BaseModel):
     """Configuration for Open Chemistry mode"""
     
@@ -81,6 +90,21 @@ class OpenChemistryConfig(BaseModel):
     # Energy sources
     energy_sources: int = Field(default=3, ge=0)
     energy_intensity: float = Field(default=5.0, gt=0)
+    
+    # Bond system configuration
+    enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
+    enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
+    bond_types: Dict[int, Dict[str, float]] = Field(default={
+        0: {'name': 'vdW', 'k_spring': 2.0, 'rest_len_factor': 1.0, 'damping': 0.1, 'strength': 5.0, 'max_age': 50.0},
+        1: {'name': 'covalent', 'k_spring': 10.0, 'rest_len_factor': 0.9, 'damping': 0.2, 'strength': 20.0, 'max_age': 200.0},
+        2: {'name': 'H-bond', 'k_spring': 5.0, 'rest_len_factor': 1.1, 'damping': 0.15, 'strength': 10.0, 'max_age': 80.0},
+        3: {'name': 'metallic', 'k_spring': 7.0, 'rest_len_factor': 1.0, 'damping': 0.25, 'strength': 15.0, 'max_age': 150.0}
+    }, description="Bond type parameters")
+    
+    # Cluster configuration
+    min_cluster_size: int = Field(default=4, ge=2, description="Minimum cluster size to track")
+    min_cluster_density: float = Field(default=0.15, ge=0, le=1, description="Minimum graph density to consider valid cluster")
+    compute_cluster_R_g: bool = Field(default=True, description="Compute radius of gyration for clusters")
 
 def get_default_config() -> SimulationConfig:
     """Get default simulation configuration"""

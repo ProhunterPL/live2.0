@@ -253,6 +253,17 @@ class SimulationStepper:
                 # Apply forces
                 self.particles.apply_forces(self.potentials.forces, dt)
                 
+                # Apply bond spring forces (if enabled)
+                enable_spring_forces = getattr(self.open_chemistry_config, 'enable_spring_forces', True)
+                if enable_spring_forces:
+                    self.binding.apply_bond_forces(
+                        self.particles.positions,
+                        self.particles.velocities,
+                        self.potentials.forces,  # Add to existing forces
+                        self.particles.active,
+                        self.particles.particle_count[None]
+                    )
+                
                 # Update binding system
                 self.binding.update_bonds(
                     self.particles.positions,

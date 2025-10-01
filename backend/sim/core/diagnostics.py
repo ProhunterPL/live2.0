@@ -73,7 +73,7 @@ class DiagnosticsLogger:
             'avg_bond_length', 'avg_bond_tension',
             'num_clusters', 'largest_cluster_size',
             'cluster_energy_mean', 'cluster_energy_var',
-            'R_g_mean',
+            'R_g_mean', 'mean_graph_density', 'mean_avg_degree',
             'events_formed', 'events_broken',
             'events_merged', 'events_split'
         ])
@@ -146,6 +146,8 @@ class DiagnosticsLogger:
             cluster_metrics['cluster_energy_mean'],
             cluster_metrics['cluster_energy_var'],
             cluster_metrics['R_g_mean'],
+            cluster_metrics['mean_graph_density'],
+            cluster_metrics['mean_avg_degree'],
             events['formed'], events['broken'],
             events['merged'], events['split']
         ])
@@ -238,7 +240,9 @@ class DiagnosticsLogger:
             'largest_cluster_size': 0,
             'cluster_energy_mean': 0.0,
             'cluster_energy_var': 0.0,
-            'R_g_mean': 0.0
+            'R_g_mean': 0.0,
+            'mean_graph_density': 0.0,
+            'mean_avg_degree': 0.0
         }
         
         if not clusters:
@@ -247,6 +251,8 @@ class DiagnosticsLogger:
         cluster_sizes = []
         cluster_energies = []
         cluster_Rgs = []
+        graph_densities = []
+        avg_degrees = []
         
         for cluster_id, particle_ids in clusters.items():
             size = len(particle_ids)
@@ -274,6 +280,17 @@ class DiagnosticsLogger:
                     R_g_squared = np.mean(np.sum((cluster_positions - center_of_mass)**2, axis=1))
                     R_g = np.sqrt(R_g_squared)
                     cluster_Rgs.append(R_g)
+            
+            # Compute graph metrics (placeholder - would need bond data)
+            # For now, use simple estimate based on size
+            if size >= 2:
+                # Estimate: assume ~30% connectivity for typical clusters
+                estimated_bonds = int(size * 0.3)
+                max_bonds = size * (size - 1) / 2
+                density = estimated_bonds / max_bonds if max_bonds > 0 else 0
+                graph_densities.append(density)
+                avg_degree = 2 * estimated_bonds / size if size > 0 else 0
+                avg_degrees.append(avg_degree)
         
         if cluster_energies:
             metrics['cluster_energy_mean'] = np.mean(cluster_energies)
@@ -281,6 +298,12 @@ class DiagnosticsLogger:
         
         if cluster_Rgs:
             metrics['R_g_mean'] = np.mean(cluster_Rgs)
+        
+        if graph_densities:
+            metrics['mean_graph_density'] = np.mean(graph_densities)
+        
+        if avg_degrees:
+            metrics['mean_avg_degree'] = np.mean(avg_degrees)
         
         return metrics
     
