@@ -22,6 +22,7 @@ from .fields_ca import PresetPrebioticSimulator
 from .diagnostics import DiagnosticsLogger
 from ..io.snapshot import SnapshotSerializer
 
+@ti.data_oriented
 class SimulationStepper:
     """Main simulation coordinator"""
     
@@ -819,8 +820,9 @@ class SimulationStepper:
         """Energy thermostat kernel"""
         target = self.config.target_energy
         alpha = self.config.thermostat_alpha
+        H, W = self.energy_manager.energy_system.energy_field.shape
         
-        for i, j in ti.ndrange(self.energy_manager.energy_system.energy_field.shape):
+        for i, j in ti.ndrange(H, W):
             e = self.energy_manager.energy_system.energy_field[i, j]
             # Noisy pull to target
             self.energy_manager.energy_system.energy_field[i, j] = e + alpha * (target - e) + (ti.random(ti.f32) - 0.5) * 0.005

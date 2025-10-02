@@ -68,15 +68,33 @@ const App: React.FC = () => {
             mode,
             max_particles: 5000,
             max_time: 1000,
-            dt: 0.01,
-            energy_decay: 0.95,
+            dt: 0.035,  // Zwiększone z 0.01
+            energy_decay: 0.96,  // Wolniejsze wygaszanie z 0.95
             energy_threshold: 0.1,
+            // Energy system parameters
+            pulse_every: 48,  // NOWE: częstsze pulsy
+            pulse_radius: 24.0,  // NOWE: większy promień
+            pulse_amplitude: 5.0,  // NOWE: większa amplituda
+            diffuse_D: 0.25,  // NOWE: dyfuzja energii
+            target_energy: 0.25,  // NOWE: tło energii
+            thermostat_alpha: 0.005,  // NOWE: termostat
+            // Particle and binding parameters
             particle_radius: 0.5,
-            binding_threshold: 0.8,
-            unbinding_threshold: 0.2,
+            binding_threshold: 0.68,  // Obniżone z 0.8
+            unbinding_threshold: 0.3,  // Podniesione z 0.2
+            // Mutation parameters
+            p_mut_base: 1e-4,  // NOWE: zwiększone mutacje
+            p_mut_gain: 14.0,  // NOWE: zwiększone mutacje
+            attr_sigma: 0.08,  // NOWE: siła perturbacji
+            // Open chemistry parameters
+            vmax: 8.0,  // NOWE: zwiększona prędkość maksymalna
+            neighbor_radius: 3.2,  // NOWE: promień sąsiedztwa
+            rebuild_neighbors_every: 8,  // NOWE: częstotliwość odbudowy sąsiedztwa
+            clamp_density_per_cell: 64,  // NOWE: maksymalna gęstość na komórkę
+            // Other parameters
             novelty_window: 100,
             min_cluster_size: 2,
-            vis_frequency: 5,
+            vis_frequency: 5,  // Rzadsze renderowanie
             log_frequency: 100,
             seed: Math.floor(Math.random() * 1000000)
           },
@@ -118,16 +136,30 @@ const App: React.FC = () => {
           mode,
           max_particles: 5000,
           max_time: 1000,
-          dt: 0.01,
-          energy_decay: 0.99,
+          dt: 0.035,  // Zwiększone z 0.01
+          energy_decay: 0.96,  // Wolniejsze wygaszanie z 0.99
           energy_threshold: 0.01,
+          pulse_every: 48,  // NOWE: częstsze pulsy
+          pulse_radius: 24.0,  // NOWE: większy promień
+          pulse_amplitude: 5.0,  // NOWE: większa amplituda
+          diffuse_D: 0.25,  // NOWE: dyfuzja energii
+          target_energy: 0.25,  // NOWE: tło energii
+          thermostat_alpha: 0.005,  // NOWE: termostat
           particle_radius: 0.5,
-          binding_threshold: 0.8,
-          unbinding_threshold: 0.2,
+          binding_threshold: 0.68,  // Obniżone z 0.8
+          unbinding_threshold: 0.3,  // Podniesione z 0.2
           novelty_window: 100,
           min_cluster_size: 2,
-            vis_frequency: 5,
+          vis_frequency: 5,  // Rzadsze renderowanie
           log_frequency: 100,
+          p_mut_base: 1e-4,  // NOWE: zwiększone mutacje
+          p_mut_gain: 14.0,  // NOWE: zwiększone mutacje
+          attr_sigma: 0.08,  // NOWE: siła perturbacji
+          // Open chemistry parameters
+          vmax: 8.0,  // NOWE: zwiększona prędkość maksymalna
+          neighbor_radius: 3.2,  // NOWE: promień sąsiedztwa
+          rebuild_neighbors_every: 8,  // NOWE: częstotliwość odbudowy sąsiedztwa
+          clamp_density_per_cell: 64,  // NOWE: maksymalna gęstość na komórkę
           seed: Math.floor(Math.random() * 1000000)
         },
         mode
