@@ -243,15 +243,15 @@ class SubstanceCatalog:
         average_lifetime = sum(lifetimes) / len(lifetimes)
         
         return {
-            'total_substances': total_substances,
-            'novel_substances': novel_substances,
-            'total_discoveries': total_discoveries,
-            'novelty_rate': novelty_rate,
-            'average_substance_size': average_size,
-            'discovery_rate': discovery_rate,
-            'runtime': runtime,
-            'average_complexity': average_complexity,
-            'average_lifetime': average_lifetime,
+            'total_substances': int(total_substances),
+            'novel_substances': int(novel_substances),
+            'total_discoveries': int(total_discoveries),
+            'novelty_rate': float(novelty_rate),
+            'average_substance_size': float(average_size),
+            'discovery_rate': float(discovery_rate),
+            'runtime': float(runtime),
+            'average_complexity': float(average_complexity),
+            'average_lifetime': float(average_lifetime),
             'size_distribution': self._get_size_distribution(),
             'complexity_distribution': self._get_complexity_distribution()
         }

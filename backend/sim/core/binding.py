@@ -90,13 +90,11 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                         r_vec = positions[i] - positions[j]
                         dist = r_vec.norm()
                         
-                        # Form bond with type-specific parameters
-                        bond_active_field[i, j] = 1
-                        bond_active_field[j, i] = 1
-                        bond_matrix_field[i, j] = 1.0
-                        bond_matrix_field[j, i] = 1.0
-                        bond_type_field[i, j] = bond_type
-                        bond_type_field[j, i] = bond_type
+                        # Initialize variables (required for Taichi kernels)
+                        k_spring = 5.0  # default value
+                        rest_len = dist
+                        damping = 0.15
+                        strength = 10.0
                         
                         # Set parameters based on bond type
                         # Type 0: vdW (weak), Type 1: covalent (strong), Type 2: H-bond, Type 3: metallic
@@ -120,6 +118,14 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                             rest_len = dist
                             damping = 0.25
                             strength = 15.0
+                        
+                        # Form bond with type-specific parameters
+                        bond_active_field[i, j] = 1
+                        bond_active_field[j, i] = 1
+                        bond_matrix_field[i, j] = 1.0
+                        bond_matrix_field[j, i] = 1.0
+                        bond_type_field[i, j] = bond_type
+                        bond_type_field[j, i] = bond_type
                         
                         bond_k_spring_field[i, j] = k_spring
                         bond_k_spring_field[j, i] = k_spring
@@ -551,7 +557,8 @@ class BindingSystem:
         for i in range(bond_matrix.shape[0]):
             for j in range(i + 1, bond_matrix.shape[1]):
                 if bond_active[i, j] == 1:
-                    bonds.append((i, j, bond_matrix[i, j]))
+                    # Convert to Python float to ensure JSON serialization
+                    bonds.append((int(i), int(j), float(bond_matrix[i, j])))
         
         return bonds
     
@@ -564,9 +571,11 @@ class BindingSystem:
         clusters = {}
         for i, cid in enumerate(cluster_id):
             if cid >= 0 and cluster_sizes[cid] >= min_size:
-                if cid not in clusters:
-                    clusters[cid] = []
-                clusters[cid].append(i)
+                # Convert to Python int to ensure JSON serialization
+                cid_int = int(cid)
+                if cid_int not in clusters:
+                    clusters[cid_int] = []
+                clusters[cid_int].append(int(i))
         
         return list(clusters.values())
     

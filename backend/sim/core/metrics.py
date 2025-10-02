@@ -182,14 +182,14 @@ class MetricsCollector:
     def get_current_metrics(self) -> Dict:
         """Get current metrics snapshot"""
         return {
-            'particle_count': self.particle_count[None],
-            'total_energy': self.total_energy[None],
-            'total_mass': self.total_mass[None],
-            'bond_count': self.bond_count[None],
-            'cluster_count': self.cluster_count[None],
-            'energy_field_sum': self.energy_field_sum[None],
-            'energy_field_max': self.energy_field_max[None],
-            'energy_field_mean': self.energy_field_mean[None]
+            'particle_count': int(self.particle_count[None]),
+            'total_energy': float(self.total_energy[None]),
+            'total_mass': float(self.total_mass[None]),
+            'bond_count': int(self.bond_count[None]),
+            'cluster_count': int(self.cluster_count[None]),
+            'energy_field_sum': float(self.energy_field_sum[None]),
+            'energy_field_max': float(self.energy_field_max[None]),
+            'energy_field_mean': float(self.energy_field_mean[None])
         }
     
     def get_metrics_history(self) -> List[Dict]:
@@ -208,7 +208,7 @@ class MetricsCollector:
             values = [m[key] for m in recent_metrics if key in m]
             if len(values) > 1:
                 trend = (values[-1] - values[0]) / len(values)
-                trends[f'{key}_trend'] = trend
+                trends[f'{key}_trend'] = float(trend)
         
         return trends
 
@@ -261,12 +261,12 @@ class NoveltyTracker:
     def get_stats(self) -> Dict:
         """Get novelty tracking statistics"""
         return {
-            'novelty_rate': self.get_novelty_rate(),
-            'average_complexity': self.get_average_complexity(),
-            'discovery_rate': self.get_discovery_rate(),
-            'total_discoveries': len(self.discovery_timeline),
-            'novel_discoveries': sum(1 for _, is_novel in self.discovery_timeline if is_novel),
-            'runtime': time.time() - self.start_time
+            'novelty_rate': float(self.get_novelty_rate()),
+            'average_complexity': float(self.get_average_complexity()),
+            'discovery_rate': float(self.get_discovery_rate()),
+            'total_discoveries': int(len(self.discovery_timeline)),
+            'novel_discoveries': int(sum(1 for _, is_novel in self.discovery_timeline if is_novel)),
+            'runtime': float(time.time() - self.start_time)
         }
 
 class ComplexityAnalyzer:

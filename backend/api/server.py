@@ -8,7 +8,7 @@ import json
 import time
 import logging
 from typing import Dict, List, Optional, Any
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -124,12 +124,83 @@ class Live2Server:
                 "count": len(self.simulations)
             }
         
+        @self.app.get("/simulation/current")
+        async def get_current_simulation():
+            """Get current simulation ID (single simulation policy)"""
+            if self.simulations:
+                # Return the most recent simulation
+                sim_id = max(self.simulations.keys())
+                return {
+                    "simulation_id": sim_id,
+                    "exists": True
+                }
+            else:
+                return {
+                    "simulation_id": None,
+                    "exists": False
+                }
+        
+        @self.app.post("/simulations/cleanup")
+        async def cleanup_simulations():
+            """Clean up old simulations"""
+            try:
+                old_count = len(self.simulations)
+                self.cleanup_old_simulations(max_simulations=3)
+                new_count = len(self.simulations)
+                return {
+                    "success": True,
+                    "message": f"Cleaned up {old_count - new_count} simulations",
+                    "remaining": new_count
+                }
+            except Exception as e:
+                logger.error(f"Failed to cleanup simulations: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.get("/simulations/debug")
+        async def debug_simulations():
+            """Debug simulation tasks"""
+            debug_info = {
+                "simulations": list(self.simulations.keys()),
+                "simulation_tasks": {},
+                "broadcast_tasks": {},
+                "active_connections": {}
+            }
+            
+            for sim_id in self.simulations.keys():
+                # Check simulation tasks
+                if sim_id in self.simulation_tasks:
+                    task = self.simulation_tasks[sim_id]
+                    debug_info["simulation_tasks"][sim_id] = {
+                        "exists": True,
+                        "done": task.done(),
+                        "cancelled": task.cancelled()
+                    }
+                else:
+                    debug_info["simulation_tasks"][sim_id] = {"exists": False}
+                
+                # Check broadcast tasks
+                if sim_id in self.broadcast_tasks:
+                    task = self.broadcast_tasks[sim_id]
+                    debug_info["broadcast_tasks"][sim_id] = {
+                        "exists": True,
+                        "done": task.done(),
+                        "cancelled": task.cancelled()
+                    }
+                else:
+                    debug_info["broadcast_tasks"][sim_id] = {"exists": False}
+                
+                # Check active connections
+                debug_info["active_connections"][sim_id] = len(self.active_connections.get(sim_id, []))
+            
+            return debug_info
+        
         @self.app.post("/simulation/create", response_model=SimulationResponse)
         async def create_simulation(request: SimulationRequest):
             """Create a new simulation"""
             try:
                 # Enforce single simulation: stop and cleanup existing ones
                 self.stop_all_simulations()
+                
                 # Create simulation ID
                 simulation_id = f"sim_{int(time.time() * 1000)}"
                 
@@ -146,12 +217,15 @@ class Live2Server:
                 self.simulations[simulation_id] = simulation
                 self.active_connections[simulation_id] = []
                 
+                logger.info(f"Created simulation {simulation_id}")
+                
                 return SimulationResponse(
                     success=True,
                     message="Simulation created successfully",
                     simulation_id=simulation_id
                 )
             except Exception as e:
+                logger.error(f"Failed to create simulation: {e}")
                 raise HTTPException(status_code=400, detail=str(e))
         
         @self.app.get("/simulation/{simulation_id}/status", response_model=SimulationStatus)
@@ -253,16 +327,19 @@ class Live2Server:
             return {"substances": substances}
         
         @self.app.post("/simulation/{simulation_id}/snapshot/save")
-        async def save_snapshot(simulation_id: str, filename: str = None):
+        async def save_snapshot(simulation_id: str, request: Request):
             """Save simulation snapshot"""
             if simulation_id not in self.simulations:
                 raise HTTPException(status_code=404, detail="Simulation not found")
             
-            simulation = self.simulations[simulation_id]
+            # Get filename from query parameters
+            query_params = request.query_params
+            filename = query_params.get("filename")
             
             if filename is None:
                 filename = f"snapshot_{simulation_id}_{int(time.time())}.json"
             
+            simulation = self.simulations[simulation_id]
             simulation.save_snapshot(filename)
             
             return {"success": True, "filename": filename}
@@ -467,18 +544,33 @@ class Live2Server:
     async def run_simulation_loop(self, simulation_id: str):
         """Run simulation loop for a specific simulation"""
         simulation = self.simulations[simulation_id]
+        logger.info(f"Starting simulation loop for {simulation_id}")
         
         while simulation.is_running:
             if not simulation.is_paused:
-                simulation.step()
+                try:
+                    simulation.step()
+                    # Log every 100 steps to avoid spam
+                    if simulation.step_count % 100 == 0:
+                        logger.info(f"Simulation {simulation_id}: step {simulation.step_count}, time {simulation.current_time:.3f}")
+                except Exception as e:
+                    logger.error(f"Error in simulation step for {simulation_id}: {e}")
+                    break
             
             await asyncio.sleep(0.02)  # 50 FPS simulation for better performance
+        
+        logger.info(f"Simulation loop ended for {simulation_id}")
     
     def start_simulation_loop(self, simulation_id: str):
         """Start simulation loop"""
         if simulation_id in self.simulations:
             if simulation_id not in self.simulation_tasks or self.simulation_tasks[simulation_id].done():
+                logger.info(f"Creating simulation task for {simulation_id}")
                 self.simulation_tasks[simulation_id] = asyncio.create_task(self.run_simulation_loop(simulation_id))
+            else:
+                logger.info(f"Simulation task already running for {simulation_id}")
+        else:
+            logger.error(f"Cannot start simulation loop: simulation {simulation_id} not found")
     
     def cleanup_simulation(self, simulation_id: str):
         """Clean up simulation resources"""
@@ -546,6 +638,43 @@ class Live2Server:
             
             # Remove simulation
             self.simulations.pop(sim_id, None)
+    
+    def cleanup_old_simulations(self, max_simulations: int = 5):
+        """Clean up old simulations, keeping only the most recent ones"""
+        if len(self.simulations) <= max_simulations:
+            return
+        
+        # Sort simulations by ID (which includes timestamp) and keep only the newest ones
+        sorted_sims = sorted(self.simulations.keys(), reverse=True)
+        sims_to_remove = sorted_sims[max_simulations:]
+        
+        for sim_id in sims_to_remove:
+            logger.info(f"Cleaning up old simulation {sim_id}")
+            try:
+                # Stop simulation if running
+                if sim_id in self.simulations:
+                    self.simulations[sim_id].stop()
+                
+                # Stop broadcast task
+                if sim_id in self.broadcast_tasks:
+                    task = self.broadcast_tasks[sim_id]
+                    if not task.done():
+                        task.cancel()
+                    self.broadcast_tasks.pop(sim_id, None)
+                
+                # Stop simulation task
+                if sim_id in self.simulation_tasks:
+                    task = self.simulation_tasks[sim_id]
+                    if not task.done():
+                        task.cancel()
+                    self.simulation_tasks.pop(sim_id, None)
+                
+                # Remove from all dictionaries
+                self.simulations.pop(sim_id, None)
+                self.active_connections.pop(sim_id, None)
+                
+            except Exception as e:
+                logger.warning(f"Error cleaning up simulation {sim_id}: {e}")
 
 # Global server instance
 server = Live2Server()

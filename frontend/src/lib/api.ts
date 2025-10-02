@@ -143,6 +143,18 @@ export class SimulationAPI {
     }
   }
 
+  async getCurrentSimulation(): Promise<{ simulation_id: string | null; exists: boolean }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/simulation/current`)
+      if (!response.ok) {
+        return { simulation_id: null, exists: false }
+      }
+      return response.json()
+    } catch (error) {
+      return { simulation_id: null, exists: false }
+    }
+  }
+
   async resumeSimulation(id: string): Promise<any> {
     // Backend has separate resume endpoint
     const response = await fetch(`${this.baseUrl}/simulation/${id}/resume`, { method: 'POST' })

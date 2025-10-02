@@ -1,0 +1,153 @@
+Tak, to bardzo cenna wiadomość 🚀. Katedra Architektury Systemów Komputerowych z ETI PG, specjalizująca się w High Performance Computing (HPC), to świetny partner dla Twojego projektu Live 2.0. Powody i możliwości:
+
+Dlaczego to się przyda:
+
+HPC jako fundament Live 2.0
+Twój projekt zakłada złożone symulacje (energia, cząsteczki, ewolucja systemów). To jest obliczeniowo ekstremalnie kosztowne. Partner, który specjalizuje się w HPC, może pomóc:
+
+dobrać architekturę klastra (GPU/CPU, pamięć rozproszona, sieci Infiniband),
+
+zoptymalizować algorytmy do równoległego uruchamiania,
+
+przeprowadzać benchmarki i testy skalowania.
+
+Wiarygodność w oczach NCN
+Wnioski grantowe (np. OPUS) bardzo zyskują, gdy masz w konsorcjum jednostkę z mocnym zapleczem HPC. To sygnał dla recenzentów, że projekt jest realny technicznie i będzie miał odpowiednią infrastrukturę.
+
+Możliwości finansowania i sprzętu
+Politechnika Gdańska ma dostęp do TASK (Trójmiejska Akademicka Sieć Komputerowa) i innych centrów HPC. To znaczy, że nie musisz wszystkiego budować sam – możesz dostać dostęp do gotowych superkomputerów.
+
+Jak najlepiej to wykorzystać:
+
+Podział ról – PG może być odpowiedzialna za warstwę HPC (algorytmy równoległe, optymalizacja, infrastruktura). Ty i Twój zespół skupiacie się na modelu symulacji i naukowych pytaniach.
+
+Wspólna publikacja – PG może wnieść know-how z HPC i przyciągnąć recenzentów z dziedziny informatyki obliczeniowej.
+
+Długofalowa współpraca – po OPUS możecie wspólnie iść po większe granty (np. Horyzont Europa, NCN Maestro, NCBR).
+
+Jak przygotować się do spotkania:
+
+Podsumowanie projektu w 10 minut – krótko przedstawić Live 2.0:
+
+cel naukowy (symulacja procesów życia od energii do złożonych systemów),
+
+stan obecny (masz prototyp v1, ale obciąża sprzęt),
+
+potrzeby (potężna moc obliczeniowa, optymalizacja algorytmów).
+
+Lista pytań do PG:
+
+Jakie zasoby HPC moglibyście udostępnić na start?
+
+Czy mogą pomóc w równoległym kodowaniu (MPI, CUDA, OpenCL, GPU clusters)?
+
+Jakie mają doświadczenia w projektach NCN/UE, które mogłyby wzmocnić aplikację?
+
+Czy mogliby być formalnym partnerem konsorcjum w OPUS?
+
+Dokumentacja
+
+Zabierz Plan Rozwoju (Roadmap), żeby pokazać wizję i etapy.
+
+Przygotuj schemat architektury obliczeniowej, choćby wstępny (np. jakie moduły symulacji będą najbardziej wymagające).
+
+Otwartość na współkształtowanie
+– nie przychodź tylko po „zasoby”, pokaż, że widzisz PG jako współtwórców projektu, którzy mogą rozwijać własne badania HPC w ramach Live 2.0.
+
+
+Konspekt prezentacji – Live 2.0 + HPC (spotkanie z PG)
+1. Tytuł / Wprowadzenie
+
+Live 2.0 – Symulacja powstawania i ewolucji złożonych systemów
+
+Cel spotkania: omówienie potencjalnej współpracy w zakresie HPC i wspólnego wniosku do NCN OPUS
+
+2. Cel naukowy projektu
+
+Odtworzenie procesów od energii → materii → złożonych struktur → życia
+
+Badanie emergencji nowych zjawisk w złożonych układach
+
+Poszukiwanie nowych modeli naukowych: fizyka, biologia, informatyka
+
+3. Dlaczego to ważne
+
+Brak uniwersalnych modeli opisujących ewolucję systemów od energii do życia
+
+Nowatorski charakter: łączenie fizyki, chemii, biologii i AI w jednym środowisku symulacyjnym
+
+Potencjalne przełomy: lepsze rozumienie powstawania życia, modele AI inspirowane biologią
+
+4. Stan obecny
+
+Prototyp v1 działa: cząsteczki + pola energii
+
+Problemy: bardzo wysokie zużycie zasobów, ograniczenia sprzętowe
+
+Potrzeba skalowalności i optymalizacji HPC
+
+5. Plan rozwoju (Roadmap)
+
+[tu możesz pokazać fragment PDFa, np. 3–4 kamienie milowe]
+
+v1: 2D + proste cząsteczki i energia
+
+v2: rozbudowa modeli, transformacje cząsteczek
+
+v3: 3D, większe układy, mutacje, złożone interakcje
+
+v4: integracja AI, analiza wyników
+
+6. Wyzwania obliczeniowe
+
+Ogromne koszty obliczeń przy symulacjach (wzrost n^2/n^3 przy liczbie cząsteczek)
+
+Konieczność równoległego przetwarzania (MPI, CUDA, OpenCL)
+
+Przechowywanie i analiza danych z symulacji (Big Data)
+
+7. Dlaczego HPC jest kluczowe
+
+Optymalizacja symulacji pod kątem superkomputerów
+
+Skalowanie do tysięcy rdzeni / wielu GPU
+
+Wykorzystanie istniejącej infrastruktury (TASK, klastry PG)
+
+PG jako strategiczny partner technologiczny
+
+8. Możliwe role PG w projekcie
+
+Optymalizacja kodu pod HPC
+
+Testy wydajności, benchmarki
+
+Wsparcie w rozproszonej architekturze (MPI, CUDA, OpenMP, Slurm)
+
+Formalne partnerstwo w OPUS (konsorcjum)
+
+9. Korzyści dla PG
+
+Publikacje w obszarze HPC i symulacji systemów złożonych
+
+Współautorstwo wniosków NCN, NCBR, Horyzont Europa
+
+Rozwój metod HPC na realnym, unikalnym case study
+
+10. Pytania do PG
+
+Jakie zasoby HPC moglibyście udostępnić / zorganizować?
+
+Jakie doświadczenie macie w optymalizacji symulacji?
+
+Czy możecie być formalnym partnerem konsorcjum OPUS?
+
+Jakie dodatkowe kierunki współpracy widzicie?
+
+11. Podsumowanie
+
+Live 2.0 = przełomowy projekt naukowy
+
+HPC = fundament jego realizacji
+
+PG = kluczowy partner w rozwoju i sukcesie

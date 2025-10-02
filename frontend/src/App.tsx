@@ -95,10 +95,22 @@ const App: React.FC = () => {
     }
     recreate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, api, wsClient])
+  }, [mode])
 
   const initializeSimulation = async () => {
     try {
+      // Check if simulation already exists
+      const currentSim = await api.getCurrentSimulation()
+      if (currentSim.exists && currentSim.simulation_id) {
+        console.log('Using existing simulation:', currentSim.simulation_id)
+        setSimulationId(currentSim.simulation_id)
+        await connectWebSocket(currentSim.simulation_id)
+        setRuntimeAccumulatedMs(0)
+        setRuntimeStartMs(null)
+        return
+      }
+
+      // Create new simulation only if none exists
       const response = await api.createSimulation({
         config: {
           grid_height: 128,
@@ -145,9 +157,11 @@ const App: React.FC = () => {
       // Check if simulation exists before connecting
       const exists = await api.checkSimulationExists(id)
       if (!exists) {
-        console.warn(`Simulation ${id} not found on backend. Creating new simulation...`)
-        // Simulation doesn't exist, create a new one
-        await initializeSimulation()
+        console.warn(`Simulation ${id} not found on backend. Clearing simulation ID.`)
+        // Don't create new simulation automatically - let user decide
+        setSimulationId(null)
+        setStatus(null)
+        setIsConnected(false)
         return
       }
       
@@ -166,12 +180,11 @@ const App: React.FC = () => {
         setIsConnected(false)
       })
       wsClient.on('simulation_not_found', () => {
-        console.warn('Simulation not found on backend. Creating new simulation...')
+        console.warn('Simulation not found on backend. Clearing simulation ID.')
         setIsConnected(false)
         setSimulationId(null)
         setStatus(null)
-        // Create new simulation automatically
-        initializeSimulation()
+        // Don't create new simulation automatically
       })
       wsClient.on('reconnect_failed', () => {
         console.error('Failed to reconnect after multiple attempts')
@@ -312,11 +325,11 @@ const App: React.FC = () => {
           
           <button
             className="btn btn-primary"
-            onClick={status?.is_running ? (status?.is_paused ? resumeSimulation : pauseSimulation) : () => startSimulation(simulationId!)}
-            disabled={!simulationId}
+            onClick={status?.is_running ? (status?.is_paused ? resumeSimulation : pauseSimulation) : (simulationId ? () => startSimulation(simulationId) : initializeSimulation)}
+            disabled={false}
           >
             {status?.is_running ? (status?.is_paused ? <Play size={16} /> : <Pause size={16} />) : <Play size={16} />}
-            {status?.is_running ? (status?.is_paused ? 'Resume' : 'Pause') : 'Start'}
+            {status?.is_running ? (status?.is_paused ? 'Resume' : 'Pause') : (simulationId ? 'Start' : 'Create & Start')}
           </button>
           
           <button
