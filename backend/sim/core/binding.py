@@ -119,13 +119,26 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                             damping = 0.25
                             strength = 15.0
                         
-                        # Form bond with type-specific parameters
-                        bond_active_field[i, j] = 1
-                        bond_active_field[j, i] = 1
-                        bond_matrix_field[i, j] = 1.0
-                        bond_matrix_field[j, i] = 1.0
-                        bond_type_field[i, j] = bond_type
-                        bond_type_field[j, i] = bond_type
+                        # Probabilistic bond formation
+                        theta_bind = 0.68  # From config
+                        dE = -dist  # Simplified energy change
+                        
+                        # Sigmoid probability
+                        p = 1.0 / (1.0 + ti.exp(-(-dE - theta_bind) * 1.5))
+                        
+                        # Energy-dependent noise
+                        # Get local energy (simplified)
+                        E = 0.5  # Placeholder - should get from energy field
+                        p *= (1.0 + 0.5 * E)
+                        
+                        if ti.random(ti.f32) < p:
+                            # Form bond with type-specific parameters
+                            bond_active_field[i, j] = 1
+                            bond_active_field[j, i] = 1
+                            bond_matrix_field[i, j] = 1.0
+                            bond_matrix_field[j, i] = 1.0
+                            bond_type_field[i, j] = bond_type
+                            bond_type_field[j, i] = bond_type
                         
                         bond_k_spring_field[i, j] = k_spring
                         bond_k_spring_field[j, i] = k_spring

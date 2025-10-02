@@ -296,3 +296,27 @@ class ParticleSystem:
             if info['id'] == type_id:
                 return info
         return None
+    
+    @ti.kernel
+    def thermal_kick(self, vmax: float, k_sigma: float, energy_field: ti.template()):
+        """Add thermal noise to particle velocities based on local energy"""
+        for p in range(self.max_particles):
+            if self.active[p] == 1:
+                # Get grid position
+                i = ti.cast(self.positions[p].x, ti.i32) % energy_field.shape[0]
+                j = ti.cast(self.positions[p].y, ti.i32) % energy_field.shape[1]
+                E = energy_field[i, j]
+                
+                # Sigma grows with energy (clipped)
+                sigma = k_sigma * ti.min(1.0, E)
+                
+                # Add thermal noise
+                self.velocities[p].x += (ti.random(ti.f32) - 0.5) * sigma
+                self.velocities[p].y += (ti.random(ti.f32) - 0.5) * sigma
+                
+                # Clamp velocity
+                v2 = self.velocities[p].x * self.velocities[p].x + self.velocities[p].y * self.velocities[p].y
+                if v2 > vmax * vmax:
+                    s = vmax / ti.sqrt(v2)
+                    self.velocities[p].x *= s
+                    self.velocities[p].y *= s

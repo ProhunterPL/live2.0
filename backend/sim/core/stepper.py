@@ -224,6 +224,10 @@ class SimulationStepper:
         try:
             # Update energy system
             self.energy_manager.update(dt)
+            
+            # Add energy diffusion and thermostat
+            self._energy_diffuse(dt)
+            self._energy_thermostat()
 
             if self.config.mode == "preset_prebiotic":
                 # Synchronize preset energy field with main energy system (read-only copy)
@@ -252,6 +256,10 @@ class SimulationStepper:
                 
                 # Apply forces
                 self.particles.apply_forces(self.potentials.forces, dt)
+                
+                # Add thermal kick based on local energy
+                vmax = getattr(self.open_chemistry_config, 'vmax', 8.0)
+                self.particles.thermal_kick(vmax, 0.6, self.energy_manager.energy_system.energy_field)
                 
                 # Apply bond spring forces (if enabled)
                 enable_spring_forces = getattr(self.open_chemistry_config, 'enable_spring_forces', True)
@@ -784,6 +792,38 @@ class SimulationStepper:
         
         with open(filename, 'w') as f:
             json.dump(snapshot, f, indent=2)
+    
+    @ti.kernel
+    def _energy_diffuse(self, dt: float):
+        """Energy diffusion kernel"""
+        D = self.config.diffuse_D
+        H, W = self.energy_manager.energy_system.energy_field.shape
+        
+        for i, j in ti.ndrange(H, W):
+            ip = (i + 1) % H
+            im = (i - 1 + H) % H
+            jp = (j + 1) % W
+            jm = (j - 1 + W) % W
+            
+            # Laplacian
+            lap = (self.energy_manager.energy_system.energy_field[ip, j] + 
+                   self.energy_manager.energy_system.energy_field[im, j] +
+                   self.energy_manager.energy_system.energy_field[i, jp] + 
+                   self.energy_manager.energy_system.energy_field[i, jm] -
+                   4.0 * self.energy_manager.energy_system.energy_field[i, j])
+            
+            self.energy_manager.energy_system.energy_field[i, j] += D * lap * dt
+    
+    @ti.kernel
+    def _energy_thermostat(self):
+        """Energy thermostat kernel"""
+        target = self.config.target_energy
+        alpha = self.config.thermostat_alpha
+        
+        for i, j in ti.ndrange(self.energy_manager.energy_system.energy_field.shape):
+            e = self.energy_manager.energy_system.energy_field[i, j]
+            # Noisy pull to target
+            self.energy_manager.energy_system.energy_field[i, j] = e + alpha * (target - e) + (ti.random(ti.f32) - 0.5) * 0.005
     
     def load_snapshot(self, filename: str):
         """Load simulation snapshot using serializer"""
