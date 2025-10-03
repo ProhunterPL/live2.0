@@ -119,17 +119,21 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                             damping = 0.25
                             strength = 15.0
                         
-                        # Probabilistic bond formation
-                        theta_bind = 0.68  # From config
+                        # Probabilistic bond formation - LOWER THRESHOLD FOR MORE BONDS
+                        theta_bind = 0.3  # Lowered from 0.68
                         dE = -dist  # Simplified energy change
                         
-                        # Sigmoid probability
-                        p = 1.0 / (1.0 + ti.exp(-(-dE - theta_bind) * 1.5))
+                        # Sigmoid probability with easier formation
+                        p = 1.0 / (1.0 + ti.exp(-(-dE - theta_bind) * 2.0))
                         
-                        # Energy-dependent noise
+                        # Energy-dependent noise - MORE AGGRESSIVE BONDING
                         # Get local energy (simplified)
                         E = 0.5  # Placeholder - should get from energy field
-                        p *= (1.0 + 0.5 * E)
+                        p *= (1.0 + 1.0 * E)  # Increased energy factor
+                        
+                        # Additional distance factor - closer particles bond easier
+                        distance_factor = 1.0 / (1.0 + dist * 0.5)
+                        p *= distance_factor
                         
                         if ti.random(ti.f32) < p:
                             # Form bond with type-specific parameters
@@ -185,17 +189,17 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         charge_product = charge_i * charge_j
         charge_sum = ti.abs(charge_i + charge_j)
         
-        # Determine bond type based on properties
-        if mass_ratio > 0.8 and ti.abs(charge_product) < 0.1:
-            # Similar mass, low charge interaction → covalent-like (strong)
+        # Determine bond type based on properties - MORE RELAXED CRITERIA
+        if mass_ratio > 0.6 and ti.abs(charge_product) > -0.5:  # Relaxed criteria
+            # Similar mass, moderate charge interaction → covalent-like (strong)
             bond_type = 1  # covalent
-        elif charge_product < -0.2:
+        elif charge_product < -0.1:  # Relaxed opposite charge threshold
             # Opposite charges → hydrogen bond-like
             bond_type = 2  # H-bond
-        elif mass_ratio > 0.6 and charge_sum > 0.5:
-            # Medium mass ratio, high total charge → metallic-like
+        elif mass_ratio > 0.4 and charge_sum > 0.2:  # Relaxed metal criteria
+            # Medium mass ratio, moderate total charge → metallic-like
             bond_type = 3  # metallic
-        elif r <= PARTICLE_RADIUS_COMPILE * 2.0:
+        elif r <= PARTICLE_RADIUS_COMPILE * 2.5:  # Use full binding range
             # Close proximity, fallback → van der Waals
             bond_type = 0  # vdW
     

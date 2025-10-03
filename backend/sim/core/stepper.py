@@ -20,7 +20,8 @@ from .energy import EnergyManager
 from .rng import RNG
 from .fields_ca import PresetPrebioticSimulator
 from .diagnostics import DiagnosticsLogger
-from ..io.snapshot import SnapshotSerializer
+from ..io.snapshot import SnapshotManager, SnapshotSerializer
+from .integrators import SymplecticIntegrators, AdaptiveIntegrator
 
 @ti.data_oriented
 class SimulationStepper:
@@ -64,6 +65,13 @@ class SimulationStepper:
             output_dir=diagnostics_dir,
             enabled=diagnostics_enabled
         )
+        
+        # Snapshot manager with image generation
+        self.snapshot_manager = SnapshotManager(snapshot_dir="snapshots")
+        
+        # Symplectic integrators for better energy conservation
+        self.integrator = AdaptiveIntegrator(config.max_particles, method="verlet")
+        self.use_symplectic = getattr(config, 'use_symplectic_integrator', True)
         
         # Mode-specific configurations
         self.preset_config = PresetPrebioticConfig()
@@ -241,22 +249,44 @@ class SimulationStepper:
                 self.update_metrics()
             else:
                 # Open chemistry branch
-                # Update particle positions
-                self.particles.update_positions(dt)
-                
-                # Update spatial hash
-                self.grid.update_spatial_hash()
-                
-                # Compute forces
-                self.potentials.compute_forces(
-                    self.particles.positions,
-                    self.particles.attributes,
-                    self.particles.active,
-                    self.particles.particle_count[None]
-                )
-                
-                # Apply forces
-                self.particles.apply_forces(self.potentials.forces, dt)
+                if self.use_symplectic:
+                    # Use symplectic integrator for better energy conservation
+                    particle_count = self.particles.particle_count[None]
+                    
+                    # Update spatial hash first for force computation
+                    self.grid.update_spatial_hash()
+                    
+                    # Compute forces for Verlet first stage
+                    self.potentials.compute_forces(
+                        self.particles.positions,
+                        self.particles.attributes,
+                        self.particles.active,
+                        particle_count
+                    )
+                    
+                    # Perform symplectic integration
+                    success, actual_dt = self._symplectic_step(dt)
+                    if not success:
+                        # If step was rejected, reduce timestep
+                        self._current_dt *= 0.5
+                        return  # Skip remaining operations for this step
+                else:
+                    # Original Euler method (fallback)
+                    self.particles.update_positions(dt)
+                    
+                    # Update spatial hash
+                    self.grid.update_spatial_hash()
+                    
+                    # Compute forces
+                    self.potentials.compute_forces(
+                        self.particles.positions,
+                        self.particles.attributes,
+                        self.particles.active,
+                        self.particles.particle_count[None]
+                    )
+                    
+                    # Apply forces
+                    self.particles.apply_forces(self.potentials.forces, dt)
                 
                 # Add thermal kick based on local energy
                 vmax = getattr(self.open_chemistry_config, 'vmax', 8.0)
@@ -386,6 +416,66 @@ class SimulationStepper:
                 max_force = max(max_force, force_mag)
         
         return max_force
+    
+    def _symplectic_step(self, dt: float) -> tuple[bool, float]:
+        """Perform symplectic integration step with error control"""
+        particle_count = self.particles.particle_count[None]
+        
+        try:
+            # Perform adaptive symplectic step
+            actual_dt, success = self.integrator.step(
+                self.particles.positions,
+                self.particles.velocities,
+                self.potentials.forces,
+                self.particles.attributes,
+                dt,
+                self.particles.active,
+                particle_count
+            )
+            
+            if success and actual_dt > 0:
+                # Successful step - recompute forces with new positions
+                self.potentials.compute_forces(
+                    self.particles.positions,
+                    self.particles.attributes,
+                    self.particles.active,
+                    particle_count
+                )
+                
+                # Complete Verlet correction if needed
+                self.integrator.integrator.verlet_correction(
+                    self.particles.velocities,
+                    self.potentials.forces,
+                    self.particles.attributes,
+                    actual_dt,
+                    self.particles.active,
+                    particle_count
+                )
+                
+                return True, actual_dt
+            else:
+                # Failed step
+                return False, 0.0
+                
+        except Exception as e:
+            print(f"WARNING: Symplectic integration failed: {e}")
+            return False, 0.0
+
+    def get_integration_stats(self) -> Dict[str, Any]:
+        """Get integration quality statistics"""
+        integration_stats = self.integrator.get_stats()
+        
+        # Add energy conservation metrics
+        total_energy = self._get_total_energy()
+        if hasattr(self, 'initial_energy') and self.initial_energy > 0:
+            energy_relative_error = abs(total_energy - self.initial_energy) / self.initial_energy
+            integration_stats['energy_conservation'] = {
+                'total_energy': total_energy,
+                'initial_energy': self.initial_energy,
+                'relative_error': energy_relative_error
+            }
+        
+        return integration_stats
     
     def _update_energy_conservation(self):
         """Update energy conservation history"""
@@ -767,32 +857,33 @@ class SimulationStepper:
         
         return [substance.to_dict() for substance in recent_substances]
     
-    def save_snapshot(self, filename: str):
-        """Save simulation snapshot using serializer"""
-        snapshot = SnapshotSerializer.serialize_simulation(self)
-        import json
-        import numpy as np
+    def save_snapshot(self, filename: str, save_images: bool = True):
+        """Save simulation snapshot with optional image generation"""
+        import os
+        print(f"DEBUG: save_snapshot called with filename={filename}, save_images={save_images}")
+        print(f"DEBUG: Current working directory: {os.getcwd()}")
         
-        def convert_numpy_types(obj):
-            """Convert numpy types to Python native types for JSON serialization"""
-            if isinstance(obj, np.integer):
-                return int(obj)
-            elif isinstance(obj, np.floating):
-                return float(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            elif isinstance(obj, dict):
-                return {key: convert_numpy_types(value) for key, value in obj.items()}
-            elif isinstance(obj, list):
-                return [convert_numpy_types(item) for item in obj]
-            else:
-                return obj
+        # Serialize simulation data
+        snapshot_data = SnapshotSerializer.serialize_simulation(self)
+        print(f"DEBUG: Snapshot data serialized, keys: {list(snapshot_data.keys())}")
         
-        # Convert numpy types to Python native types
-        snapshot = convert_numpy_types(snapshot)
+        # Use BlobManager to save with image generation
+        name = filename.replace('.json', '')  # Remove .json extension for name
+        print(f"DEBUG: About to save snapshot with name={name}")
         
-        with open(filename, 'w') as f:
-            json.dump(snapshot, f, indent=2)
+        try:
+            saved_filename = self.snapshot_manager.create_snapshot(
+                snapshot_data, 
+                name=name, 
+                save_images=save_images
+            )
+            print(f"DEBUG: Snapshot saved as: {saved_filename}")
+            return saved_filename
+        except Exception as e:
+            print(f"ERROR: Failed to save snapshot: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     @ti.kernel
     def _energy_diffuse(self, dt: float):

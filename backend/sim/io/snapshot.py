@@ -9,6 +9,9 @@ import os
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.gridspec as gridspec
 import taichi as ti
 
 class SnapshotManager:
@@ -34,7 +37,7 @@ class SnapshotManager:
         with open(self.metadata_file, 'w') as f:
             json.dump(self.metadata, f, indent=2)
     
-    def create_snapshot(self, simulation_data: Dict, name: str = None) -> str:
+    def create_snapshot(self, simulation_data: Dict, name: str = None, save_images: bool = True) -> str:
         """Create a new snapshot"""
         if name is None:
             name = f"snapshot_{int(time.time())}"
@@ -51,12 +54,22 @@ class SnapshotManager:
             "simulation_mode": simulation_data.get("config", {}).get("mode", "unknown"),
             "particle_count": simulation_data.get("particles", {}).get("positions", []).__len__(),
             "current_time": simulation_data.get("current_time", 0.0),
-            "step_count": simulation_data.get("step_count", 0)
+            "step_count": simulation_data.get("step_count", 0),
+            "has_images": save_images
         }
         
         # Save snapshot data
         with open(filepath, 'w') as f:
             json.dump(simulation_data, f, indent=2)
+        
+        # Generate and save visualization images
+        if save_images:
+            self._generate_visualizations(simulation_data, name)
+            snapshot_info["image_files"] = [
+                f"{name}_overview.png",
+                f"{name}_energy_field.png",
+                f"{name}_particles.png"
+            ]
         
         # Update metadata
         self.metadata["snapshots"][name] = snapshot_info
@@ -135,6 +148,145 @@ class SnapshotManager:
             self.delete_snapshot(name)
         
         return len(to_delete)
+    
+    def _generate_visualizations(self, simulation_data: Dict, name: str):
+        """Generate visualization images for snapshot"""
+        try:
+            # Create overview visualization
+            self._create_overview_plot(simulation_data, name)
+            
+            # Create energy field visualization
+            if 'energy_field' in simulation_data:
+                self._create_energy_field_plot(simulation_data, name)
+            
+            # Create particles visualization
+            if 'particles' in simulation_data:
+                self._create_particles_plot(simulation_data, name)
+                
+        except Exception as e:
+            print(f"Warning: Failed to generate visualizations: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _create_overview_plot(self, simulation_data: Dict, name: str):
+        """Create overview plot showing simulation metrics"""
+        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+        fig.suptitle(f'Simulation Overview - {name}', fontsize=14, fontweight='bold')
+        
+        # Time and step information
+        ax = axes[0, 0]
+        current_time = simulation_data.get('current_time', 0)
+        step_count = simulation_data.get('step_count', 0)
+        ax.text(0.1, 0.7, f'Current Time: {current_time:.2f}', transform=ax.transAxes, fontsize=12)
+        ax.text(0.1, 0.5, f'Step Count: {step_count:,}', transform=ax.transAxes, fontsize=12)
+        ax.text(0.1, 0.3, f'Mode: {simulation_data.get("mode", "unknown")}', transform=ax.transAxes, fontsize=12)
+        ax.set_title('Simulation Status')
+        ax.axis('off')
+        
+        # Particle count and metrics
+        ax = axes[0, 1]
+        particles = simulation_data.get('particles', {})
+        particle_count = len(particles.get('positions', []))
+        bonds = simulation_data.get('bonds', [])
+        bond_count = len(bonds)
+        
+        ax.text(0.1, 0.7, f'Particles: {particle_count}', transform=ax.transAxes, fontsize=12)
+        ax.text(0.1, 0.5, f'Bonds: {bond_count}', transform=ax.transAxes, fontsize=12)
+        ax.text(0.1, 0.3, f'Clusters: {len(simulation_data.get("clusters", []))}', transform=ax.transAxes, fontsize=12)
+        ax.set_title('System Composition')
+        ax.axis('off')
+        
+        # Metrics visualization
+        metrics = simulation_data.get('metrics', {})
+        ax = axes[1, 0]
+        metric_names = list(metrics.keys())
+        metric_values = list(metrics.values())
+        if metric_names:
+            bars = ax.bar(range(len(metric_names)), metric_values)
+            ax.set_xticks(range(len(metric_names)))
+            ax.set_xticklabels(metric_names, rotation=45, ha='right')
+            ax.set_title('Key Metrics')
+            ax.tick_params(axis='x', labelsize=8)
+        
+        # Energy distribution
+        ax = axes[1, 1]
+        energy_field = simulation_data.get('energy_field')
+        if energy_field:
+            energy_array = np.array(energy_field)
+            ax.hist(energy_array.flatten(), bins=50, alpha=0.7, color='blue', edgecolor='black')
+            ax.set_xlabel('Energy Value')
+            ax.set_ylabel('Frequency')
+            ax.set_title('Energy Distribution')
+        
+        plt.tight_layout()
+        output_file = self.snapshot_dir / f'{name}_overview.png'
+        plt.savefig(output_file, dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def _create_energy_field_plot(self, simulation_data: Dict, name: str):
+        """Create energy field heatmap"""
+        energy_field = simulation_data.get('energy_field')
+        if not energy_field:
+            return
+            
+        energy_array = np.array(energy_field)
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        im = ax.imshow(energy_array, cmap='viridis', aspect='auto')
+        ax.set_title(f'Energy Field - {name}', fontsize=14, fontweight='bold')
+        ax.set_xlabel('X Position')
+        ax.set_ylabel('Y Position')
+        
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label('Energy', rotation=270, labelpad=20)
+        
+        plt.tight_layout()
+        output_file = self.snapshot_dir / f'{name}_energy_field.png'
+        plt.savefig(output_file, dpi=150, bbox_inches='tight')
+        plt.close()
+    
+    def _create_particles_plot(self, simulation_data: Dict, name: str):
+        """Create particles and bonds visualization"""
+        particles = simulation_data.get('particles', {})
+        bonds = simulation_data.get('bonds', [])
+        
+        positions = particles.get('positions', [])
+        if not positions:
+            return
+            
+        positions_array = np.array(positions)
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # Plot particles
+        if len(positions_array) > 0:
+            x_coords = positions_array[:, 0]
+            y_coords = positions_array[:, 1]
+            ax.scatter(x_coords, y_coords, c='red', s=20, alpha=0.7, label='Particles')
+        
+        # Plot bonds
+        if bonds and len(positions_array) > 0:
+            for bond in bonds:
+                if len(bond) >= 2:
+                    i, j = int(bond[0]), int(bond[1])
+                    if i < len(positions_array) and j < len(positions_array):
+                        x1, y1 = positions_array[i]
+                        x2, y2 = positions_array[j]
+                        strength = bond[2] if len(bond) > 2 else 1.0
+                        ax.plot([x1, x2], [y1, y2], 'b-', alpha=strength, linewidth=1)
+        
+        ax.set_title(f'Particles and Bonds - {name}', fontsize=14, fontweight='bold')
+        ax.set_xlabel('X Position')
+        ax.set_ylabel('Y Position')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        output_file = self.snapshot_dir / f'{name}_particles.png'
+        plt.savefig(output_file, dpi=150, bbox_inches='tight')
+        plt.close()
 
 class SnapshotSerializer:
     """Serializes and deserializes simulation data"""

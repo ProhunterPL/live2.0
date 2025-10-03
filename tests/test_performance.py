@@ -10,7 +10,7 @@ import time
 import sys
 from typing import Dict, Any
 
-API_BASE = "http://localhost:8000"
+API_BASE = "http://localhost:8001"
 
 def create_simulation(particle_count: int = 10000) -> str:
     """Create a simulation with specified particle count"""

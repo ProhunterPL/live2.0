@@ -328,21 +328,22 @@ class Live2Server:
         
         @self.app.post("/simulation/{simulation_id}/snapshot/save")
         async def save_snapshot(simulation_id: str, request: Request):
-            """Save simulation snapshot"""
+            """Save simulation snapshot with optional image generation"""
             if simulation_id not in self.simulations:
                 raise HTTPException(status_code=404, detail="Simulation not found")
             
-            # Get filename from query parameters
+            # Get parameters from query string
             query_params = request.query_params
             filename = query_params.get("filename")
+            save_images = query_params.get("save_images", "true").lower() == "true"
             
             if filename is None:
                 filename = f"snapshot_{simulation_id}_{int(time.time())}.json"
             
             simulation = self.simulations[simulation_id]
-            simulation.save_snapshot(filename)
+            saved_filename = simulation.save_snapshot(filename, save_images=save_images)
             
-            return {"success": True, "filename": filename}
+            return {"success": True, "filename": saved_filename, "images_generated": save_images}
         
         @self.app.post("/simulation/{simulation_id}/snapshot/load")
         async def load_snapshot(simulation_id: str, filename: str):
