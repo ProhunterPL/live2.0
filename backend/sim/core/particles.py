@@ -159,6 +159,12 @@ class ParticleSystem:
         self.age = age
         self.last_mutation = last_mutation
         
+        # Pre-allocated Taichi fields for efficient data transfer
+        self._numpy_positions_taichi = ti.field(dtype=ti.f32, shape=(self.max_particles, 2))
+        self._numpy_velocities_taichi = ti.field(dtype=ti.f32, shape=(self.max_particles, 2))
+        self._numpy_attributes_taichi = ti.field(dtype=ti.f32, shape=(self.max_particles, 4))
+        self._numpy_active_taichi = ti.field(dtype=ti.i32, shape=(self.max_particles))
+        
         # Type registry for tracking particle types
         self.type_registry = {}
         self.next_type_id = 0
@@ -238,11 +244,15 @@ class ParticleSystem:
         return get_particle_neighbors_kernel(idx, positions, radius, neighbors)
     
     def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Get data for all active particles"""
-        positions = self.positions.to_numpy()
-        velocities = self.velocities.to_numpy()
-        attributes = self.attributes.to_numpy()
-        active = self.active.to_numpy()
+        """Get data for all active particles - OPTIMIZED VERSION"""
+        # Use single kernel to copy data to Taichi fields more efficiently
+        self._copy_particles_to_taichi()
+        
+        # Convert to numpy and filter only active particles
+        positions = self._numpy_positions_taichi.to_numpy()
+        velocities = self._numpy_velocities_taichi.to_numpy()
+        attributes = self._numpy_attributes_taichi.to_numpy()
+        active = self._numpy_active_taichi.to_numpy()
         
         # Filter only active particles
         active_mask = active == 1
@@ -251,6 +261,21 @@ class ParticleSystem:
         active_attributes = attributes[active_mask]
         
         return active_positions, active_velocities, active_attributes, active_mask
+    
+    @ti.kernel
+    def _copy_particles_to_taichi(self):
+        """Copy particle data to Taichi fields using single kernel"""
+        for i in range(self.max_particles):
+            # Copy vector fields to 2D fields
+            self._numpy_positions_taichi[i, 0] = self.positions[i][0]
+            self._numpy_positions_taichi[i, 1] = self.positions[i][1]
+            self._numpy_velocities_taichi[i, 0] = self.velocities[i][0]
+            self._numpy_velocities_taichi[i, 1] = self.velocities[i][1]
+            self._numpy_attributes_taichi[i, 0] = self.attributes[i][0]
+            self._numpy_attributes_taichi[i, 1] = self.attributes[i][1]
+            self._numpy_attributes_taichi[i, 2] = self.attributes[i][2]
+            self._numpy_attributes_taichi[i, 3] = self.attributes[i][3]
+            self._numpy_active_taichi[i] = self.active[i]
     
     def get_particle_by_index(self, idx: int) -> Optional[Dict]:
         """Get particle data by index"""

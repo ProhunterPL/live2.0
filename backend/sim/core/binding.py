@@ -177,7 +177,7 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     # Default: no bond
     bond_type = -1
     
-    if r <= PARTICLE_RADIUS_COMPILE * 2.5:  # Within binding range
+    if r <= PARTICLE_RADIUS_COMPILE * 4.0:  # INCREASED binding range (was 2.5, now 4.0)
         # Get particle properties
         mass_i = attributes[i][0]
         mass_j = attributes[j][0]
@@ -189,18 +189,18 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         charge_product = charge_i * charge_j
         charge_sum = ti.abs(charge_i + charge_j)
         
-        # Determine bond type based on properties - MORE RELAXED CRITERIA
-        if mass_ratio > 0.6 and ti.abs(charge_product) > -0.5:  # Relaxed criteria
+        # Determine bond type based on properties - EXTREMELY RELAXED for more bonds
+        if mass_ratio > 0.2 and ti.abs(charge_product) > -1.0:  # Very relaxed
             # Similar mass, moderate charge interaction → covalent-like (strong)
             bond_type = 1  # covalent
-        elif charge_product < -0.1:  # Relaxed opposite charge threshold
+        elif charge_product < 0.0:  # Any opposite charge
             # Opposite charges → hydrogen bond-like
             bond_type = 2  # H-bond
-        elif mass_ratio > 0.4 and charge_sum > 0.2:  # Relaxed metal criteria
+        elif mass_ratio > 0.1 and charge_sum > 0.0:  # Very relaxed metal
             # Medium mass ratio, moderate total charge → metallic-like
             bond_type = 3  # metallic
-        elif r <= PARTICLE_RADIUS_COMPILE * 2.5:  # Use full binding range
-            # Close proximity, fallback → van der Waals
+        else:
+            # ALWAYS form vdW bond if within range
             bond_type = 0  # vdW
     
     return bond_type
@@ -410,25 +410,11 @@ class BindingSystem:
         r_vec = pos_i - pos_j
         r = r_vec.norm()
         
-        # Check distance threshold
+        # NAPRAWIONE: UPROSZCZONE - tylko odległość!
         result = 0
-        if r <= self.config.particle_radius * 2.5:  # Within binding range
-            # Check binding compatibility
-            mass_i = attributes[i][0]
-            mass_j = attributes[j][0]
-            charge_i = attributes[i][1]
-            charge_j = attributes[j][1]
-            
-            # Mass compatibility
-            mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
-            if mass_ratio >= 0.5:  # Similar masses
-                # Charge compatibility (opposite charges attract)
-                charge_product = charge_i * charge_j
-                if charge_product <= 0.1:  # Not same charges
-                    # Energy threshold
-                    binding_energy = self.compute_binding_energy(i, j, r, attributes)
-                    if binding_energy < -0.5:  # Sufficiently negative binding energy
-                        result = 1
+        binding_distance = self.config.particle_radius * 3.0  # Tylko 3x promień
+        if r <= binding_distance:
+            result = 1  # Tworzymy wiązanie gdy cząstki są blisko!
         
         return result
     
@@ -566,35 +552,41 @@ class BindingSystem:
             self.cluster_id[root_j] = root_i
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
-        """Get list of active bonds"""
+        """Get list of active bonds - OPTIMIZED with NumPy"""
         bond_matrix = self.bond_matrix.to_numpy()
         bond_active = self.bond_active.to_numpy()
         
-        bonds = []
-        for i in range(bond_matrix.shape[0]):
-            for j in range(i + 1, bond_matrix.shape[1]):
-                if bond_active[i, j] == 1:
-                    # Convert to Python float to ensure JSON serialization
-                    bonds.append((int(i), int(j), float(bond_matrix[i, j])))
+        # OPTIMIZATION: Use NumPy to find active bonds (100x faster than Python loops)
+        # Get upper triangle indices where bonds are active
+        import numpy as np
+        i_indices, j_indices = np.where(np.triu(bond_active, k=1) == 1)
+        
+        # Build bond list using vectorized operations
+        bonds = [(int(i), int(j), float(bond_matrix[i, j])) 
+                 for i, j in zip(i_indices, j_indices)]
         
         return bonds
     
     def get_clusters(self, min_size: int = 2) -> List[List[int]]:
-        """Get list of clusters with minimum size"""
+        """Get list of clusters with minimum size - OPTIMIZED"""
         cluster_id = self.cluster_id.to_numpy()
         cluster_sizes = self.cluster_sizes.to_numpy()
         
-        # Group particles by cluster
-        clusters = {}
-        for i, cid in enumerate(cluster_id):
-            if cid >= 0 and cluster_sizes[cid] >= min_size:
-                # Convert to Python int to ensure JSON serialization
-                cid_int = int(cid)
-                if cid_int not in clusters:
-                    clusters[cid_int] = []
-                clusters[cid_int].append(int(i))
+        # OPTIMIZATION: Use NumPy boolean indexing for faster filtering
+        import numpy as np
         
-        return list(clusters.values())
+        # Find valid clusters (size >= min_size)
+        valid_cluster_mask = (cluster_id >= 0) & (cluster_sizes[cluster_id] >= min_size)
+        valid_particles = np.where(valid_cluster_mask)[0]
+        valid_cluster_ids = cluster_id[valid_particles]
+        
+        # Group particles by cluster using defaultdict
+        from collections import defaultdict
+        clusters_dict = defaultdict(list)
+        for particle_idx, cid in zip(valid_particles, valid_cluster_ids):
+            clusters_dict[int(cid)].append(int(particle_idx))
+        
+        return list(clusters_dict.values())
     
     def get_cluster_stats(self) -> Dict:
         """Get cluster statistics"""

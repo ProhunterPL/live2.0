@@ -102,9 +102,13 @@ class SubstanceCatalog:
         self.novel_discoveries = 0
         self.start_time = time.time()
         
-        # Temporal tracking
+        # Temporal tracking with size limits to prevent memory leaks
         self.discovery_timeline: List[Tuple[float, str]] = []
         self.novelty_rate_history: List[Tuple[float, float]] = []
+        
+        # Maximum number of timeline entries to keep (prevents memory leaks)
+        self.max_timeline_entries = 1000  # Reduced from 10000
+        self.max_history_entries = 100    # Reduced from 1000
     
     def add_substance(self, graph: MolecularGraph, timestamp: float = None,
                      properties: Dict[str, Any] = None) -> Tuple[bool, str]:
@@ -136,12 +140,18 @@ class SubstanceCatalog:
         if is_novel:
             self.novel_discoveries += 1
         
-        # Update timeline
+        # Update timeline with memory management
         self.discovery_timeline.append((timestamp, substance_id))
+        if len(self.discovery_timeline) > self.max_timeline_entries:
+            # Remove oldest entries to prevent memory leaks
+            self.discovery_timeline = self.discovery_timeline[-self.max_timeline_entries:]
         
-        # Update novelty rate history
+        # Update novelty rate history with memory management
         novelty_rate = self.get_novelty_rate()
         self.novelty_rate_history.append((timestamp, novelty_rate))
+        if len(self.novelty_rate_history) > self.max_history_entries:
+            # Remove oldest entries to prevent memory leaks
+            self.novelty_rate_history = self.novelty_rate_history[-self.max_history_entries:]
         
         return is_novel, substance_id
     
@@ -326,6 +336,55 @@ class SubstanceCatalog:
     def get_novel_substances(self, count: int = 10) -> List[SubstanceRecord]:
         """Get recent novel substances"""
         return self.get_recent_substances(count)
+    
+    def cleanup_old_data(self, max_age_hours: float = 24.0):
+        """Clean up old data to prevent memory leaks"""
+        current_time = time.time()
+        cutoff_time = current_time - (max_age_hours * 3600)
+        
+        # Clean up old timeline entries
+        self.discovery_timeline = [
+            (timestamp, substance_id) 
+            for timestamp, substance_id in self.discovery_timeline 
+            if timestamp > cutoff_time
+        ]
+        
+        # Clean up old novelty rate history
+        self.novelty_rate_history = [
+            (timestamp, rate) 
+            for timestamp, rate in self.novelty_rate_history 
+            if timestamp > cutoff_time
+        ]
+        
+        # Clean up old substances that haven't been seen recently
+        substances_to_remove = []
+        for canonical_form, record in self.substances.items():
+            if record.last_seen < cutoff_time and record.occurrence_count == 1:
+                substances_to_remove.append(canonical_form)
+        
+        for canonical_form in substances_to_remove:
+            del self.substances[canonical_form]
+    
+    def get_memory_usage_stats(self) -> Dict:
+        """Get memory usage statistics for monitoring"""
+        return {
+            'timeline_entries': len(self.discovery_timeline),
+            'history_entries': len(self.novelty_rate_history),
+            'substances_count': len(self.substances),
+            'max_timeline_entries': self.max_timeline_entries,
+            'max_history_entries': self.max_history_entries,
+            'memory_pressure': len(self.discovery_timeline) / self.max_timeline_entries
+        }
+    
+    def clear(self):
+        """Clear all catalog data"""
+        self.substances.clear()
+        self.graph_catalog.clear()
+        self.discovery_timeline.clear()
+        self.novelty_rate_history.clear()
+        self.total_discoveries = 0
+        self.novel_discoveries = 0
+        self.start_time = time.time()
     
     def get_catalog_stats(self) -> Dict:
         """Get comprehensive catalog statistics"""

@@ -28,8 +28,15 @@ class SnapshotManager:
     def load_metadata(self) -> Dict:
         """Load snapshot metadata"""
         if self.metadata_file.exists():
-            with open(self.metadata_file, 'r') as f:
-                return json.load(f)
+            try:
+                with open(self.metadata_file, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"WARNING: Corrupted metadata.json file: {e}")
+                print(f"WARNING: Deleting corrupted metadata.json and creating new one")
+                # Delete corrupted file
+                self.metadata_file.unlink()
+                return {"snapshots": {}}
         return {"snapshots": {}}
     
     def save_metadata(self):
@@ -58,18 +65,38 @@ class SnapshotManager:
             "has_images": save_images
         }
         
-        # Save snapshot data
+        # Save snapshot data with custom encoder for NumPy types
+        import numpy as np
+        
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, (np.integer, np.int32, np.int64)):
+                    return int(obj)
+                elif isinstance(obj, (np.floating, np.float32, np.float64)):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return super().default(obj)
+        
         with open(filepath, 'w') as f:
-            json.dump(simulation_data, f, indent=2)
+            json.dump(simulation_data, f, indent=2, cls=NumpyEncoder)
         
         # Generate and save visualization images
         if save_images:
-            self._generate_visualizations(simulation_data, name)
-            snapshot_info["image_files"] = [
-                f"{name}_overview.png",
-                f"{name}_energy_field.png",
-                f"{name}_particles.png"
-            ]
+            print(f"DEBUG: Generating visualizations for {name}...")
+            try:
+                self._generate_visualizations(simulation_data, name)
+                snapshot_info["image_files"] = [
+                    f"{name}_overview.png",
+                    f"{name}_energy_field.png",
+                    f"{name}_particles.png"
+                ]
+                print(f"DEBUG: Visualizations generated successfully for {name}")
+            except Exception as e:
+                print(f"ERROR: Failed to generate visualizations for {name}: {e}")
+                import traceback
+                traceback.print_exc()
+                snapshot_info["image_files"] = []
         
         # Update metadata
         self.metadata["snapshots"][name] = snapshot_info
@@ -294,40 +321,79 @@ class SnapshotSerializer:
     @staticmethod
     def serialize_simulation(simulation) -> Dict:
         """Serialize simulation state"""
-        # Get basic state
-        state = simulation.get_simulation_state()
+        print(f"DEBUG: SnapshotSerializer.serialize_simulation called")
         
-        # Get visualization data
-        viz_data = simulation.get_visualization_data()
-        
-        # Get novel substances
-        novel_substances = simulation.get_novel_substances(50)
-        
-        # Get metrics
-        metrics = simulation.aggregator.get_aggregated_stats()
-        
-        # Get catalog data
-        catalog_stats = simulation.catalog.get_catalog_stats()
-        
-        # Combine all data
-        snapshot_data = {
-            "config": simulation.config.dict(),
-            "current_time": state["current_time"],
-            "step_count": state["step_count"],
-            "is_running": state["is_running"],
-            "is_paused": state["is_paused"],
-            "mode": state["mode"],
-            "particles": viz_data["particles"],
-            "energy_field": viz_data["energy_field"],
-            "bonds": viz_data["bonds"],
-            "clusters": viz_data["clusters"],
-            "novel_substances": novel_substances,
-            "metrics": metrics,
-            "catalog_stats": catalog_stats,
-            "timestamp": time.time()
-        }
-        
-        return snapshot_data
+        try:
+            # Get basic state
+            print(f"DEBUG: Getting simulation state...")
+            state = simulation.get_simulation_state()
+            print(f"DEBUG: Got simulation state: {list(state.keys())}")
+            
+            # Get visualization data
+            print(f"DEBUG: Getting visualization data...")
+            viz_data = simulation.get_visualization_data()
+            print(f"DEBUG: Got visualization data: {list(viz_data.keys())}")
+            
+            # Get novel substances
+            print(f"DEBUG: Getting novel substances...")
+            novel_substances = simulation.get_novel_substances(50)
+            print(f"DEBUG: Got {len(novel_substances)} novel substances")
+            
+            # Get metrics
+            print(f"DEBUG: Getting metrics...")
+            metrics = simulation.aggregator.get_aggregated_stats()
+            print(f"DEBUG: Got metrics: {list(metrics.keys())}")
+            
+            # Get catalog data
+            print(f"DEBUG: Getting catalog stats...")
+            catalog_stats = simulation.catalog.get_catalog_stats()
+            print(f"DEBUG: Got catalog stats: {list(catalog_stats.keys())}")
+            
+            # Combine all data
+            print(f"DEBUG: Combining snapshot data...")
+            snapshot_data = {
+                "config": simulation.config.dict(),
+                "current_time": state["current_time"],
+                "step_count": state["step_count"],
+                "is_running": state["is_running"],
+                "is_paused": state["is_paused"],
+                "mode": state["mode"],
+                "particles": viz_data["particles"],
+                "energy_field": viz_data["energy_field"],
+                "bonds": viz_data["bonds"],
+                "clusters": viz_data["clusters"],
+                "novel_substances": novel_substances,
+                "metrics": metrics,
+                "catalog_stats": catalog_stats,
+                "timestamp": time.time()
+            }
+            
+            # Convert NumPy types to Python types for JSON serialization
+            print(f"DEBUG: Converting NumPy types...")
+            import numpy as np
+            
+            class NumpyEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, (np.integer, np.int32, np.int64)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float32, np.float64)):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    return super().default(obj)
+            
+            # Convert the snapshot data to JSON-serializable format
+            snapshot_json = json.dumps(snapshot_data, cls=NumpyEncoder)
+            snapshot_data = json.loads(snapshot_json)
+            
+            print(f"DEBUG: SnapshotSerializer.serialize_simulation completed successfully")
+            return snapshot_data
+            
+        except Exception as e:
+            print(f"ERROR: SnapshotSerializer.serialize_simulation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     @staticmethod
     def deserialize_simulation(snapshot_data: Dict, simulation):

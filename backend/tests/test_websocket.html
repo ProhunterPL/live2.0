@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test for Live 2.0</h1>
+    <div id="status">Disconnected</div>
+    <div id="messages"></div>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+
+    <script>
+        let ws = null;
+        let simId = 'sim_1759153468050'; // Use the simulation ID from test
+
+        function log(message) {
+            const div = document.getElementById('messages');
+            div.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            div.scrollTop = div.scrollTop;
+        }
+
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+
+            const url = `ws://localhost:8000/simulation/${simId}/stream`;
+            log('Connecting to ' + url);
+            
+            ws = new WebSocket(url);
+
+            ws.onopen = function(event) {
+                document.getElementById('status').innerText = 'Connected';
+                log('WebSocket connected');
+            };
+
+            ws.onmessage = function(event) {
+                if (event.data instanceof ArrayBuffer) {
+                    log('Received binary data: ' + event.data.byteLength + ' bytes');
+                } else {
+                    log('Received text data: ' + event.data);
+                }
+            };
+
+            ws.onclose = function(event) {
+                document.getElementById('status').innerText = 'Disconnected';
+                log('WebSocket closed: ' + event.code + ' - ' + event.reason);
+            };
+
+            ws.onerror = function(error) {
+                log('WebSocket error: ' + error);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -152,7 +152,7 @@ class TestSnapshotAPI(unittest.TestCase):
     
     def setUp(self):
         """Set up test environment"""
-        self temp_dir = tempfile.mkdtemp()
+        self.temp_dir = tempfile.mkdtemp()
         self.snapshot_manager = SnapshotManager(self.temp_dir)
         self.snapshot_api = SnapshotAPI(self.snapshot_manager)
     
@@ -164,11 +164,50 @@ class TestSnapshotAPI(unittest.TestCase):
     def test_snapshot_api_operations(self):
         """Test snapshot API operations"""
         # Create mock simulation object
+        class MockConfig:
+            def dict(self):
+                return {"mode": "test"}
+        
         class MockSimulation:
             def __init__(self):
-                self.config = {"mode": "test"}
+                self.config = MockConfig()
                 self.current_time = 25.0
                 self.step_count = 1000
+                self.aggregator = MockAggregator()
+                self.catalog = MockCatalog()
+            
+            def get_simulation_state(self):
+                return {
+                    "config": self.config,
+                    "current_time": self.current_time,
+                    "step_count": self.step_count,
+                    "is_running": False,
+                    "is_paused": False,
+                    "mode": "test"
+                }
+            
+            def get_visualization_data(self):
+                return {
+                    "particles": {
+                        "positions": [[1.0, 2.0]],
+                        "attributes": [[1.0, 0.0, 0.0, 0.0]],
+                        "active_mask": [1]
+                    },
+                    "energy_field": [[0.0]],
+                    "bonds": [],
+                    "clusters": []
+                }
+            
+            def get_novel_substances(self, count):
+                return []
+        
+        class MockAggregator:
+            def get_aggregated_stats(self):
+                return {"test": "stats"}
+        
+        class MockCatalog:
+            def get_catalog_stats(self):
+                return {"test": "catalog"}
         
         simulation = MockSimulation()
         
