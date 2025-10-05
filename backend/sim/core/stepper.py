@@ -6,8 +6,15 @@ Coordinates all simulation components and manages time evolution
 import taichi as ti
 import numpy as np
 import time
+import logging
 from typing import Dict, List, Optional, Any
+
+# Set stepper logger to INFO level
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 from ..config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
+
+logger = logging.getLogger(__name__)
 
 from .grid import Grid
 from .particles import ParticleSystem
@@ -66,12 +73,19 @@ class SimulationStepper:
             enabled=diagnostics_enabled
         )
         
-        # Snapshot manager with image generation
-        self.snapshot_manager = SnapshotManager(snapshot_dir="snapshots")
+        # Snapshot manager with image generation - use absolute path
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        snapshots_path = os.path.join(project_root, "snapshots")
+        self.snapshot_manager = SnapshotManager(snapshot_dir=snapshots_path)
         
         # Symplectic integrators for better energy conservation
         self.integrator = AdaptiveIntegrator(config.max_particles, method="verlet")
         self.use_symplectic = getattr(config, 'use_symplectic_integrator', True)
+        
+        # Memory management
+        self.last_cleanup_time = time.time()
+        self.cleanup_interval = 60  # Clean up every 1 minute (reduced from 5 minutes)
         
         # Mode-specific configurations
         self.preset_config = PresetPrebioticConfig()
@@ -93,6 +107,9 @@ class SimulationStepper:
             self.initialize_open_chemistry_mode()
         
         # Initialize metrics
+        from .metrics import init_metrics_fields
+        init_metrics_fields()  # Ensure Taichi fields are initialized
+        self.metrics.reset()
         self.metrics.record_metrics()
         self.aggregator.update_aggregated_stats()
         
@@ -122,7 +139,7 @@ class SimulationStepper:
     def initialize_open_chemistry_mode(self):
         """Initialize open chemistry mode"""
         # Add initial particles with random properties
-        num_initial_particles = min(100, self.config.max_particles)
+        num_initial_particles = min(500, self.config.max_particles)  # NAPRAWIONE: Zwiększone z 100 dla większej aktywności
         
         for i in range(num_initial_particles):
             # Random position
@@ -163,17 +180,52 @@ class SimulationStepper:
     
     def step(self, dt: float = None):
         """Perform one simulation step with adaptive timestep control"""
+        print("STEP FUNCTION CALLED")
+        print(f"STEP ENTRY: step_count={self.step_count}, is_running={self.is_running}, is_paused={self.is_paused}")
+        sys.stdout.flush()
+        print(f"DEBUG: dt param = {dt}")
+        sys.stdout.flush()
+
+        if self.step_count < 5:
+            print(f"STEP {self.step_count + 1}: step() called with dt={dt}")
+            sys.stdout.flush()
+
         if dt is None:
-            dt = self._compute_adaptive_timestep()
-        
+            print(f"DEBUG: Computing adaptive timestep")
+            sys.stdout.flush()
+            try:
+                dt = self._compute_adaptive_timestep()
+                print(f"DEBUG: Computed dt = {dt}")
+                sys.stdout.flush()
+            except Exception as e:
+                print(f"ERROR: _compute_adaptive_timestep() failed: {e}")
+                sys.stdout.flush()
+                return
+
+        if self.step_count < 5:
+            print(f"STEP {self.step_count + 1}: computed dt={dt:.6f}")
+            sys.stdout.flush()
+
         # Store previous state for error estimation
-        prev_energy = self._get_total_energy()
-        
+        print(f"DEBUG: About to get prev_energy")
+        sys.stdout.flush()
+        try:
+            prev_energy = self._get_total_energy()
+            print(f"DEBUG: prev_energy = {prev_energy}")
+        except Exception as e:
+            print(f"ERROR: _get_total_energy() failed: {e}")
+            return
+
         # Perform step with current dt
+        print(f"DEBUG: About to call _perform_step with dt={dt}")
         self._perform_step(dt)
-        
+        print(f"DEBUG: _perform_step returned")
+
+        print(f"DEBUG: _perform_step completed, about to get current_energy")
+
         # Estimate error and adjust timestep if needed
         current_energy = self._get_total_energy()
+        print(f"DEBUG: current_energy = {current_energy}, prev_energy = {prev_energy}")
         energy_error = abs(current_energy - prev_energy) / max(prev_energy, 1e-6)
         
         # Adaptive timestep control based on energy conservation
@@ -185,6 +237,12 @@ class SimulationStepper:
         # Clamp timestep to reasonable bounds
         base_dt = float(self.config.dt)
         self._current_dt = max(base_dt * 0.1, min(base_dt * 2.0, self._current_dt))
+        
+        # Periodic memory cleanup
+        current_time = time.time()
+        if current_time - self.last_cleanup_time > self.cleanup_interval:
+            self.catalog.cleanup_old_data(max_age_hours=0.5)  # Keep only last 30 minutes of data
+            self.last_cleanup_time = current_time
     
     def _compute_adaptive_timestep(self):
         """Compute adaptive timestep based on multiple factors"""
@@ -198,45 +256,62 @@ class SimulationStepper:
         else:
             energy_factor = 1.0
         
-        # Factor 2: Particle velocity (CFL condition)
+        # Factor 2: Particle velocity (CFL condition) - RELAXED
         max_velocity = self._get_max_particle_velocity()
         if max_velocity > 0:
-            cfl_dt = 0.1 / max_velocity  # CFL number = 0.1
+            cfl_dt = 0.5 / max_velocity  # CFL number = 0.5 (increased from 0.1 for larger timesteps)
             cfl_factor = min(1.0, cfl_dt / base_dt)
         else:
             cfl_factor = 1.0
         
-        # Factor 3: Force magnitude
+        # Factor 3: Force magnitude - RELAXED
         max_force = self._get_max_force_magnitude()
         if max_force > 0:
-            force_dt = 0.01 / max_force  # Force-based timestep limit
+            force_dt = 0.05 / max_force  # Force-based timestep limit (increased from 0.01)
             force_factor = min(1.0, force_dt / base_dt)
         else:
             force_factor = 1.0
         
-        # Combine factors (use most restrictive)
-        combined_factor = min(energy_factor, cfl_factor, force_factor)
+        # Combine factors (use most restrictive) - LESS AGGRESSIVE
+        # Don't let dt drop below 20% of base_dt
+        combined_factor = max(0.2, min(energy_factor, cfl_factor, force_factor))
         self._current_dt = base_dt * combined_factor
         
         return self._current_dt
     
     def _perform_step(self, dt: float):
         """Perform the actual simulation step"""
-        
+
         if not self.is_running or self.is_paused:
             return
         
-        # Log only every 100 steps to reduce overhead
-        if self.step_count % 100 == 0:
-            print(f"STEP {self.step_count + 1}: Starting - sim_time={self.current_time:.6f}, dt={dt:.6f}")
-        
+        # Log every step for first 5 steps, then every 10 steps
+        if self.step_count < 5 or self.step_count % 10 == 0:
+            print(f"STEP {self.step_count + 1}: Starting - mode={self.config.mode}, sim_time={self.current_time:.6f}, dt={dt:.6f}")
+
+        logger.info(f"DEBUG: _perform_step executing, step_count={self.step_count}")
+
+        logger.info(f"DEBUG: About to enter try block")
+
         try:
+            logger.info(f"DEBUG: Inside try block, about to update energy")
             # Update energy system
+            if self.step_count < 5:
+                print(f"STEP {self.step_count + 1}: Updating energy system...")
             self.energy_manager.update(dt)
             
             # Add energy diffusion and thermostat
+            if self.step_count < 5:
+                print(f"STEP {self.step_count + 1}: Applying energy diffusion and thermostat...")
             self._energy_diffuse(dt)
             self._energy_thermostat()
+            
+            # Add energy pulses periodically
+            pulse_every = getattr(self.config, 'pulse_every', 48)
+            if pulse_every and self.step_count % pulse_every == 0:
+                if self.step_count < 5:
+                    print(f"STEP {self.step_count + 1}: Adding energy pulse...")
+                self._add_energy_pulse()
 
             if self.config.mode == "preset_prebiotic":
                 # Synchronize preset energy field with main energy system (read-only copy)
@@ -249,13 +324,19 @@ class SimulationStepper:
                 self.update_metrics()
             else:
                 # Open chemistry branch
+                if self.step_count < 5:
+                    print(f"STEP {self.step_count + 1}: Open chemistry mode - starting symplectic integration...")
                 if self.use_symplectic:
                     # Use symplectic integrator for better energy conservation
                     particle_count = self.particles.particle_count[None]
                     
+                    if self.step_count < 5:
+                        print(f"STEP {self.step_count + 1}: Updating spatial hash...")
                     # Update spatial hash first for force computation
                     self.grid.update_spatial_hash()
                     
+                    if self.step_count < 5:
+                        print(f"STEP {self.step_count + 1}: Computing forces...")
                     # Compute forces for Verlet first stage
                     self.potentials.compute_forces(
                         self.particles.positions,
@@ -264,11 +345,15 @@ class SimulationStepper:
                         particle_count
                     )
                     
+                    if self.step_count < 5:
+                        print(f"STEP {self.step_count + 1}: Performing symplectic integration...")
                     # Perform symplectic integration
                     success, actual_dt = self._symplectic_step(dt)
                     if not success:
                         # If step was rejected, reduce timestep
                         self._current_dt *= 0.5
+                        # Still increment step count to avoid getting stuck
+                        self.step_count += 1
                         return  # Skip remaining operations for this step
                 else:
                     # Original Euler method (fallback)
@@ -325,12 +410,33 @@ class SimulationStepper:
                 self.grid.decay_energy_field(self.config.energy_decay)
                 
                 # Add energy from sources to particles (now optimized)
-                self.add_energy_to_particles()
+                # Add energy from field to particles (always for first few steps, then throttled)
+                energy_update_interval = getattr(self.config, 'energy_update_interval', 5)
+                if energy_update_interval is None or energy_update_interval < 1:
+                    energy_update_interval = 5
+                # Always update energy for first 10 steps to avoid getting stuck
+                if self.step_count < 10 or (self.step_count % energy_update_interval) == 0:
+                    if self.step_count < 5:
+                        print(f"STEP {self.step_count + 1}: Adding energy to particles...")
+                    self.add_energy_to_particles()
                 
                 # Re-enable operations one by one for performance testing
                 
-                # Update metrics (optimized)
-                self.update_metrics()
+                # Update metrics (always for first few steps, then throttled)
+                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 1)  # Changed from 10 to 1
+                if metrics_update_interval is None or metrics_update_interval < 1:
+                    metrics_update_interval = 1
+                print(f"DEBUG METRICS: step_count={self.step_count}, metrics_update_interval={metrics_update_interval}, config_value={getattr(self.config, 'metrics_update_interval', 'NOT_FOUND')}, condition={(self.step_count < 10 or (self.step_count % metrics_update_interval) == 0)}")
+                # Always update metrics for first 10 steps to avoid getting stuck
+                if self.step_count < 10 or (self.step_count % metrics_update_interval) == 0:
+                    print(f"UPDATING METRICS at step {self.step_count}")
+                    try:
+                        self.update_metrics()
+                        print(f"METRICS UPDATED successfully")
+                    except Exception as e:
+                        print(f"ERROR in update_metrics: {e}")
+                        import traceback
+                        traceback.print_exc()
                 
                 # Log diagnostics (periodically to reduce overhead)
                 diag_freq = getattr(self.config, 'diagnostics_frequency', 10)
@@ -350,13 +456,19 @@ class SimulationStepper:
         
         # Update time and step count
         self.current_time += dt
+        print(f"DEBUG: About to increment step_count from {self.step_count}")
         self.step_count += 1
+        print(f"DEBUG: step_count incremented to {self.step_count}")
+
+        # Debug: Log step completion
+        if self.step_count <= 5:
+            print(f"STEP {self.step_count}: COMPLETED - time={self.current_time:.6f}, dt={dt:.6f}")
         
         # Update energy conservation monitoring
         self._update_energy_conservation()
         
-        # Log completion only every 100 steps
-        if self.step_count % 100 == 0:
+        # Log completion for first 5 steps or every 100 steps
+        if self.step_count <= 5 or self.step_count % 100 == 0:
             energy_drift = self._get_energy_drift()
             print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}, energy_drift={energy_drift:.4f}%")
     
@@ -509,22 +621,29 @@ class SimulationStepper:
         return drift
     
     def add_energy_to_particles(self):
-        """Add energy from field to particles"""
-        # Use pre-allocated field instead of creating new one
-        
-        # Clear energy amounts
-        for i in range(self.config.max_particles):
-            self.energy_amounts[i] = 0.0
-        
-        # Add energy from field
+        """Add energy from field to particles - OPTIMIZED VERSION"""
+        if self.step_count < 5:
+            print(f"STEP {self.step_count + 1}: add_energy_to_particles called")
+        # Use vectorized kernel instead of Python loops
+        self._add_energy_to_particles_kernel()
+        # Apply energy to particles (outside kernel to avoid nested kernels)
+        self.particles.add_energy(self.energy_amounts)
+        if self.step_count < 5:
+            print(f"STEP {self.step_count + 1}: add_energy_to_particles completed")
+    
+    @ti.kernel
+    def _add_energy_to_particles_kernel(self):
+        """Vectorized kernel to add energy from field to all particles"""
         for i in range(self.config.max_particles):
             if self.particles.active[i] == 1:
                 pos = self.particles.positions[i]
-                energy = self.energy_manager.get_energy_at_position(pos.to_numpy())
+                # Direct field access instead of function call
+                x = int(pos[0]) % self.energy_manager.energy_system.width
+                y = int(pos[1]) % self.energy_manager.energy_system.height
+                energy = self.energy_manager.energy_system.energy_field[x, y]
                 self.energy_amounts[i] = energy
-        
-        # Apply energy to particles
-        self.particles.add_energy(self.energy_amounts)
+            else:
+                self.energy_amounts[i] = 0.0
     
     def apply_mutations(self, dt: float):
         """Apply mutations to particles in high energy regions"""
@@ -643,12 +762,14 @@ class SimulationStepper:
     
     def update_metrics(self):
         """Update all metrics"""
-        # Update particle metrics
+        # Update particle metrics (includes mass, stored energy, and kinetic energy)
+        particle_count = self.particles.particle_count[None]
         self.metrics.update_particle_metrics(
             self.particles.active,
             self.particles.attributes,
             self.particles.energy,
-            self.particles.particle_count[None]
+            self.particles.velocities,
+            particle_count
         )
         
         # Update bond metrics
@@ -801,19 +922,26 @@ class SimulationStepper:
         }
     
     def get_visualization_data(self) -> Dict:
-        """Get data for visualization"""
+        """Get data for visualization - SIMPLIFIED VERSION for speed"""
+        import time
+        t_start = time.time()
+        
+        metrics = self.aggregator.get_aggregated_stats()
+        logger.debug(f"get_visualization_data: metrics keys={list(metrics.keys())}")
+        logger.debug(f"get_visualization_data: particle_count from metrics={metrics.get('particle_count', 'NOT_FOUND')}")
+
         data = {
-            'metrics': self.aggregator.get_aggregated_stats()
+            'metrics': metrics,
+            'step_count': self.step_count,  # Add step count for frontend
+            'current_time': self.current_time  # Add current time for frontend
         }
+
+        # Debug: Log step_count and current_time
+        if self.step_count < 5:
+            print(f"DEBUG get_visualization_data: step_count={self.step_count}, current_time={self.current_time}")
         
-        # Energy field (always present)
-        energy_field = self.energy_manager.energy_system.energy_field.to_numpy()
-        data['energy_field'] = energy_field.tolist()
-        
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"DEBUG: get_visualization_data - mode: {self.config.mode}")
-        logger.info(f"DEBUG: energy_field shape: {energy_field.shape}, max: {energy_field.max()}, min: {energy_field.min()}")
+        # Energy field (always present) - SIMPLIFIED: direct to_numpy() call
+        data['energy_field'] = self.energy_manager.energy_system.energy_field.to_numpy()
         
         if self.config.mode == "preset_prebiotic":
             # Provide concentration fields for preset mode
@@ -824,32 +952,45 @@ class SimulationStepper:
                     # pick first available species
                     first_key = next(iter(conc.keys())) if conc else None
                     if first_key is not None:
-                        data['concentration_view'] = conc[first_key].tolist()
+                        # OPTIMIZATION: Return NumPy array
+                        data['concentration_view'] = conc[first_key]
                         data['concentration_species'] = list(conc.keys())
                         # Back-compat: also provide single-key concentrations for older clients
-                        data['concentrations'] = {first_key: conc[first_key].tolist()}
-                        logger.info(f"DEBUG: preset mode - concentration field shape: {conc[first_key].shape}")
-                except Exception as e:
-                    logger.info(f"DEBUG: preset mode error: {e}")
+                        data['concentrations'] = {first_key: conc[first_key]}
+                except Exception:
                     pass
         else:
-            # Provide particle/bond/cluster data for open chemistry
+            # Provide particle/bond/cluster data for open chemistry - SIMPLIFIED
             positions, velocities, attributes, active_mask = self.particles.get_active_particles()
-            bonds = self.binding.get_bonds()
-            clusters = self.binding.get_clusters()
+            
+            # Only get bonds/clusters every 10 steps to reduce load
+            if self.step_count % 10 == 0:
+                bonds = self.binding.get_bonds()
+                clusters = self.binding.get_clusters()
+            else:
+                bonds = []  # Empty for intermediate steps
+                clusters = []
+            
+            # OPTIMIZATION: Return NumPy arrays instead of lists
             data['particles'] = {
-                'positions': positions.tolist(),
-                'attributes': attributes.tolist(),
-                'active_mask': active_mask.tolist()
+                'positions': positions,
+                'attributes': attributes,
+                'active_mask': active_mask
             }
             data['bonds'] = bonds
             data['clusters'] = clusters
-            
-            logger.info(f"DEBUG: open chemistry mode - particles: {len(positions)}, bonds: {len(bonds)}")
-            if len(positions) > 0:
-                logger.info(f"DEBUG: sample particle position: {positions[0]}")
+        
+        t_end = time.time()
+        if (t_end - t_start) > 1.0:
+            print(f"⚠️ TOTAL get_visualization_data took {t_end-t_start:.2f}s")
         
         return data
+    
+    @ti.kernel
+    def _copy_energy_field_to_taichi(self):
+        """Copy energy field to Taichi field using kernel"""
+        for i, j in ti.ndrange(self.config.grid_height, self.config.grid_width):
+            self._energy_field_taichi[i, j] = self.energy_manager.energy_system.energy_field[i, j]
     
     def get_novel_substances(self, count: int = 10) -> List[Dict]:
         """Get recent novel substances"""
@@ -860,25 +1001,27 @@ class SimulationStepper:
     def save_snapshot(self, filename: str, save_images: bool = True):
         """Save simulation snapshot with optional image generation"""
         import os
-        print(f"DEBUG: save_snapshot called with filename={filename}, save_images={save_images}")
-        print(f"DEBUG: Current working directory: {os.getcwd()}")
-        
-        # Serialize simulation data
-        snapshot_data = SnapshotSerializer.serialize_simulation(self)
-        print(f"DEBUG: Snapshot data serialized, keys: {list(snapshot_data.keys())}")
-        
-        # Use BlobManager to save with image generation
-        name = filename.replace('.json', '')  # Remove .json extension for name
-        print(f"DEBUG: About to save snapshot with name={name}")
+        print(f"DEBUG: STEP {self.step_count} - save_snapshot called with filename={filename}, save_images={save_images}")
+        print(f"DEBUG: STEP {self.step_count} - Current working directory: {os.getcwd()}")
         
         try:
+            # Serialize simulation data
+            print(f"DEBUG: STEP {self.step_count} - Calling SnapshotSerializer.serialize_simulation...")
+            snapshot_data = SnapshotSerializer.serialize_simulation(self)
+            print(f"DEBUG: STEP {self.step_count} - Snapshot data serialized, keys: {list(snapshot_data.keys())}")
+            
+            # Use SnapshotManager to save with image generation
+            name = filename.replace('.json', '')  # Remove .json extension for name
+            print(f"DEBUG: STEP {self.step_count} - About to save snapshot with name={name}")
+            
             saved_filename = self.snapshot_manager.create_snapshot(
                 snapshot_data, 
                 name=name, 
                 save_images=save_images
             )
-            print(f"DEBUG: Snapshot saved as: {saved_filename}")
+            print(f"DEBUG: STEP {self.step_count} - Snapshot saved as: {saved_filename}")
             return saved_filename
+            
         except Exception as e:
             print(f"ERROR: Failed to save snapshot: {e}")
             import traceback
@@ -905,6 +1048,27 @@ class SimulationStepper:
                    4.0 * self.energy_manager.energy_system.energy_field[i, j])
             
             self.energy_manager.energy_system.energy_field[i, j] += D * lap * dt
+    
+    def _add_energy_pulse(self):
+        """Add periodic energy pulses to random locations"""
+        import random
+        
+        # Get pulse parameters from config
+        pulse_radius = getattr(self.config, 'pulse_radius', 24.0)
+        pulse_amplitude = getattr(self.config, 'pulse_amplitude', 5.0)
+        
+        # Random position in the grid
+        x = random.uniform(0, self.config.grid_width)
+        y = random.uniform(0, self.config.grid_height)
+        
+        # Add energy impulse
+        self.energy_manager.add_energy_impulse(
+            position=(x, y),
+            intensity=pulse_amplitude,
+            radius=pulse_radius
+        )
+        
+        print(f"Energy pulse added at ({x:.1f}, {y:.1f}) with intensity {pulse_amplitude}, radius {pulse_radius}")
     
     @ti.kernel
     def _energy_thermostat(self):

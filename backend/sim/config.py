@@ -6,6 +6,8 @@ import numpy as np
 class SimulationConfig(BaseModel):
     """Main configuration for Live 2.0 simulation"""
     
+    model_config = {"extra": "ignore"}  # Ignore extra fields from frontend
+    
     # Grid settings
     grid_height: int = Field(default=256, ge=64, le=1024)
     grid_width: int = Field(default=256, ge=64, le=1024)
@@ -14,39 +16,43 @@ class SimulationConfig(BaseModel):
     mode: str = Field(default="open_chemistry", pattern="^(preset_prebiotic|open_chemistry)$")
     
     # Time settings
-    dt: float = Field(default=0.035, gt=0, le=1.0)  # Zwiększone z 0.01
+    dt: float = Field(default=0.01, gt=0, le=1.0)  # Bardzo mały krok dla stabilności numerycznej
     max_time: float = Field(default=1000.0, gt=0)
     
     # Energy settings
     energy_decay: float = Field(default=0.96, gt=0, lt=1)  # Wolniejsze wygaszanie z 0.95
     energy_threshold: float = Field(default=0.1, gt=0)
-    pulse_every: int = Field(default=48, gt=0)  # NOWE: częstsze pulsy z 120
-    pulse_radius: float = Field(default=24.0, gt=0)  # NOWE: większy promień z 18
-    pulse_amplitude: float = Field(default=5.0, gt=0)  # NOWE: większa amplituda z 2.5
-    diffuse_D: float = Field(default=0.25, gt=0)  # NOWE: dyfuzja energii
-    target_energy: float = Field(default=0.25, gt=0)  # NOWE: tło energii
-    thermostat_alpha: float = Field(default=0.005, gt=0)  # NOWE: termostat
+    pulse_every: int = Field(default=24, gt=0)  # Częstsze pulsy (co 24 kroki)
+    pulse_radius: float = Field(default=32.0, gt=0)  # Większy promień (32 jednostki)
+    pulse_amplitude: float = Field(default=8.0, gt=0)  # Większa amplituda (8.0)
+    diffuse_D: float = Field(default=0.5, gt=0)  # Szybsza dyfuzja energii
+    target_energy: float = Field(default=0.5, gt=0)  # Wyższe tło energii
+    thermostat_alpha: float = Field(default=0.01, gt=0)  # Silniejszy termostat
     
     # Particle settings
     max_particles: int = Field(default=10000, gt=0, le=100000)
     particle_radius: float = Field(default=0.5, gt=0)
     
-    # Binding settings
-    binding_threshold: float = Field(default=0.3, gt=0, le=1)  # Obniżone z 0.68 dla łatwiejszego tworzenia wiązań
-    unbinding_threshold: float = Field(default=0.15, gt=0, le=1)  # Obniżone z 0.3 dla stabilniejszych wiązań
+    # Binding settings - OPTIMIZED for active bond formation
+    binding_threshold: float = Field(default=0.25, gt=0, le=1)  # NAPRAWIONE: Obniżone z 0.5 dla łatwiejszego tworzenia wiązań
+    unbinding_threshold: float = Field(default=0.15, gt=0, le=1)  # NAPRAWIONE: Zwiększone z 0.1 dla stabilnych wiązań
     
     # Novelty detection
     novelty_window: int = Field(default=100, gt=0)
     min_cluster_size: int = Field(default=1, ge=1)  # Obniżone z 2 dla wykrywania pojedynczych wiązań
     
     # Visualization
-    vis_frequency: int = Field(default=5, gt=0)  # Rzadsze renderowanie z 10
+    vis_frequency: int = Field(default=5, gt=0)  # Zmniejszone z 3 dla stabilności
     log_frequency: int = Field(default=100, gt=0)
     
     # Mutations
-    p_mut_base: float = Field(default=1e-4, gt=0)  # NOWE: zwiększone z 1e-5
-    p_mut_gain: float = Field(default=14.0, gt=0)  # NOWE: zwiększone z 6.0
-    attr_sigma: float = Field(default=0.08, gt=0)  # NOWE: siła perturbacji
+    p_mut_base: float = Field(default=5e-4, gt=0)  # Zwiększone mutacje (5x więcej)
+    p_mut_gain: float = Field(default=20.0, gt=0)  # Zwiększone z 14.0
+    attr_sigma: float = Field(default=0.12, gt=0)  # Silniejsza perturbacja
+    
+    # Performance optimization parameters
+    energy_update_interval: int = Field(default=5, gt=0, description="Update energy every N steps")
+    metrics_update_interval: int = Field(default=1, gt=0, description="Update metrics every N steps")
     
     # Diagnostics
     enable_diagnostics: bool = Field(default=True)
@@ -105,8 +111,8 @@ class OpenChemistryConfig(BaseModel):
     # Bond system configuration
     enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
     enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
-    theta_bind: float = Field(default=0.3, gt=0)  # NOWE: obniżone z 0.68 dla łatwiejszego tworzenia wiązań
-    theta_break: float = Field(default=1.5, gt=0)  # NOWE: podniesione z 1.15 dla stabilniejszych wiązań
+    theta_bind: float = Field(default=0.25, gt=0)  # NAPRAWIONE: obniżone z 0.3 dla łatwiejszego tworzenia wiązań
+    theta_break: float = Field(default=1.5, gt=0)  # Podniesione z 1.15 dla stabilniejszych wiązań
     vmax: float = Field(default=8.0, gt=0)  # NOWE: zwiększone z 4.5
     neighbor_radius: float = Field(default=3.2, gt=0)  # NOWE
     rebuild_neighbors_every: int = Field(default=8, gt=0)  # NOWE

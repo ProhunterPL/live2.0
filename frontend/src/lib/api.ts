@@ -62,6 +62,7 @@ export class SimulationAPI {
   }
 
   async startSimulation(id: string): Promise<any> {
+    console.log(`API: Calling startSimulation for ${id}`)
     const response = await fetch(`${this.baseUrl}/simulation/${id}/start`, {
       method: 'POST',
     })
@@ -70,6 +71,7 @@ export class SimulationAPI {
       throw new Error(`Failed to start simulation: ${response.statusText}`)
     }
 
+    console.log(`API: startSimulation completed for ${id}`)
     return this.getSimulationStatus(id)
   }
 
@@ -179,15 +181,61 @@ export class SimulationAPI {
   }
 
   async getMetrics(id: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/simulation/${id}/metrics`)
-    if (!response.ok) throw new Error(`Failed to get metrics: ${response.statusText}`)
-    return response.json()
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // 120 second timeout for optimized backend
+      
+      const response = await fetch(`${this.baseUrl}/simulation/${id}/metrics`, {
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        if (response.status === 0) {
+          throw new Error('Network error: Unable to connect to server')
+        }
+        throw new Error(`Failed to get metrics: ${response.status} ${response.statusText}`)
+      }
+      return response.json()
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Network error: Server may be overloaded or unavailable')
+      }
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout: Server is not responding')
+      }
+      throw error
+    }
   }
 
   async getNovelSubstances(id: string, count = 5): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/simulation/${id}/novel-substances?count=${count}`)
-    if (!response.ok) throw new Error(`Failed to get novel substances: ${response.statusText}`)
-    return response.json()
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // 120 second timeout for optimized backend
+      
+      const response = await fetch(`${this.baseUrl}/simulation/${id}/novel-substances?count=${count}`, {
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        if (response.status === 0) {
+          throw new Error('Network error: Unable to connect to server')
+        }
+        throw new Error(`Failed to get novel substances: ${response.status} ${response.statusText}`)
+      }
+      return response.json()
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Network error: Server may be overloaded or unavailable')
+      }
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout: Server is not responding')
+      }
+      throw error
+    }
   }
 
   async saveSnapshot(id: string, filename: string): Promise<any> {

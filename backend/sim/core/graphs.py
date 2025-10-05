@@ -90,6 +90,32 @@ class MolecularGraph:
         
         return subgraphs
     
+    def get_node_count(self) -> int:
+        """Get number of nodes in the graph"""
+        return len(self.particles)
+    
+    def get_edge_count(self) -> int:
+        """Get number of edges in the graph"""
+        return len(self.bonds)
+    
+    def get_density(self) -> float:
+        """Get graph density (edges / max possible edges)"""
+        return self.density
+    
+    def get_complexity(self) -> float:
+        """Calculate approximate complexity metric"""
+        # Simple complexity based on size and branching
+        num_nodes = self.num_nodes
+        num_edges = self.num_edges
+        
+        if num_nodes <= 1:
+            return 0.0
+        
+        # Basic complexity combining size and structure
+        complexity = num_nodes * (1 + self.density * self.clustering_coeff)
+        
+        return complexity
+    
     def get_cycles(self) -> List[List[int]]:
         """Get all cycles in the graph"""
         try:

@@ -323,6 +323,27 @@ class SubstanceCatalog:
         self.novel_discoveries = sum(1 for _, substance_id in self.discovery_timeline 
                                    if self._is_recent_novel(substance_id))
     
+    def get_novel_substances(self, count: int = 10) -> List[SubstanceRecord]:
+        """Get recent novel substances"""
+        return self.get_recent_substances(count)
+    
+    def get_catalog_stats(self) -> Dict:
+        """Get comprehensive catalog statistics"""
+        current_time = time.time()
+        runtime_hours = (current_time - self.start_time) / 3600
+        
+        return {
+            'total_substances': len(self.substances),
+            'total_novel': self.novel_discoveries,
+            'total_discovered': self.total_discoveries,
+            'novelty_rate': self.get_novelty_rate(),
+            'novelty_rate_100': self.get_novelty_rate(100),
+            'novelty_rate_1000': self.get_novelty_rate(1000),
+            'runtime_hours': runtime_hours,
+            'discoveries_per_hour': self.total_discoveries / max(runtime_hours, 0.01),
+            'novel_per_hour': self.novel_discoveries / max(runtime_hours, 0.01)
+        }
+    
     def clear(self):
         """Clear the catalog"""
         self.substances.clear()

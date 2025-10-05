@@ -5,41 +5,122 @@ import Controls from './components/Controls'
 import GraphPreview from './components/GraphPreview'
 import { SimulationAPI } from './lib/api.ts'
 import { WebSocketClient } from './lib/ws.ts'
-import type { SimulationData, SimulationStatus } from './lib/types'
+import type { SimulationData, SimulationStatus, Metrics } from './lib/types'
 
 const App: React.FC = () => {
   const [simulationId, setSimulationId] = useState<string | null>(null)
   const [status, setStatus] = useState<SimulationStatus | null>(null)
   const [simulationData, setSimulationData] = useState<SimulationData | null>(null)
+  const [metricsSnapshot, setMetricsSnapshot] = useState<Metrics | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [selectedSubstance, setSelectedSubstance] = useState<string | null>(null)
   const [mode, setMode] = useState<'preset_prebiotic' | 'open_chemistry'>('open_chemistry')
+  const [availableSpecies, setAvailableSpecies] = useState<string[]>([])
   const [runtimeStartMs, setRuntimeStartMs] = useState<number | null>(null)
   const [runtimeAccumulatedMs, setRuntimeAccumulatedMs] = useState<number>(0)
   const [runtimeNowMs, setRuntimeNowMs] = useState<number>(Date.now())
   
   const api = useRef(new SimulationAPI()).current
   const wsClient = useRef(new WebSocketClient()).current
+  const wsHandlersRef = useRef<Record<string, Function>>({})
+
+  useEffect(() => {
+    if (simulationData?.step_count !== undefined) {
+      console.log('✅ Frontend step update:', simulationData.step_count)
+      const legendEl = document.querySelector('.legend-column .legend-info strong')
+      if (legendEl) {
+        legendEl.closest('.legend-column')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }
+  }, [simulationData?.step_count])
+
+  const attachWsListener = (event: string, handler: Function) => {
+    const handlers = wsHandlersRef.current
+    const existing = handlers[event]
+    if (existing) {
+      wsClient.off(event, existing)
+    }
+    handlers[event] = handler
+    wsClient.on(event, handler)
+  }
+
+  const detachAllWsListeners = () => {
+    const handlers = wsHandlersRef.current
+    Object.entries(handlers).forEach(([event, handler]) => {
+      wsClient.off(event, handler)
+    })
+    wsHandlersRef.current = {}
+  }
 
   const initializedRef = useRef(false)
   useEffect(() => {
-    // Prevent duplicate init in React 18 StrictMode
-    if (initializedRef.current) return
+    // NAPRAWIONE: Zawsze łącz się z najnowszą symulacją po odświeżeniu
+    // Nie blokujemy przy F5, tylko przy React StrictMode double-mount
+    const wasInitialized = initializedRef.current
     initializedRef.current = true
-    initializeSimulation()
+    
+    // Po odświeżeniu strony (F5) - zawsze sprawdź current simulation
+    if (!wasInitialized) {
+      initializeSimulation()
+    } else {
+      // Jeśli to React StrictMode double-mount, ignoruj
+      console.log('Skipping duplicate React StrictMode mount')
+    }
     
     return () => {
-      // Cleanup: only disconnect WS; don't stop simulation implicitly in dev
+      // Cleanup: remove listeners and disconnect without stopping simulation
+      detachAllWsListeners()
       wsClient.disconnect()
+      // Reset na wypadek unmount
+      initializedRef.current = false
     }
   }, [wsClient])
+
+  // NOWE: Automatycznie wykryj nową symulację i przełącz się
+  useEffect(() => {
+    const checkForNewSimulation = async () => {
+      try {
+        console.log('🔍 Checking for existing simulation...')
+        const currentSim = await api.getCurrentSimulation()
+        console.log('📊 Current simulation result:', currentSim)
+        if (currentSim.exists && currentSim.simulation_id) {
+          // Jeśli backend ma symulację a my nie, lub ma INNĄ symulację
+          if (!simulationId || simulationId !== currentSim.simulation_id) {
+            console.log(`🔄 Auto-switching to simulation: ${currentSim.simulation_id}`)
+            setSimulationId(currentSim.simulation_id)
+            await connectWebSocket(currentSim.simulation_id)
+            setRuntimeAccumulatedMs(0)
+            setRuntimeStartMs(null)
+            // Sprawdź czy symulacja jest uruchomiona
+            const status = await api.getSimulationStatus(currentSim.simulation_id)
+            console.log('📊 Simulation status:', status)
+            if (!status.is_running) {
+              console.log('▶️ Starting existing simulation')
+              await startSimulation(currentSim.simulation_id)
+            }
+          }
+        } else {
+          console.log('❌ No existing simulation found')
+        }
+      } catch (error) {
+        console.error('Failed to check for new simulation:', error)
+      }
+    }
+    
+    // Sprawdź przy starcie
+    checkForNewSimulation()
+    
+    // Sprawdzaj co 10 sekund czy nie ma nowszej symulacji
+    const interval = setInterval(checkForNewSimulation, 10000)
+    return () => clearInterval(interval)
+  }, [simulationId, api])
 
   // Poll status periodically so the time advances even if WS data is delayed
   useEffect(() => {
     if (!simulationId) return
     const interval = setInterval(() => {
       updateStatus(simulationId)
-    }, 1000)
+    }, 20000)  // Poll status every 20s; WS provides live data
     return () => clearInterval(interval)
   }, [simulationId, api])
 
@@ -71,25 +152,29 @@ const App: React.FC = () => {
             dt: 0.035,  // Zwiększone z 0.01
             energy_decay: 0.96,  // Wolniejsze wygaszanie z 0.95
             energy_threshold: 0.1,
-            // Energy system parameters
-            pulse_every: 48,  // NOWE: częstsze pulsy
-            pulse_radius: 24.0,  // NOWE: większy promień
-            pulse_amplitude: 5.0,  // NOWE: większa amplituda
-            diffuse_D: 0.25,  // NOWE: dyfuzja energii
-            target_energy: 0.25,  // NOWE: tło energii
-            thermostat_alpha: 0.005,  // NOWE: termostat
+            // Energy system parameters - OPTIMIZED FOR MORE DYNAMICS
+            pulse_every: 24,  // Częstsze pulsy (co 24 kroki)
+            pulse_radius: 32.0,  // Większy promień (32 jednostki)
+            pulse_amplitude: 8.0,  // Większa amplituda (8.0)
+            diffuse_D: 0.5,  // Szybsza dyfuzja energii
+            target_energy: 0.5,  // Wyższe tło energii
+            thermostat_alpha: 0.01,  // Silniejszy termostat
+            // Performance optimization parameters
+            energy_update_interval: 5,  // Update energy every 5 steps
+            metrics_update_interval: 10,  // Update metrics every 10 steps
+            diagnostics_frequency: 20,  // Log diagnostics every 20 steps
             // Particle and binding parameters
             particle_radius: 0.5,
-            binding_threshold: 0.68,  // Obniżone z 0.8
-            unbinding_threshold: 0.3,  // Podniesione z 0.2
-            // Mutation parameters
-            p_mut_base: 1e-4,  // NOWE: zwiększone mutacje
-            p_mut_gain: 14.0,  // NOWE: zwiększone mutacje
-            attr_sigma: 0.08,  // NOWE: siła perturbacji
+            binding_threshold: 0.25,  // NAPRAWIONE: Obniżone z 0.68 dla łatwiejszego tworzenia wiązań
+            unbinding_threshold: 0.15,  // NAPRAWIONE: Obniżone z 0.3 dla stabilniejszych wiązań
+            // Mutation parameters - OPTIMIZED FOR MORE NOVELTY
+            p_mut_base: 5e-4,  // Zwiększone mutacje (5x więcej)
+            p_mut_gain: 20.0,  // Zwiększone z 14.0
+            attr_sigma: 0.12,  // Silniejsza perturbacja
             // Open chemistry parameters
-            vmax: 8.0,  // NOWE: zwiększona prędkość maksymalna
-            neighbor_radius: 3.2,  // NOWE: promień sąsiedztwa
-            rebuild_neighbors_every: 8,  // NOWE: częstotliwość odbudowy sąsiedztwa
+            vmax: 12.0,  // Zwiększona prędkość maksymalna
+            neighbor_radius: 4.0,  // Większy promień sąsiedztwa
+            rebuild_neighbors_every: 6,  // Częstsza przebudowa sąsiadów
             clamp_density_per_cell: 64,  // NOWE: maksymalna gęstość na komórkę
             // Other parameters
             novelty_window: 100,
@@ -103,8 +188,9 @@ const App: React.FC = () => {
         if (response.success && response.simulation_id) {
           setSimulationId(response.simulation_id)
           await connectWebSocket(response.simulation_id)
-          // Don't auto-start simulation - wait for user to press play
-          // await startSimulation(response.simulation_id)
+          // Auto-start simulation after creation
+          await startSimulation(response.simulation_id)
+          setRuntimeAccumulatedMs(0)
           setRuntimeStartMs(null)
         }
       } catch (err) {
@@ -139,24 +225,28 @@ const App: React.FC = () => {
           dt: 0.035,  // Zwiększone z 0.01
           energy_decay: 0.96,  // Wolniejsze wygaszanie z 0.99
           energy_threshold: 0.01,
-          pulse_every: 48,  // NOWE: częstsze pulsy
-          pulse_radius: 24.0,  // NOWE: większy promień
-          pulse_amplitude: 5.0,  // NOWE: większa amplituda
-          diffuse_D: 0.25,  // NOWE: dyfuzja energii
-          target_energy: 0.25,  // NOWE: tło energii
-          thermostat_alpha: 0.005,  // NOWE: termostat
+          pulse_every: 24,  // Częstsze pulsy (co 24 kroki)
+          pulse_radius: 32.0,  // Większy promień (32 jednostki)
+          pulse_amplitude: 8.0,  // Większa amplituda (8.0)
+          diffuse_D: 0.5,  // Szybsza dyfuzja energii
+          target_energy: 0.5,  // Wyższe tło energii
+          thermostat_alpha: 0.01,  // Silniejszy termostat
+          // Performance optimization parameters
+          energy_update_interval: 5,  // Update energy every 5 steps
+          metrics_update_interval: 10,  // Update metrics every 10 steps
+          diagnostics_frequency: 20,  // Log diagnostics every 20 steps
           particle_radius: 0.5,
-          binding_threshold: 0.68,  // Obniżone z 0.8
-          unbinding_threshold: 0.3,  // Podniesione z 0.2
+          binding_threshold: 0.25,  // NAPRAWIONE: Obniżone z 0.68 dla łatwiejszego tworzenia wiązań
+          unbinding_threshold: 0.15,  // NAPRAWIONE: Obniżone z 0.3 dla stabilniejszych wiązań
           novelty_window: 100,
           min_cluster_size: 2,
           vis_frequency: 5,  // Rzadsze renderowanie
           log_frequency: 100,
-          p_mut_base: 1e-4,  // NOWE: zwiększone mutacje
-          p_mut_gain: 14.0,  // NOWE: zwiększone mutacje
-          attr_sigma: 0.08,  // NOWE: siła perturbacji
+          p_mut_base: 5e-4,  // Zwiększone mutacje (5x więcej)
+          p_mut_gain: 20.0,  // Zwiększone z 14.0
+          attr_sigma: 0.12,  // Silniejsza perturbacja
           // Open chemistry parameters
-          vmax: 8.0,  // NOWE: zwiększona prędkość maksymalna
+          vmax: 12.0,  // Zwiększona prędkość maksymalna
           neighbor_radius: 3.2,  // NOWE: promień sąsiedztwa
           rebuild_neighbors_every: 8,  // NOWE: częstotliwość odbudowy sąsiedztwa
           clamp_density_per_cell: 64,  // NOWE: maksymalna gęstość na komórkę
@@ -168,8 +258,8 @@ const App: React.FC = () => {
       if (response.success && response.simulation_id) {
         setSimulationId(response.simulation_id)
         await connectWebSocket(response.simulation_id)
-        // Don't auto-start simulation - wait for user to press play
-        // await startSimulation(response.simulation_id)
+        // Auto-start simulation after creation
+        await startSimulation(response.simulation_id)
         // start wall-clock runtime
         setRuntimeAccumulatedMs(0)
         setRuntimeStartMs(null)
@@ -198,30 +288,55 @@ const App: React.FC = () => {
       }
       
       // Pass only the simulationId; ws client will build the full URL
+      detachAllWsListeners()
+      wsClient.disconnect()
       await wsClient.connect(id)
       setIsConnected(true)
       
-      wsClient.on('simulation_data', (data: SimulationData) => {
-        setSimulationData(data)
-      })
-      wsClient.on('disconnected', () => {
+      const handleSimulationData = (data: SimulationData) => {
+        setSimulationData(prev => {
+          if (!prev || prev.step_count !== data.step_count) {
+            console.log('🎯 Updating simulationData to step', data.step_count)
+          }
+          return data
+        })
+        if (data.metrics) {
+          setMetricsSnapshot(data.metrics)
+        }
+        
+        // Extract available species for preset mode
+        if (data.concentrations && Object.keys(data.concentrations).length > 0) {
+          setAvailableSpecies(Object.keys(data.concentrations))
+        }
+      }
+
+      const handleDisconnected = () => {
         setIsConnected(false)
-      })
-      wsClient.on('error', (error: Error) => {
+      }
+
+      const handleError = (error: Error) => {
         console.error('WebSocket error:', error)
         setIsConnected(false)
-      })
-      wsClient.on('simulation_not_found', () => {
+      }
+
+      const handleSimulationNotFound = () => {
         console.warn('Simulation not found on backend. Clearing simulation ID.')
         setIsConnected(false)
         setSimulationId(null)
         setStatus(null)
         // Don't create new simulation automatically
-      })
-      wsClient.on('reconnect_failed', () => {
+      }
+
+      const handleReconnectFailed = () => {
         console.error('Failed to reconnect after multiple attempts')
         setIsConnected(false)
-      })
+      }
+
+      attachWsListener('simulation_data', handleSimulationData)
+      attachWsListener('disconnected', handleDisconnected)
+      attachWsListener('error', handleError)
+      attachWsListener('simulation_not_found', handleSimulationNotFound)
+      attachWsListener('reconnect_failed', handleReconnectFailed)
     } catch (error) {
       console.error('Failed to connect WebSocket:', error)
     }
@@ -231,6 +346,7 @@ const App: React.FC = () => {
     try {
       await api.startSimulation(id)
       await updateStatus(id)
+      await refreshMetrics(id)
       // start wall-clock runtime
       setRuntimeStartMs(Date.now())
     } catch (error) {
@@ -244,6 +360,7 @@ const App: React.FC = () => {
     try {
       await api.pauseSimulation(simulationId)
       await updateStatus(simulationId)
+      await refreshMetrics(simulationId)
       // accumulate runtime and stop clock
       if (runtimeStartMs !== null) {
         setRuntimeAccumulatedMs(prev => prev + (Date.now() - runtimeStartMs))
@@ -317,31 +434,51 @@ const App: React.FC = () => {
     }
   }
 
+  const refreshMetrics = async (id: string) => {
+    try {
+      const response = await api.getMetrics(id)
+      setMetricsSnapshot(response.metrics)
+    } catch (error) {
+      console.error('Failed to refresh metrics:', error)
+    }
+  }
+
   const getStatusIndicator = () => {
-    if (!status) return 'disconnected'
-    if (status.is_running && !status.is_paused) return 'running'
-    if (status.is_paused) return 'paused'
+    if (!status && !simulationData) return 'disconnected'
+    const running = status?.is_running ?? true
+    const paused = status?.is_paused ?? false
+    if (running && !paused) return 'running'
+    if (paused) return 'paused'
     return 'stopped'
   }
 
   const getStatusText = () => {
-    if (!status) return 'Disconnected'
-    if (status.is_running && !status.is_paused) return 'Running'
-    if (status.is_paused) return 'Paused'
+    if (!status && !simulationData) return 'Disconnected'
+    const running = status?.is_running ?? true
+    const paused = status?.is_paused ?? false
+    if (running && !paused) return 'Running'
+    if (paused) return 'Paused'
     return 'Stopped'
   }
 
   return (
     <div className="app">
       <header className="header">
-        <div className="status">
-          <div className={`status-indicator ${getStatusIndicator()}`} />
-          <span>{getStatusText()}</span>
-          {simulationId && (
-            <span className="text-sm text-gray-400 ml-2">
-              ID: {simulationId.slice(-8)}
-            </span>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <img src="/logo.jpg" alt="Live 2.0" style={{ height: '160px', width: 'auto' }} />
+          <div className="status">
+            <div className={`status-indicator ${getStatusIndicator()}`} />
+            <span>{getStatusText()}</span>
+            {simulationId && (
+              <span className="text-sm text-gray-400 ml-2">
+                ID: {simulationId.slice(-8)}
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+          <img src="/header.jpg" alt="Live 2.0 Header" style={{ height: '160px', width: 'auto' }} />
         </div>
         
         <div className="flex items-center gap-2">
@@ -389,17 +526,30 @@ const App: React.FC = () => {
           <Controls
             simulationId={simulationId}
             status={status}
+            metricsOverride={metricsSnapshot}
             onStatusUpdate={updateStatus}
+            availableSpecies={availableSpecies}
+            selectedSubstance={selectedSubstance}
+            onSubstanceChange={setSelectedSubstance}
             runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
+            currentStep={simulationData?.step_count ?? status?.step_count ?? null}
           />
           
-          {simulationData && (
-            <GraphPreview
-              data={simulationData}
-              selectedSubstance={selectedSubstance}
-              onSubstanceSelect={setSelectedSubstance}
-            />
-          )}
+          <GraphPreview
+            data={simulationData}
+            selectedSubstance={selectedSubstance}
+            onSubstanceSelect={setSelectedSubstance}
+          />
+          
+          {/* Novelty Panel - TEMPORARILY DISABLED for debugging */}
+          {/* {simulationId && (
+            <div className="mt-6">
+              <NoveltyPanel
+                simulationId={simulationId}
+                onSubstanceSelect={setSelectedSubstance}
+              />
+            </div>
+          )} */}
         </aside>
 
         <div className="canvas-container">
@@ -410,6 +560,64 @@ const App: React.FC = () => {
           />
         </div>
       </main>
+      
+          {/* Legend at bottom */}
+      <footer className="legend-footer" key={`legend-${simulationData?.step_count ?? status?.step_count ?? 0}`}>
+            <div className="legend">
+          <h3>🧪 Symulacja Molekularna Live 2.0</h3>
+          <div className="legend-grid">
+            <div className="legend-column">
+              <h4>Elementy Wizualizacji</h4>
+              <div className="legend-item">
+                <div className="legend-dot" style={{ background: '#60a5fa' }}></div>
+                <span>Cząstki molekularne</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-dot" style={{ background: '#fbbf24' }}></div>
+                <span>Pole energii (impulsy)</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-dot" style={{ background: '#34d399' }}></div>
+                <span>Wiązania chemiczne</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-dot" style={{ background: '#f87171' }}></div>
+                <span>Wysoka energia</span>
+              </div>
+            </div>
+            <div className="legend-column" key={`status-${simulationData?.step_count ?? status?.step_count ?? 0}`}>
+              <h4>Status Symulacji</h4>
+              <div className="legend-info">
+                <strong>Tryb:</strong> {mode === 'open_chemistry' ? 'Open Chemistry' : 'Preset Prebiotic'}
+              </div>
+              <div className="legend-info" key={`step-${simulationData?.step_count ?? status?.step_count ?? 0}`}>
+                <strong>Krok:</strong> {simulationData?.step_count ?? status?.step_count ?? 0}
+              </div>
+              <div className="legend-info" key={`time-${simulationData?.current_time ?? 0}`}>
+                <strong>Czas:</strong> {simulationData?.current_time?.toFixed(2) ?? '0.00'}s
+              </div>
+              <div className="legend-info">
+                <strong>Cząstki:</strong> {metricsSnapshot?.particle_count ?? status?.particle_count ?? 0}
+              </div>
+            </div>
+            <div className="legend-column">
+              <h4>Co Obserwować</h4>
+              <div className="legend-info">
+                • <strong>Formowanie wiązań</strong> - cząstki łączą się w struktury
+              </div>
+              <div className="legend-info">
+                • <strong>Impulsy energii</strong> - jasne plamy co 48 kroków
+              </div>
+              <div className="legend-info">
+                • <strong>Samoorganizacja</strong> - spontaniczne tworzenie klastrów
+              </div>
+              <div className="legend-info">
+                • <strong>Nowe substancje</strong> - wykrywanie w NoveltyPanel
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

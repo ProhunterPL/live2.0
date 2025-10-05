@@ -5,7 +5,7 @@ Provides energy-conserving integration methods
 
 import taichi as ti
 import numpy as np
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 @ti.data_oriented

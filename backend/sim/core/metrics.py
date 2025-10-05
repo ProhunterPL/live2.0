@@ -6,9 +6,13 @@ Tracks novelty, complexity, and other key metrics
 import taichi as ti
 import numpy as np
 import time
+import logging
 from typing import Dict, List, Tuple, Optional
 from collections import deque
 from .catalog import SubstanceCatalog
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # Compile-time constants
 MAX_PARTICLES_COMPILE = 10000
@@ -55,20 +59,36 @@ def reset_metrics_kernel():
 
 @ti.kernel
 def update_particle_metrics_kernel(active: ti.template(), attributes: ti.template(),
-                                  energy: ti.template(), particle_count: ti.i32):
+                                  energy: ti.template(), velocities: ti.template(),
+                                  particle_count: ti.i32):
     """Update particle metrics - module-level kernel"""
-    particle_count_field[None] = particle_count
-    
+    print(f"KERNEL DEBUG: STARTED with particle_count={particle_count}")
+
     total_energy = 0.0
     total_mass = 0.0
-    
+    active_particles = 0
+
+    # Debug first 10 particles
+    for i in range(min(10, particle_count)):
+        print(f"KERNEL DEBUG: particle {i} active={active[i]}")
+
     for i in range(MAX_PARTICLES_COMPILE):
         if active[i] == 1:
+            active_particles += 1
+            mass = attributes[i][0]
+            total_mass += mass
+            # Include stored per-particle energy (for preset systems)
             total_energy += energy[i]
-            total_mass += attributes[i][0]
-    
+            # Add kinetic energy component (½ m v^2)
+            vx = velocities[i][0]
+            vy = velocities[i][1]
+            total_energy += 0.5 * mass * (vx * vx + vy * vy)
+
+    print(f"KERNEL DEBUG: found {active_particles} active particles, total_mass={total_mass}, total_energy={total_energy}")
+    particle_count_field[None] = active_particles
     total_energy_field[None] = total_energy
     total_mass_field[None] = total_mass
+    print(f"KERNEL DEBUG: FINISHED - set particle_count_field to {active_particles}")
 
 @ti.kernel
 def update_bond_metrics_kernel(bond_matrix: ti.template(), particle_count: ti.i32):
@@ -141,9 +161,9 @@ class MetricsCollector:
         """Reset all metrics"""
         reset_metrics_kernel()
     
-    def update_particle_metrics(self, active, attributes, energy, particle_count: int):
+    def update_particle_metrics(self, active, attributes, energy, velocities, particle_count: int):
         """Update particle-related metrics"""
-        update_particle_metrics_kernel(active, attributes, energy, particle_count)
+        update_particle_metrics_kernel(active, attributes, energy, velocities, particle_count)
     
     def update_bond_metrics(self, bond_matrix, particle_count: int):
         """Update bond-related metrics"""
@@ -181,15 +201,28 @@ class MetricsCollector:
     
     def get_current_metrics(self) -> Dict:
         """Get current metrics snapshot"""
+        particle_count = int(self.particle_count[None])
+        total_energy = float(self.total_energy[None])
+        total_mass = float(self.total_mass[None])
+        bond_count = int(self.bond_count[None])
+        cluster_count = int(self.cluster_count[None])
+        energy_field_sum = float(self.energy_field_sum[None])
+        energy_field_max = float(self.energy_field_max[None])
+        energy_field_mean = float(self.energy_field_mean[None])
+
+        logger.debug(f"get_current_metrics: particle_count={particle_count}")
+        logger.debug(f"get_current_metrics: total_energy={total_energy}")
+        logger.debug(f"get_current_metrics: total_mass={total_mass}")
+
         return {
-            'particle_count': int(self.particle_count[None]),
-            'total_energy': float(self.total_energy[None]),
-            'total_mass': float(self.total_mass[None]),
-            'bond_count': int(self.bond_count[None]),
-            'cluster_count': int(self.cluster_count[None]),
-            'energy_field_sum': float(self.energy_field_sum[None]),
-            'energy_field_max': float(self.energy_field_max[None]),
-            'energy_field_mean': float(self.energy_field_mean[None])
+            'particle_count': particle_count,
+            'total_energy': total_energy,
+            'total_mass': total_mass,
+            'bond_count': bond_count,
+            'cluster_count': cluster_count,
+            'energy_field_sum': energy_field_sum,
+            'energy_field_max': energy_field_max,
+            'energy_field_mean': energy_field_mean
         }
     
     def get_metrics_history(self) -> List[Dict]:
@@ -361,32 +394,50 @@ class MetricsAggregator:
     def update_aggregated_stats(self):
         """Update aggregated statistics"""
         current_time = time.time()
-        
+
         stats = {}
-        
+
         # Basic metrics
         if self.metrics_collector:
-            stats.update(self.metrics_collector.get_current_metrics())
+            basic_metrics = self.metrics_collector.get_current_metrics()
+            logger.debug(f"update_aggregated_stats: basic_metrics keys={list(basic_metrics.keys())}")
+            logger.debug(f"update_aggregated_stats: basic_metrics particle_count={basic_metrics.get('particle_count', 'NOT_FOUND')}")
+            stats.update(basic_metrics)
             stats.update(self.metrics_collector.get_metrics_trends())
-        
+
         # Novelty metrics
         if self.novelty_tracker:
-            stats.update(self.novelty_tracker.get_stats())
-        
+            novelty_stats = self.novelty_tracker.get_stats()
+            logger.debug(f"update_aggregated_stats: novelty_stats keys={list(novelty_stats.keys())}")
+            stats.update(novelty_stats)
+
         # Catalog metrics
         if self.substance_catalog:
-            stats.update(self.substance_catalog.get_catalog_stats())
-        
+            catalog_stats = self.substance_catalog.get_catalog_stats()
+            logger.debug(f"update_aggregated_stats: catalog_stats keys={list(catalog_stats.keys())}")
+            stats.update(catalog_stats)
+
         # System metrics
         stats['update_frequency'] = 1.0 / max(current_time - self.last_update_time, 1e-6)
         stats['timestamp'] = current_time
-        
+
+        # Add health score
+        health_score = self.get_health_score()
+        stats['health_score'] = health_score
+        logger.debug(f"update_aggregated_stats: calculated health_score={health_score}")
+
+        logger.debug(f"update_aggregated_stats: final stats keys={list(stats.keys())}")
+        logger.debug(f"update_aggregated_stats: final particle_count={stats.get('particle_count', 'NOT_FOUND')}")
+
         self.aggregated_stats = stats
         self.last_update_time = current_time
     
     def get_aggregated_stats(self) -> Dict:
         """Get aggregated statistics"""
-        return self.aggregated_stats.copy()
+        stats = self.aggregated_stats.copy()
+        logger.debug(f"get_aggregated_stats: returning {len(stats)} metrics")
+        logger.debug(f"get_aggregated_stats: particle_count={stats.get('particle_count', 'NOT_FOUND')}")
+        return stats
     
     def get_health_score(self) -> float:
         """Calculate overall system health score"""
