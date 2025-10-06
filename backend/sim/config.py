@@ -112,9 +112,9 @@ class OpenChemistryConfig(BaseModel):
     enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
     enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
     theta_bind: float = Field(default=0.1, gt=0)  # NAPRAWIONE: obniżone z 0.25 dla łatwiejszego tworzenia wiązań
-    theta_break: float = Field(default=2.0, gt=0)  # Podniesione z 1.5 dla stabilniejszych wiązań
+    theta_break: float = Field(default=3.0, gt=0)  # MUCH INCREASED for much more stable bonds
     vmax: float = Field(default=8.0, gt=0)  # NOWE: zwiększone z 4.5
-    neighbor_radius: float = Field(default=3.2, gt=0)  # NOWE
+    neighbor_radius: float = Field(default=4.0, gt=0)  # INCREASED for easier bonding
     rebuild_neighbors_every: int = Field(default=8, gt=0)  # NOWE
     clamp_density_per_cell: int = Field(default=64, gt=0)  # NOWE
     bond_types: Dict[int, Dict[str, float]] = Field(default={

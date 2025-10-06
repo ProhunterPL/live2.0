@@ -26,6 +26,13 @@ bond_k_spring_field = None
 bond_rest_len_field = None
 bond_damping_field = None
 bond_strength_field = None
+# Valence system fields
+particle_valence_max_field = None
+particle_bond_count_field = None
+# Cluster metrics fields
+cluster_bond_count_field = None
+cluster_R_g_field = None
+cluster_density_field = None
 
 def init_binding_fields():
     """Initialize global Taichi fields for binding"""
@@ -33,6 +40,8 @@ def init_binding_fields():
     global cluster_sizes_field, next_cluster_id_field, bond_energy_field, bond_age_field
     global bond_type_field, bond_k_spring_field, bond_rest_len_field
     global bond_damping_field, bond_strength_field
+    global particle_valence_max_field, particle_bond_count_field
+    global cluster_bond_count_field, cluster_R_g_field, cluster_density_field
     
     bond_matrix_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
     bond_active_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
@@ -47,6 +56,13 @@ def init_binding_fields():
     bond_rest_len_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
     bond_damping_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
     bond_strength_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE))
+    # Valence system fields
+    particle_valence_max_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    particle_bond_count_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    # Cluster metrics fields
+    cluster_bond_count_field = ti.field(dtype=ti.i32, shape=(MAX_PARTICLES_COMPILE,))
+    cluster_R_g_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
+    cluster_density_field = ti.field(dtype=ti.f32, shape=(MAX_PARTICLES_COMPILE,))
 
 # Module-level kernels
 @ti.kernel
@@ -66,8 +82,80 @@ def reset_binding_kernel():
     for i in range(MAX_PARTICLES_COMPILE):
         cluster_id_field[i] = -1
         cluster_sizes_field[i] = 0
+        particle_valence_max_field[i] = 4  # Default valence limit
+        particle_bond_count_field[i] = 0
     
     next_cluster_id_field[None] = 0
+
+@ti.kernel
+def update_bond_counts_kernel(particle_count: ti.i32):
+    """Update bond counts for valence system"""
+    # Reset counts
+    for i in range(MAX_PARTICLES_COMPILE):
+        particle_bond_count_field[i] = 0
+    
+    # Count bonds per particle
+    max_check = ti.min(particle_count, MAX_PARTICLES_COMPILE)
+    for i in range(max_check):
+        for j in range(i + 1, max_check):
+            if bond_active_field[i, j] == 1:
+                ti.atomic_add(particle_bond_count_field[i], 1)
+                ti.atomic_add(particle_bond_count_field[j], 1)
+
+@ti.kernel
+def compute_cluster_metrics_kernel(positions: ti.template(), particle_count: ti.i32):
+    """Compute cluster metrics: bond count, R_g, density"""
+    # Reset cluster metrics
+    for c in range(MAX_PARTICLES_COMPILE):
+        cluster_bond_count_field[c] = 0
+        cluster_R_g_field[c] = 0.0
+        cluster_density_field[c] = 0.0
+    
+    # Count bonds per cluster
+    max_check = ti.min(particle_count, MAX_PARTICLES_COMPILE)
+    for i in range(max_check):
+        for j in range(i + 1, max_check):
+            if bond_active_field[i, j] == 1:
+                cluster_i = cluster_id_field[i]
+                cluster_j = cluster_id_field[j]
+                if cluster_i == cluster_j and cluster_i >= 0:
+                    ti.atomic_add(cluster_bond_count_field[cluster_i], 1)
+    
+    # Compute R_g and density for each cluster
+    for c in range(MAX_PARTICLES_COMPILE):
+        size = cluster_sizes_field[c]
+        if size > 1:
+            # Compute center of mass
+            com_x = 0.0
+            com_y = 0.0
+            count = 0
+            
+            for i in range(max_check):
+                if cluster_id_field[i] == c:
+                    com_x += positions[i][0]
+                    com_y += positions[i][1]
+                    count += 1
+            
+            if count > 0:
+                com_x /= count
+                com_y /= count
+                
+                # Compute R_g²
+                R_g_sq = 0.0
+                for i in range(max_check):
+                    if cluster_id_field[i] == c:
+                        dx = positions[i][0] - com_x
+                        dy = positions[i][1] - com_y
+                        R_g_sq += dx * dx + dy * dy
+                
+                R_g_sq /= count
+                cluster_R_g_field[c] = ti.sqrt(R_g_sq)
+                
+                # Compute graph density
+                bonds = cluster_bond_count_field[c]
+                max_bonds = size * (size - 1) / 2
+                if max_bonds > 0:
+                    cluster_density_field[c] = ti.cast(bonds, ti.f32) / max_bonds
 
 @ti.kernel
 def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
@@ -119,39 +207,54 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                             damping = 0.25
                             strength = 15.0
                         
-                        # Probabilistic bond formation - LOWER THRESHOLD FOR MORE BONDS
-                        theta_bind = 0.1  # Lowered from 0.3 for easier bonding
-                        dE = -dist  # Simplified energy change
+                        # Check valence constraints BEFORE forming bond
+                        valence_i = particle_bond_count_field[i]
+                        valence_j = particle_bond_count_field[j]
+                        max_valence_i = particle_valence_max_field[i]
+                        max_valence_j = particle_valence_max_field[j]
                         
-                        # Sigmoid probability with easier formation
-                        p = 1.0 / (1.0 + ti.exp(-(-dE - theta_bind) * 2.0))
-                        
-                        # Energy-dependent noise - MORE AGGRESSIVE BONDING
-                        # Get local energy (simplified)
-                        E = 0.5  # Placeholder - should get from energy field
-                        p *= (1.0 + 1.0 * E)  # Increased energy factor
-                        
-                        # Additional distance factor - closer particles bond easier
-                        distance_factor = 1.0 / (1.0 + dist * 0.5)
-                        p *= distance_factor
-                        
-                        if ti.random(ti.f32) < p:
-                            # Form bond with type-specific parameters
-                            bond_active_field[i, j] = 1
-                            bond_active_field[j, i] = 1
-                            bond_matrix_field[i, j] = 1.0
-                            bond_matrix_field[j, i] = 1.0
-                            bond_type_field[i, j] = bond_type
-                            bond_type_field[j, i] = bond_type
-                        
-                        bond_k_spring_field[i, j] = k_spring
-                        bond_k_spring_field[j, i] = k_spring
-                        bond_rest_len_field[i, j] = rest_len
-                        bond_rest_len_field[j, i] = rest_len
-                        bond_damping_field[i, j] = damping
-                        bond_damping_field[j, i] = damping
-                        bond_strength_field[i, j] = strength
-                        bond_strength_field[j, i] = strength
+                        # Only form bond if both particles have valence available
+                        if valence_i < max_valence_i and valence_j < max_valence_j:
+                            # Probabilistic bond formation - MUCH LOWER THRESHOLD FOR MORE BONDS
+                            theta_bind = 0.05  # Even lower for much easier bonding
+                            dE = -dist  # Simplified energy change
+                            
+                            # Sigmoid probability with easier formation
+                            p = 1.0 / (1.0 + ti.exp(-(-dE - theta_bind) * 2.0))
+                            
+                            # Energy-dependent noise - MORE AGGRESSIVE BONDING
+                            # Get local energy (simplified)
+                            E = 0.5  # Placeholder - should get from energy field
+                            p *= (1.0 + 1.0 * E)  # Increased energy factor
+                            
+                            # Additional distance factor - closer particles bond easier
+                            distance_factor = 1.0 / (1.0 + dist * 0.5)
+                            p *= distance_factor
+                            
+                            if ti.random(ti.f32) < p:
+                                # Form bond with type-specific parameters
+                                bond_active_field[i, j] = 1
+                                bond_active_field[j, i] = 1
+                                bond_matrix_field[i, j] = 1.0
+                                bond_matrix_field[j, i] = 1.0
+                                bond_type_field[i, j] = bond_type
+                                bond_type_field[j, i] = bond_type
+                                bond_k_spring_field[i, j] = k_spring
+                                bond_k_spring_field[j, i] = k_spring
+                                bond_rest_len_field[i, j] = rest_len
+                                bond_rest_len_field[j, i] = rest_len
+                                bond_damping_field[i, j] = damping
+                                bond_damping_field[j, i] = damping
+                                bond_strength_field[i, j] = strength
+                                bond_strength_field[j, i] = strength
+                                bond_energy_field[i, j] = 0.0
+                                bond_energy_field[j, i] = 0.0
+                                bond_age_field[i, j] = 0.0
+                                bond_age_field[j, i] = 0.0
+                                
+                                # Update bond counts for valence system
+                                ti.atomic_add(particle_bond_count_field[i], 1)
+                                ti.atomic_add(particle_bond_count_field[j], 1)
     
     # Check for bond breaking
     for i, j in ti.ndrange(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE):
@@ -162,6 +265,10 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                 bond_active_field[j, i] = 0
                 bond_matrix_field[i, j] = 0.0
                 bond_matrix_field[j, i] = 0.0
+                
+                # Update bond counts for valence system
+                ti.atomic_sub(particle_bond_count_field[i], 1)
+                ti.atomic_sub(particle_bond_count_field[j], 1)
 
 @ti.func
 def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
@@ -226,7 +333,7 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     
     # Condition 1: Overload - too much stretch/compression
     strain = ti.abs(r - rest_len) / ti.max(rest_len, 0.1)
-    if strain > 1.0:  # 100% strain threshold (more stable bonds)
+    if strain > 2.0:  # 200% strain threshold (much more stable bonds)
         result = 1
     
     # Condition 2: Distance too large (safety check)
@@ -234,16 +341,16 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         result = 1
     
     # Condition 3: Aging - probabilistic breaking for old bonds
-    # Different bond types have different max ages (INCREASED for stability)
-    max_age = 500.0  # default (increased from 100.0)
+    # Different bond types have different max ages (MUCH INCREASED for stability)
+    max_age = 2000.0  # default (much increased from 500.0)
     if bond_type == 0:  # vdW - short lived
-        max_age = 200.0  # increased from 50.0
-    elif bond_type == 1:  # covalent - long lived
         max_age = 1000.0  # increased from 200.0
+    elif bond_type == 1:  # covalent - long lived
+        max_age = 5000.0  # increased from 1000.0
     elif bond_type == 2:  # H-bond - medium
-        max_age = 400.0  # increased from 80.0
+        max_age = 2000.0  # increased from 400.0
     else:  # metallic
-        max_age = 600.0  # increased from 150.0
+        max_age = 3000.0  # increased from 600.0
     
     if age > max_age:
         # Probabilistic: higher age = higher chance to break
@@ -310,7 +417,7 @@ def compute_bond_forces_kernel(positions: ti.template(), velocities: ti.template
 
 @ti.kernel
 def update_clusters_kernel(active: ti.template(), particle_count: ti.i32):
-    """Update cluster assignments using Union-Find (DSU) - O(N*α(N))"""
+    """Update cluster assignments using Union-Find (DSU) - O(N*α(N)) - OPTIMIZED"""
     # Phase 1: Initialize - each particle is its own cluster
     for i in range(MAX_PARTICLES_COMPILE):
         if i < particle_count and active[i] == 1:
@@ -318,20 +425,24 @@ def update_clusters_kernel(active: ti.template(), particle_count: ti.i32):
         else:
             cluster_id_field[i] = -1  # inactive
     
-    # Phase 2: Union - process all bonds
-    for i in range(particle_count):
+    # Phase 2: Union - process all bonds (OPTIMIZED with bounds checking)
+    max_check = ti.min(particle_count, MAX_PARTICLES_COMPILE)
+    for i in range(max_check):
         if active[i] == 1:
-            for j in range(i + 1, particle_count):
+            for j in range(i + 1, max_check):
                 if active[j] == 1 and bond_active_field[i, j] == 1:
                     # Union the two clusters
                     root_i = find_root_dsu(i)
                     root_j = find_root_dsu(j)
                     if root_i != root_j:
-                        # Attach j's root to i's root
-                        cluster_id_field[root_j] = root_i
+                        # Attach smaller to larger (union by rank)
+                        if root_i < root_j:
+                            cluster_id_field[root_j] = root_i
+                        else:
+                            cluster_id_field[root_i] = root_j
     
     # Phase 3: Path compression pass - flatten all paths
-    for i in range(particle_count):
+    for i in range(max_check):
         if active[i] == 1:
             root = find_root_dsu(i)
             cluster_id_field[i] = root
@@ -340,10 +451,11 @@ def update_clusters_kernel(active: ti.template(), particle_count: ti.i32):
     for i in range(MAX_PARTICLES_COMPILE):
         cluster_sizes_field[i] = 0
     
-    for i in range(particle_count):
+    for i in range(max_check):
         if active[i] == 1:
             root = cluster_id_field[i]
-            ti.atomic_add(cluster_sizes_field[root], 1)
+            if root >= 0 and root < MAX_PARTICLES_COMPILE:
+                ti.atomic_add(cluster_sizes_field[root], 1)
 
 @ti.data_oriented
 class BindingSystem:
@@ -394,6 +506,8 @@ class BindingSystem:
     def update_bonds(self, positions, attributes, active, particle_count: int, dt: float):
         """Update bond formation and breaking based on particle interactions"""
         update_bonds_kernel(positions, attributes, active, particle_count, dt)
+        # Update bond counts for valence system
+        update_bond_counts_kernel(particle_count)
     
     def apply_bond_forces(self, positions, velocities, forces, active, particle_count: int):
         """Compute and apply spring forces from bonds"""
@@ -521,9 +635,11 @@ class BindingSystem:
             self.bond_age[i, j] = 0.0
             self.bond_age[j, i] = 0.0
     
-    def update_clusters(self, active, particle_count: int):
+    def update_clusters(self, positions, active, particle_count: int):
         """Update cluster assignments using union-find algorithm"""
         update_clusters_kernel(active, particle_count)
+        # Compute cluster metrics
+        compute_cluster_metrics_kernel(positions, particle_count)
     
     @ti.func
     def find_cluster_root(self, i: ti.i32) -> ti.i32:

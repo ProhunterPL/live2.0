@@ -406,6 +406,7 @@ class SimulationStepper:
                 
                 # Update clusters
                 self.binding.update_clusters(
+                    self.particles.positions,
                     self.particles.active,
                     self.particles.particle_count[None]
                 )
