@@ -62,15 +62,9 @@ def update_particle_metrics_kernel(active: ti.template(), attributes: ti.templat
                                   energy: ti.template(), velocities: ti.template(),
                                   particle_count: ti.i32):
     """Update particle metrics - module-level kernel"""
-    print(f"KERNEL DEBUG: STARTED with particle_count={particle_count}")
-
     total_energy = 0.0
     total_mass = 0.0
     active_particles = 0
-
-    # Debug first 10 particles
-    for i in range(min(10, particle_count)):
-        print(f"KERNEL DEBUG: particle {i} active={active[i]}")
 
     for i in range(MAX_PARTICLES_COMPILE):
         if active[i] == 1:
@@ -84,11 +78,9 @@ def update_particle_metrics_kernel(active: ti.template(), attributes: ti.templat
             vy = velocities[i][1]
             total_energy += 0.5 * mass * (vx * vx + vy * vy)
 
-    print(f"KERNEL DEBUG: found {active_particles} active particles, total_mass={total_mass}, total_energy={total_energy}")
     particle_count_field[None] = active_particles
     total_energy_field[None] = total_energy
     total_mass_field[None] = total_mass
-    print(f"KERNEL DEBUG: FINISHED - set particle_count_field to {active_particles}")
 
 @ti.kernel
 def update_bond_metrics_kernel(bond_matrix: ti.template(), particle_count: ti.i32):
@@ -163,7 +155,54 @@ class MetricsCollector:
     
     def update_particle_metrics(self, active, attributes, energy, velocities, particle_count: int):
         """Update particle-related metrics"""
+        logger.info(f"DEBUG: MetricsCollector.update_particle_metrics called with particle_count={particle_count}")
+        
+        # Debug: check first few active particles before kernel
+        logger.info(f"DEBUG: Before kernel - checking first 5 active particles:")
+        for i in range(min(5, particle_count)):
+            logger.info(f"DEBUG: particle {i} active={active[i]}")
+        
         update_particle_metrics_kernel(active, attributes, energy, velocities, particle_count)
+        
+        # Force synchronization to ensure kernel completes
+        ti.sync()
+        
+        # DEBUG: Calculate metrics manually since kernel doesn't work
+        logger.info(f"DEBUG: Calculating metrics manually for {particle_count} particles")
+        
+        total_energy = 0.0
+        total_mass = 0.0
+        active_particles = 0
+        
+        # Calculate metrics manually
+        for i in range(min(particle_count, 1000)):  # Limit to avoid performance issues
+            if active[i] == 1:
+                active_particles += 1
+                mass = attributes[i][0]
+                total_mass += mass
+                # Include stored per-particle energy
+                particle_energy = energy[i]
+                total_energy += particle_energy
+                # Add kinetic energy component (½ m v^2)
+                vx = velocities[i][0]
+                vy = velocities[i][1]
+                kinetic_energy = 0.5 * mass * (vx * vx + vy * vy)
+                total_energy += kinetic_energy
+                
+                # Debug first few particles
+                if i < 3:
+                    logger.info(f"DEBUG: Particle {i}: energy={particle_energy:.4f}, kinetic={kinetic_energy:.4f}, mass={mass:.4f}, vx={vx:.4f}, vy={vy:.4f}")
+        
+        # Set all fields directly
+        self.particle_count[None] = active_particles
+        self.total_energy[None] = total_energy
+        self.total_mass[None] = total_mass
+        
+        logger.info(f"DEBUG: Manual calculation - particles={active_particles}, energy={total_energy}, mass={total_mass}")
+        
+        logger.info(f"DEBUG: After kernel, particle_count_field={self.particle_count[None]}")
+        logger.info(f"DEBUG: After kernel, total_energy_field={self.total_energy[None]}")
+        logger.info(f"DEBUG: After kernel, total_mass_field={self.total_mass[None]}")
     
     def update_bond_metrics(self, bond_matrix, particle_count: int):
         """Update bond-related metrics"""
@@ -196,6 +235,7 @@ class MetricsCollector:
         
         if additional_metrics:
             metrics.update(additional_metrics)
+            logger.info(f"DEBUG: record_metrics added additional_metrics: {additional_metrics}")
         
         self.metrics_history.append(metrics)
     

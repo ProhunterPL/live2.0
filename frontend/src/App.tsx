@@ -5,7 +5,7 @@ import Controls from './components/Controls'
 import GraphPreview from './components/GraphPreview'
 import { SimulationAPI } from './lib/api.ts'
 import { WebSocketClient } from './lib/ws.ts'
-import type { SimulationData, SimulationStatus, Metrics } from './lib/types'
+import type { SimulationData, SimulationStatus, Metrics } from './lib/types.ts'
 
 const App: React.FC = () => {
   const [simulationId, setSimulationId] = useState<string | null>(null)

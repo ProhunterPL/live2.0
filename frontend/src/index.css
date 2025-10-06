@@ -251,6 +251,50 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Export buttons */
+.graph-preview .export-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.graph-preview .export-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.graph-preview .export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.graph-preview .export-btn.png {
+  background: #3b82f6;
+  color: white;
+}
+
+.graph-preview .export-btn.png:hover {
+  background: #2563eb;
+}
+
+.graph-preview .export-btn.jpg {
+  background: #10b981;
+  color: white;
+}
+
+.graph-preview .export-btn.jpg:hover {
+  background: #059669;
+}
+
 /* Status */
 .status {
   display: flex;
@@ -292,6 +336,66 @@ body {
   background: rgba(255, 255, 255, 0.5);
 }
 
+/* Legend Footer */
+.legend-footer {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 2rem;
+  z-index: 100;
+}
+
+.legend {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.legend-grid {
+  display: flex;
+  gap: 2rem;
+  min-width: max-content;
+}
+
+.legend-column {
+  flex: 0 0 auto;
+  min-width: 200px;
+}
+
+.legend-column h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 0.25rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-info {
+  font-size: 0.75rem;
+  color: #a0a0a0;
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+
+.legend-info strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
@@ -300,5 +404,14 @@ body {
   
   .metrics {
     grid-template-columns: 1fr;
+  }
+  
+  .legend-grid {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .legend-column {
+    min-width: auto;
   }
 }

@@ -7,6 +7,7 @@ import taichi as ti
 import numpy as np
 import time
 import logging
+import sys
 from typing import Dict, List, Optional, Any
 
 # Set stepper logger to INFO level
@@ -35,6 +36,7 @@ class SimulationStepper:
     """Main simulation coordinator"""
     
     def __init__(self, config: SimulationConfig):
+        print(f"DEBUG: SimulationStepper.__init__ called with mode={config.mode}")
         self.config = config
         self.current_time = 0.0
         self.step_count = 0
@@ -42,6 +44,8 @@ class SimulationStepper:
         
         # Pre-allocate energy amounts field to avoid recreation in each step
         self.energy_amounts = ti.field(dtype=ti.f32, shape=(config.max_particles,))
+        self.debug_energy_total = ti.field(dtype=ti.f32, shape=())
+        self.debug_particles_with_energy = ti.field(dtype=ti.i32, shape=())
         
         # Initialize components
         self.grid = Grid(config)
@@ -101,9 +105,12 @@ class SimulationStepper:
     
     def initialize_simulation(self):
         """Initialize simulation with initial conditions"""
+        print(f"DEBUG: initialize_simulation called with mode={self.config.mode}")
         if self.config.mode == "preset_prebiotic":
+            print("DEBUG: Calling initialize_preset_mode")
             self.initialize_preset_mode()
         else:
+            print("DEBUG: Calling initialize_open_chemistry_mode")
             self.initialize_open_chemistry_mode()
         
         # Initialize metrics
@@ -140,6 +147,7 @@ class SimulationStepper:
         """Initialize open chemistry mode"""
         # Add initial particles with random properties
         num_initial_particles = min(500, self.config.max_particles)  # NAPRAWIONE: Zwiększone z 100 dla większej aktywności
+        print(f"DEBUG: initialize_open_chemistry_mode called, adding {num_initial_particles} particles")
         
         for i in range(num_initial_particles):
             # Random position
@@ -166,6 +174,8 @@ class SimulationStepper:
             
             # Add particle
             self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
+        
+        print(f"DEBUG: Added {num_initial_particles} particles, particle_count is now {self.particles.particle_count[None]}")
         
         # Add energy sources
         for _ in range(self.open_chemistry_config.energy_sources):
@@ -326,7 +336,7 @@ class SimulationStepper:
                 # Open chemistry branch
                 if self.step_count < 5:
                     print(f"STEP {self.step_count + 1}: Open chemistry mode - starting symplectic integration...")
-                if self.use_symplectic:
+                if False:  # Temporarily disable symplectic integrator
                     # Use symplectic integrator for better energy conservation
                     particle_count = self.particles.particle_count[None]
                     
@@ -345,16 +355,6 @@ class SimulationStepper:
                         particle_count
                     )
                     
-                    if self.step_count < 5:
-                        print(f"STEP {self.step_count + 1}: Performing symplectic integration...")
-                    # Perform symplectic integration
-                    success, actual_dt = self._symplectic_step(dt)
-                    if not success:
-                        # If step was rejected, reduce timestep
-                        self._current_dt *= 0.5
-                        # Still increment step count to avoid getting stuck
-                        self.step_count += 1
-                        return  # Skip remaining operations for this step
                 else:
                     # Original Euler method (fallback)
                     self.particles.update_positions(dt)
@@ -376,6 +376,9 @@ class SimulationStepper:
                 # Add thermal kick based on local energy
                 vmax = getattr(self.open_chemistry_config, 'vmax', 8.0)
                 self.particles.thermal_kick(vmax, 0.6, self.energy_manager.energy_system.energy_field)
+                
+                # Update metrics for open chemistry mode
+                self.update_metrics()
                 
                 # Apply bond spring forces (if enabled)
                 enable_spring_forces = getattr(self.open_chemistry_config, 'enable_spring_forces', True)
@@ -416,6 +419,7 @@ class SimulationStepper:
                     energy_update_interval = 5
                 # Always update energy for first 10 steps to avoid getting stuck
                 if self.step_count < 10 or (self.step_count % energy_update_interval) == 0:
+                    logger.info(f"DEBUG: Energy update condition met at step {self.step_count} (step < 10: {self.step_count < 10}, step % {energy_update_interval} == 0: {(self.step_count % energy_update_interval) == 0})")
                     if self.step_count < 5:
                         print(f"STEP {self.step_count + 1}: Adding energy to particles...")
                     self.add_energy_to_particles()
@@ -426,15 +430,15 @@ class SimulationStepper:
                 metrics_update_interval = getattr(self.config, 'metrics_update_interval', 1)  # Changed from 10 to 1
                 if metrics_update_interval is None or metrics_update_interval < 1:
                     metrics_update_interval = 1
-                print(f"DEBUG METRICS: step_count={self.step_count}, metrics_update_interval={metrics_update_interval}, config_value={getattr(self.config, 'metrics_update_interval', 'NOT_FOUND')}, condition={(self.step_count < 10 or (self.step_count % metrics_update_interval) == 0)}")
+                logger.info(f"DEBUG METRICS: step_count={self.step_count}, metrics_update_interval={metrics_update_interval}, config_value={getattr(self.config, 'metrics_update_interval', 'NOT_FOUND')}, condition={(self.step_count < 10 or (self.step_count % metrics_update_interval) == 0)}")
                 # Always update metrics for first 10 steps to avoid getting stuck
                 if self.step_count < 10 or (self.step_count % metrics_update_interval) == 0:
-                    print(f"UPDATING METRICS at step {self.step_count}")
+                    logger.info(f"UPDATING METRICS at step {self.step_count}")
                     try:
                         self.update_metrics()
-                        print(f"METRICS UPDATED successfully")
+                        logger.info(f"METRICS UPDATED successfully")
                     except Exception as e:
-                        print(f"ERROR in update_metrics: {e}")
+                        logger.error(f"ERROR in update_metrics: {e}")
                         import traceback
                         traceback.print_exc()
                 
@@ -448,6 +452,8 @@ class SimulationStepper:
                 # self.update_graph_representation()  
                 # self.detect_novel_substances()
             
+            logger.info(f"DEBUG: try block completed successfully")
+            
         except Exception as e:
             print(f"STEP {self.step_count + 1}: ERROR - {e}")
             import traceback
@@ -456,9 +462,21 @@ class SimulationStepper:
         
         # Update time and step count
         self.current_time += dt
+        logger.info(f"DEBUG: Updated current_time to {self.current_time}")
         print(f"DEBUG: About to increment step_count from {self.step_count}")
         self.step_count += 1
         print(f"DEBUG: step_count incremented to {self.step_count}")
+
+        # Update metrics after updating current_time (every 50 steps for performance)
+        if self.step_count % 50 == 0:
+            logger.info(f"DEBUG: Updating metrics at step {self.step_count} with current_time={self.current_time}")
+            try:
+                self.update_metrics()
+                logger.info(f"DEBUG: Metrics updated successfully at step {self.step_count}")
+            except Exception as e:
+                logger.error(f"ERROR in update_metrics at step {self.step_count}: {e}")
+                import traceback
+                traceback.print_exc()
 
         # Debug: Log step completion
         if self.step_count <= 5:
@@ -471,6 +489,8 @@ class SimulationStepper:
         if self.step_count <= 5 or self.step_count % 100 == 0:
             energy_drift = self._get_energy_drift()
             print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}, energy_drift={energy_drift:.4f}%")
+        
+        logger.info(f"DEBUG: _perform_step completed successfully, step_count={self.step_count}, current_time={self.current_time}")
     
     def _get_total_energy(self):
         """Calculate total energy of the system"""
@@ -622,18 +642,25 @@ class SimulationStepper:
     
     def add_energy_to_particles(self):
         """Add energy from field to particles - OPTIMIZED VERSION"""
-        if self.step_count < 5:
-            print(f"STEP {self.step_count + 1}: add_energy_to_particles called")
+        logger.info(f"DEBUG: add_energy_to_particles called at step {self.step_count}")
         # Use vectorized kernel instead of Python loops
         self._add_energy_to_particles_kernel()
+        
+        # Log debug info from kernel
+        total_energy_available = self.debug_energy_total[None]
+        particles_with_energy = self.debug_particles_with_energy[None]
+        logger.info(f"DEBUG: Energy field has {total_energy_available:.4f} total energy for {particles_with_energy} particles")
+        
         # Apply energy to particles (outside kernel to avoid nested kernels)
         self.particles.add_energy(self.energy_amounts)
-        if self.step_count < 5:
-            print(f"STEP {self.step_count + 1}: add_energy_to_particles completed")
+        logger.info(f"DEBUG: add_energy_to_particles completed at step {self.step_count}")
     
     @ti.kernel
     def _add_energy_to_particles_kernel(self):
         """Vectorized kernel to add energy from field to all particles"""
+        total_energy_available = 0.0
+        particles_with_energy = 0
+        
         for i in range(self.config.max_particles):
             if self.particles.active[i] == 1:
                 pos = self.particles.positions[i]
@@ -642,8 +669,16 @@ class SimulationStepper:
                 y = int(pos[1]) % self.energy_manager.energy_system.height
                 energy = self.energy_manager.energy_system.energy_field[x, y]
                 self.energy_amounts[i] = energy
+                
+                if energy > 0.0:
+                    total_energy_available += energy
+                    particles_with_energy += 1
             else:
                 self.energy_amounts[i] = 0.0
+        
+        # Store debug info in a field that can be read outside kernel
+        self.debug_energy_total[None] = total_energy_available
+        self.debug_particles_with_energy[None] = particles_with_energy
     
     def apply_mutations(self, dt: float):
         """Apply mutations to particles in high energy regions"""
@@ -764,6 +799,7 @@ class SimulationStepper:
         """Update all metrics"""
         # Update particle metrics (includes mass, stored energy, and kinetic energy)
         particle_count = self.particles.particle_count[None]
+        logger.info(f"DEBUG: update_metrics called, particle_count from ParticleSystem={particle_count}")
         self.metrics.update_particle_metrics(
             self.particles.active,
             self.particles.attributes,
@@ -772,17 +808,42 @@ class SimulationStepper:
             particle_count
         )
         
-        # Update bond metrics
-        self.metrics.update_bond_metrics(
-            self.binding.bond_matrix,
-            self.particles.particle_count[None]
-        )
+        # Update bond metrics manually
+        bond_count = 0
+        try:
+            bond_matrix = self.binding.bond_matrix
+            for i in range(min(particle_count, 1000)):
+                for j in range(i+1, min(particle_count, 1000)):
+                    if bond_matrix[i, j] > 0:
+                        bond_count += 1
+            self.metrics.bond_count[None] = bond_count
+            logger.info(f"DEBUG: Manual bond calculation - bonds={bond_count}")
+        except Exception as e:
+            logger.error(f"ERROR in bond calculation: {e}")
+            self.metrics.bond_count[None] = 0
         
-        # Update cluster metrics
-        self.metrics.update_cluster_metrics(
-            self.binding.cluster_sizes,
-            self.particles.particle_count[None]
-        )
+        # Update cluster metrics manually
+        cluster_count = 0
+        try:
+            # Simple cluster counting - count connected components
+            visited = [False] * min(particle_count, 1000)
+            for i in range(min(particle_count, 1000)):
+                if not visited[i] and self.particles.active[i] == 1:
+                    cluster_count += 1
+                    # Simple DFS to mark connected particles
+                    stack = [i]
+                    while stack:
+                        node = stack.pop()
+                        if not visited[node]:
+                            visited[node] = True
+                            for j in range(min(particle_count, 1000)):
+                                if not visited[j] and self.binding.bond_matrix[node, j] > 0:
+                                    stack.append(j)
+            self.metrics.cluster_count[None] = cluster_count
+            logger.info(f"DEBUG: Manual cluster calculation - clusters={cluster_count}")
+        except Exception as e:
+            logger.error(f"ERROR in cluster calculation: {e}")
+            self.metrics.cluster_count[None] = 0
         
         # Update energy field metrics
         energy_field = self.energy_manager.energy_system.energy_field
@@ -797,7 +858,8 @@ class SimulationStepper:
             'novelty_rate': self.novelty_tracker.get_novelty_rate(),
             'discovery_rate': self.novelty_tracker.get_discovery_rate(),
             'total_substances': len(self.catalog.substances),
-            'health_score': self.aggregator.get_health_score()
+            'health_score': self.aggregator.get_health_score(),
+            'simulation_time': self.current_time
         }
         
         self.metrics.record_metrics(additional_metrics)
@@ -961,10 +1023,10 @@ class SimulationStepper:
                     pass
         else:
             # Provide particle/bond/cluster data for open chemistry - SIMPLIFIED
-            positions, velocities, attributes, active_mask = self.particles.get_active_particles()
+            positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
             
-            # Only get bonds/clusters every 10 steps to reduce load
-            if self.step_count % 10 == 0:
+            # Only get bonds/clusters every 5 steps to reduce load (was 10)
+            if self.step_count % 5 == 0:
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
             else:
@@ -975,7 +1037,8 @@ class SimulationStepper:
             data['particles'] = {
                 'positions': positions,
                 'attributes': attributes,
-                'active_mask': active_mask
+                'active_mask': active_mask,
+                'energies': energies
             }
             data['bonds'] = bonds
             data['clusters'] = clusters

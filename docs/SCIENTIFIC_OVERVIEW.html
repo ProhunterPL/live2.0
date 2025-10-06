@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2.0: Platforma Symulacji Molekularnych w Czasie Rzeczywistym</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+        
+        h4 {
+            color: #34495e;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        ul {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin: 8px 0;
+            position: relative;
+        }
+        
+        li::marker {
+            color: #3498db;
+        }
+        
+        strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .highlight {
+            background-color: #e8f4fd;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .experiment-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .experiment-title {
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .benefit-card {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+        
+        .tech-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .tech-card {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .contact-section {
+            background-color: #e8f5e8;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 40px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .benefits-grid,
+            .tech-features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Live2.0: Platforma Symulacji Molekularnych w Czasie Rzeczywistym</h1>
+
+        <h2>Wprowadzenie</h2>
+        <p>Live2.0 to zaawansowana platforma do symulacji molekularnych, która umożliwia badanie dynamiki cząstek, formowania się wiązań chemicznych i samoorganizacji układów molekularnych w czasie rzeczywistym. Projekt łączy nowoczesne technologie obliczeniowe z intuicyjnym interfejsem użytkownika, umożliwiając naukowcom prowadzenie eksperymentów wirtualnych w sposób interaktywny.</p>
+
+        <h2>Cel Naukowy</h2>
+
+        <h3>Badanie Samoorganizacji Molekularnej</h3>
+        <div class="highlight">
+            <p>Platforma pozwala na obserwację procesów samoorganizacji, gdzie cząstki spontanicznie tworzą struktury o wyższym stopniu uporządkowania. Jest to kluczowe dla zrozumienia:</p>
+        </div>
+        <ul>
+            <li><strong>Formowania się białek</strong> - jak sekwencje aminokwasów zwijają się w funkcjonalne struktury</li>
+            <li><strong>Syntezy materiałów</strong> - procesy samoorganizacji w nanotechnologii</li>
+            <li><strong>Ewolucji chemicznej</strong> - powstawanie złożonych struktur z prostych składników</li>
+        </ul>
+
+        <h3>Modelowanie Wiązań Chemicznych</h3>
+        <p>System implementuje realistyczne modele wiązań chemicznych:</p>
+        <ul>
+            <li><strong>Wiązania van der Waalsa</strong> - słabe oddziaływania międzycząsteczkowe</li>
+            <li><strong>Wiązania kowalencyjne</strong> - silne wiązania wewnątrzcząsteczkowe</li>
+            <li><strong>Wiązania wodorowe</strong> - kluczowe dla struktury DNA i białek</li>
+            <li><strong>Wiązania metaliczne</strong> - charakterystyczne dla metali</li>
+        </ul>
+
+        <h3>Analiza Dynamiki Klastrów</h3>
+        <p>Platforma automatycznie wykrywa i analizuje klastry cząstek:</p>
+        <ul>
+            <li><strong>Rozmiar klastrów</strong> - jak duże struktury się formują</li>
+            <li><strong>Gęstość</strong> - jak gęsto upakowane są cząstki</li>
+            <li><strong>Promień bezwładności</strong> - miara rozciągnięcia struktury</li>
+            <li><strong>Energia klastrów</strong> - stabilność formowanych struktur</li>
+        </ul>
+
+        <h2>Wartość Naukowca</h2>
+
+        <div class="benefits-grid">
+            <div class="benefit-card">
+                <h4>1. Eksperymenty Wirtualne</h4>
+                <ul>
+                    <li><strong>Bezpieczeństwo</strong> - eksperymenty z toksycznymi lub niestabilnymi substancjami</li>
+                    <li><strong>Kontrola</strong> - precyzyjne ustawienie warunków początkowych</li>
+                    <li><strong>Powtarzalność</strong> - identyczne warunki dla każdego eksperymentu</li>
+                    <li><strong>Szybkość</strong> - wyniki w sekundach zamiast tygodni</li>
+                </ul>
+            </div>
+
+            <div class="benefit-card">
+                <h4>2. Wizualizacja Procesów</h4>
+                <ul>
+                    <li><strong>Obserwacja w czasie rzeczywistym</strong> - jak struktury się formują i rozpadają</li>
+                    <li><strong>Interaktywna kontrola</strong> - zmiana parametrów podczas symulacji</li>
+                    <li><strong>Różne widoki</strong> - cząstki, wiązania, klastry, energia</li>
+                    <li><strong>Eksport danych</strong> - zapis wyników do analizy</li>
+                </ul>
+            </div>
+
+            <div class="benefit-card">
+                <h4>3. Analiza Ilościowa</h4>
+                <ul>
+                    <li><strong>Metryki czasowe</strong> - jak zmieniają się parametry w czasie</li>
+                    <li><strong>Statystyki wiązań</strong> - liczba, typy, siła wiązań</li>
+                    <li><strong>Charakterystyka klastrów</strong> - rozmiary, gęstości, energie</li>
+                    <li><strong>Wykrywanie zdarzeń</strong> - formowanie, rozpad, łączenie struktur</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>Zastosowania Praktyczne</h2>
+
+        <h3>Biologia Molekularna</h3>
+        <ul>
+            <li><strong>Folding białek</strong> - jak sekwencje aminokwasów zwijają się w struktury 3D</li>
+            <li><strong>Interakcje białko-ligand</strong> - jak leki wiążą się z białkami</li>
+            <li><strong>Stabilność DNA</strong> - wpływ temperatury i pH na strukturę</li>
+        </ul>
+
+        <h3>Chemia Materiałowa</h3>
+        <ul>
+            <li><strong>Synteza polimerów</strong> - jak monomery łączą się w łańcuchy</li>
+            <li><strong>Krystalizacja</strong> - proces formowania się kryształów</li>
+            <li><strong>Samoorganizacja</strong> - tworzenie uporządkowanych struktur</li>
+        </ul>
+
+        <h3>Nanotechnologia</h3>
+        <ul>
+            <li><strong>Samoassembling</strong> - spontaniczne formowanie się nanostruktur</li>
+            <li><strong>Funkcjonalizacja powierzchni</strong> - modyfikacja właściwości materiałów</li>
+            <li><strong>Kontrola morfologii</strong> - wpływ parametrów na kształt struktur</li>
+        </ul>
+
+        <h2>Technologie i Innowacje</h2>
+
+        <div class="tech-features">
+            <div class="tech-card">
+                <h4>Obliczenia GPU</h4>
+                <ul>
+                    <li><strong>Przyspieszenie</strong> - symulacje 100x szybsze niż na CPU</li>
+                    <li><strong>Skalowalność</strong> - obsługa tysięcy cząstek jednocześnie</li>
+                    <li><strong>Równoległość</strong> - równoczesne obliczenia dla wszystkich cząstek</li>
+                </ul>
+            </div>
+
+            <div class="tech-card">
+                <h4>Algorytmy Zaawansowane</h4>
+                <ul>
+                    <li><strong>Union-Find</strong> - efektywne wykrywanie klastrów</li>
+                    <li><strong>Spring Forces</strong> - realistyczne siły wiązań</li>
+                    <li><strong>Event Detection</strong> - automatyczne wykrywanie zmian strukturalnych</li>
+                </ul>
+            </div>
+
+            <div class="tech-card">
+                <h4>Interfejs Użytkownika</h4>
+                <ul>
+                    <li><strong>Web-based</strong> - dostęp z dowolnego komputera</li>
+                    <li><strong>Real-time</strong> - wyniki w czasie rzeczywistym</li>
+                    <li><strong>Intuicyjny</strong> - łatwe sterowanie parametrami</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>Przykłady Eksperymentów</h2>
+
+        <div class="experiment-box">
+            <div class="experiment-title">Eksperyment 1: Formowanie się Klastrów</div>
+            <p><strong>Cel:</strong> Zrozumieć, jak cząstki spontanicznie tworzą klastry</p>
+            <p><strong>Parametry:</strong> 100 cząstek, różne siły wiązań, temperatura</p>
+            <p><strong>Obserwacje:</strong> Rozmiar klastrów, czas formowania, stabilność</p>
+        </div>
+
+        <div class="experiment-box">
+            <div class="experiment-title">Eksperyment 2: Wpływ Temperatury</div>
+            <p><strong>Cel:</strong> Zbadać wpływ temperatury na dynamikę systemu</p>
+            <p><strong>Parametry:</strong> Stała liczba cząstek, zmienna temperatura</p>
+            <p><strong>Obserwacje:</strong> Liczba wiązań, rozmiar klastrów, energia</p>
+        </div>
+
+        <div class="experiment-box">
+            <div class="experiment-title">Eksperyment 3: Różne Typy Wiązań</div>
+            <p><strong>Cel:</strong> Porównać zachowanie różnych typów wiązań</p>
+            <p><strong>Parametry:</strong> Różne siły wiązań, stałe warunki</p>
+            <p><strong>Obserwacje:</strong> Stabilność, czas życia, struktura</p>
+        </div>
+
+        <h2>Korzyści dla Nauki</h2>
+
+        <h3>1. Zrozumienie Procesów</h3>
+        <ul>
+            <li><strong>Mechanizmy</strong> - jak działają procesy samoorganizacji</li>
+            <li><strong>Parametry</strong> - które czynniki są kluczowe</li>
+            <li><strong>Warunki</strong> - optymalne warunki dla różnych procesów</li>
+        </ul>
+
+        <h3>2. Projektowanie Materiałów</h3>
+        <ul>
+            <li><strong>Właściwości</strong> - jak projektować materiały o pożądanych właściwościach</li>
+            <li><strong>Stabilność</strong> - jak zwiększyć stabilność struktur</li>
+            <li><strong>Funkcjonalność</strong> - jak kontrolować funkcje materiałów</li>
+        </ul>
+
+        <h3>3. Optymalizacja Procesów</h3>
+        <ul>
+            <li><strong>Wydajność</strong> - jak zwiększyć wydajność procesów</li>
+            <li><strong>Koszty</strong> - jak zmniejszyć koszty produkcji</li>
+            <li><strong>Jakość</strong> - jak poprawić jakość produktów</li>
+        </ul>
+
+        <h2>Przyszłe Rozwinięcia</h2>
+
+        <h3>Rozszerzenia Funkcjonalne</h3>
+        <ul>
+            <li><strong>Więcej typów cząstek</strong> - różne atomy, molekuły, jony</li>
+            <li><strong>Złożone potencjały</strong> - bardziej realistyczne oddziaływania</li>
+            <li><strong>Reakcje chemiczne</strong> - przemiany chemiczne w czasie rzeczywistym</li>
+        </ul>
+
+        <h3>Integracja z Eksperymentami</h3>
+        <ul>
+            <li><strong>Porównanie z danymi</strong> - weryfikacja wyników symulacji</li>
+            <li><strong>Optymalizacja parametrów</strong> - dostosowanie do rzeczywistych systemów</li>
+            <li><strong>Predykcja właściwości</strong> - przewidywanie zachowania materiałów</li>
+        </ul>
+
+        <h3>Współpraca Naukowa</h3>
+        <ul>
+            <li><strong>Udostępnianie wyników</strong> - dzielenie się eksperymentami</li>
+            <li><strong>Reprodukowalność</strong> - powtarzalność eksperymentów</li>
+            <li><strong>Standardyzacja</strong> - wspólne protokoły badawcze</li>
+        </ul>
+
+        <h2>Wnioski</h2>
+        <div class="highlight">
+            <p>Live2.0 to potężne narzędzie naukowe, które umożliwia:</p>
+            <ul>
+                <li><strong>Badanie procesów</strong> - zrozumienie mechanizmów samoorganizacji</li>
+                <li><strong>Projektowanie materiałów</strong> - tworzenie nowych materiałów</li>
+                <li><strong>Optymalizację procesów</strong> - poprawa istniejących technologii</li>
+                <li><strong>Edukację</strong> - nauczanie o dynamice molekularnej</li>
+            </ul>
+        </div>
+
+        <p>Platforma łączy zaawansowane obliczenia z intuicyjnym interfejsem, umożliwiając naukowcom prowadzenie eksperymentów wirtualnych w sposób efektywny i bezpieczny. Jest to szczególnie wartościowe dla badań nad materiałami, biologią molekularną i nanotechnologią, gdzie tradycyjne eksperymenty mogą być kosztowne, czasochłonne lub niebezpieczne.</p>
+
+        <div class="contact-section">
+            <h2>Kontakt i Współpraca</h2>
+            <p>Projekt jest otwarty na współpracę naukową. Zapraszamy do:</p>
+            <ul>
+                <li><strong>Testowania platformy</strong> - wypróbowania funkcjonalności</li>
+                <li><strong>Proponowania ulepszeń</strong> - sugestii nowych funkcji</li>
+                <li><strong>Współpracy badawczej</strong> - wspólnych projektów naukowych</li>
+                <li><strong>Udostępniania wyników</strong> - dzielenia się eksperymentami</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><em>Dokument przygotowany dla społeczności naukowej zainteresowanej symulacjami molekularnymi i samoorganizacją układów złożonych.</em></p>
+        </div>
+    </div>
+</body>
+</html>

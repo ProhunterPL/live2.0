@@ -6,6 +6,9 @@ Handles particle properties, attributes, and basic operations
 import taichi as ti
 import numpy as np
 from typing import Dict, List, Tuple, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 from ..config import SimulationConfig
 
 # Global variables for Taichi fields (will be initialized later)
@@ -197,7 +200,9 @@ class ParticleSystem:
                         binding_sites: int, binding_strength: float) -> int:
         """Add a particle from Python scope to avoid Taichi kernel return constraints."""
         idx = int(self.particle_count[None])
+        print(f"DEBUG: add_particle_py called, current count={idx}, max={self.max_particles}")
         if idx >= int(self.max_particles):
+            print(f"DEBUG: add_particle_py failed - too many particles")
             return -1
         self.positions[idx] = pos
         self.velocities[idx] = vel
@@ -210,6 +215,7 @@ class ParticleSystem:
         self.age[idx] = 0.0
         self.last_mutation[idx] = 0.0
         self.particle_count[None] = idx + 1
+        print(f"DEBUG: add_particle_py success, new count={self.particle_count[None]}")
         return idx
     
     def remove_particle(self, idx: int):
@@ -226,6 +232,13 @@ class ParticleSystem:
     
     def add_energy(self, energy_amount):
         """Add energy to particles"""
+        # Debug energy addition
+        total_energy_added = 0.0
+        for i in range(min(10, self.particle_count[None])):  # Check first 10 particles
+            if self.active[i] == 1:
+                total_energy_added += energy_amount[i]
+        logger.info(f"DEBUG: add_energy called, total energy to add={total_energy_added:.4f}")
+        
         add_energy_kernel(energy_amount)
     
     def decay_energy(self, decay_rate: float):
@@ -243,8 +256,8 @@ class ParticleSystem:
         """Get neighbors of a particle within radius"""
         return get_particle_neighbors_kernel(idx, positions, radius, neighbors)
     
-    def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Get data for all active particles - OPTIMIZED VERSION"""
+    def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Get data for all active particles - OPTIMIZED VERSION with energy"""
         # Use single kernel to copy data to Taichi fields more efficiently
         self._copy_particles_to_taichi()
         
@@ -253,14 +266,16 @@ class ParticleSystem:
         velocities = self._numpy_velocities_taichi.to_numpy()
         attributes = self._numpy_attributes_taichi.to_numpy()
         active = self._numpy_active_taichi.to_numpy()
+        energies = self.energy.to_numpy()
         
         # Filter only active particles
         active_mask = active == 1
         active_positions = positions[active_mask]
         active_velocities = velocities[active_mask]
         active_attributes = attributes[active_mask]
+        active_energies = energies[active_mask]
         
-        return active_positions, active_velocities, active_attributes, active_mask
+        return active_positions, active_velocities, active_attributes, active_mask, active_energies
     
     @ti.kernel
     def _copy_particles_to_taichi(self):

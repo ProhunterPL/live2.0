@@ -10,23 +10,23 @@ function Kill-ProcessByPort {
     try {
         $connections = netstat -ano | Select-String ":$Port "
         if ($connections) {
-            Write-Host "Found processes using port $Port:" -ForegroundColor Cyan
+            Write-Host "Found processes using port ${Port}:" -ForegroundColor Cyan
             $connections | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
             
             $pids = $connections | ForEach-Object { 
                 ($_ -split '\s+')[-1] | Where-Object { $_ -match '^\d+$' }
             } | Sort-Object -Unique
             
-            foreach ($pid in $pids) {
+            foreach ($processId in $pids) {
                 try {
-                    $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
+                    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
                     if ($process) {
-                        Write-Host "Killing process: $($process.ProcessName) (PID: $pid)" -ForegroundColor Red
-                        Stop-Process -Id $pid -Force
+                        Write-Host "Killing process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Red
+                        Stop-Process -Id $processId -Force
                     }
                 }
                 catch {
-                    Write-Host "Could not kill process $pid: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Write-Host "Could not kill process ${processId}: $($_.Exception.Message)" -ForegroundColor Yellow
                 }
             }
         } else {
@@ -34,7 +34,7 @@ function Kill-ProcessByPort {
         }
     }
     catch {
-        Write-Host "Error checking port $Port: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Error checking port ${Port}: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
