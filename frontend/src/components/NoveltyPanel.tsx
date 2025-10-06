@@ -97,7 +97,12 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
           setTotalNovel(metrics.catalog_stats.total_novel || 0)
           setTotalDiscovered(metrics.catalog_stats.total_discovered || 0)
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Stop polling if simulation doesn't exist
+        if (error?.message?.includes('404') || error?.message?.includes('not found')) {
+          console.warn('Simulation not found, stopping novelty updates')
+          return
+        }
         console.error('Failed to update novelty data:', error)
       } finally {
         setLoading(false)

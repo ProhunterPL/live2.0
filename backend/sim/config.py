@@ -34,8 +34,8 @@ class SimulationConfig(BaseModel):
     particle_radius: float = Field(default=0.5, gt=0)
     
     # Binding settings - OPTIMIZED for active bond formation
-    binding_threshold: float = Field(default=0.25, gt=0, le=1)  # NAPRAWIONE: Obniżone z 0.5 dla łatwiejszego tworzenia wiązań
-    unbinding_threshold: float = Field(default=0.15, gt=0, le=1)  # NAPRAWIONE: Zwiększone z 0.1 dla stabilnych wiązań
+    binding_threshold: float = Field(default=0.1, gt=0, le=1)  # NAPRAWIONE: Obniżone z 0.25 dla łatwiejszego tworzenia wiązań
+    unbinding_threshold: float = Field(default=0.05, gt=0, le=1)  # NAPRAWIONE: Obniżone z 0.15 dla stabilnych wiązań
     
     # Novelty detection
     novelty_window: int = Field(default=100, gt=0)
@@ -111,8 +111,8 @@ class OpenChemistryConfig(BaseModel):
     # Bond system configuration
     enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
     enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
-    theta_bind: float = Field(default=0.25, gt=0)  # NAPRAWIONE: obniżone z 0.3 dla łatwiejszego tworzenia wiązań
-    theta_break: float = Field(default=1.5, gt=0)  # Podniesione z 1.15 dla stabilniejszych wiązań
+    theta_bind: float = Field(default=0.1, gt=0)  # NAPRAWIONE: obniżone z 0.25 dla łatwiejszego tworzenia wiązań
+    theta_break: float = Field(default=2.0, gt=0)  # Podniesione z 1.5 dla stabilniejszych wiązań
     vmax: float = Field(default=8.0, gt=0)  # NOWE: zwiększone z 4.5
     neighbor_radius: float = Field(default=3.2, gt=0)  # NOWE
     rebuild_neighbors_every: int = Field(default=8, gt=0)  # NOWE

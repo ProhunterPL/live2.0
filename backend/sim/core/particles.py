@@ -257,16 +257,19 @@ class ParticleSystem:
         return get_particle_neighbors_kernel(idx, positions, radius, neighbors)
     
     def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Get data for all active particles - OPTIMIZED VERSION with energy"""
+        """Get data for all active particles - OPTIMIZED with limited array size"""
+        # OPTIMIZATION: Limit to reasonable number of particles (500 max) before to_numpy()
+        max_check = min(500, self.max_particles)
+        
         # Use single kernel to copy data to Taichi fields more efficiently
         self._copy_particles_to_taichi()
         
-        # Convert to numpy and filter only active particles
-        positions = self._numpy_positions_taichi.to_numpy()
-        velocities = self._numpy_velocities_taichi.to_numpy()
-        attributes = self._numpy_attributes_taichi.to_numpy()
-        active = self._numpy_active_taichi.to_numpy()
-        energies = self.energy.to_numpy()
+        # Convert to numpy and filter only active particles - LIMITED SIZE
+        positions = self._numpy_positions_taichi.to_numpy()[:max_check]
+        velocities = self._numpy_velocities_taichi.to_numpy()[:max_check]
+        attributes = self._numpy_attributes_taichi.to_numpy()[:max_check]
+        active = self._numpy_active_taichi.to_numpy()[:max_check]
+        energies = self.energy.to_numpy()[:max_check]
         
         # Filter only active particles
         active_mask = active == 1

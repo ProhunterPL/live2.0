@@ -23,7 +23,7 @@ from .potentials import PotentialSystem
 from .binding import BindingSystem
 from .graphs import GraphProcessor, MolecularGraph
 from .catalog import SubstanceCatalog
-from .metrics import MetricsCollector, NoveltyTracker, MetricsAggregator
+from .metrics import MetricsCollector, NoveltyTracker, MetricsAggregator, PerformanceMonitor
 from .energy import EnergyManager
 from .rng import RNG
 from .fields_ca import PresetPrebioticSimulator
@@ -56,6 +56,7 @@ class SimulationStepper:
         self.catalog = SubstanceCatalog()
         self.metrics = MetricsCollector(config.max_particles)
         self.novelty_tracker = NoveltyTracker()
+        self.performance_monitor = PerformanceMonitor()
         self.energy_manager = EnergyManager(config)
         self.rng = RNG(config.seed)
         
@@ -291,6 +292,9 @@ class SimulationStepper:
     
     def _perform_step(self, dt: float):
         """Perform the actual simulation step"""
+        
+        # Start performance timing
+        self.performance_monitor.start_step_timing()
 
         if not self.is_running or self.is_paused:
             return
@@ -299,12 +303,12 @@ class SimulationStepper:
         if self.step_count < 5 or self.step_count % 10 == 0:
             print(f"STEP {self.step_count + 1}: Starting - mode={self.config.mode}, sim_time={self.current_time:.6f}, dt={dt:.6f}")
 
-        logger.info(f"DEBUG: _perform_step executing, step_count={self.step_count}")
+        # logger.info(f"DEBUG: _perform_step executing, step_count={self.step_count}")
 
-        logger.info(f"DEBUG: About to enter try block")
+        # logger.info(f"DEBUG: About to enter try block")
 
         try:
-            logger.info(f"DEBUG: Inside try block, about to update energy")
+            # logger.info(f"DEBUG: Inside try block, about to update energy")
             # Update energy system
             if self.step_count < 5:
                 print(f"STEP {self.step_count + 1}: Updating energy system...")
@@ -419,7 +423,7 @@ class SimulationStepper:
                     energy_update_interval = 5
                 # Always update energy for first 10 steps to avoid getting stuck
                 if self.step_count < 10 or (self.step_count % energy_update_interval) == 0:
-                    logger.info(f"DEBUG: Energy update condition met at step {self.step_count} (step < 10: {self.step_count < 10}, step % {energy_update_interval} == 0: {(self.step_count % energy_update_interval) == 0})")
+                    # logger.info(f"DEBUG: Energy update condition met at step {self.step_count} (step < 10: {self.step_count < 10}, step % {energy_update_interval} == 0: {(self.step_count % energy_update_interval) == 0})")
                     if self.step_count < 5:
                         print(f"STEP {self.step_count + 1}: Adding energy to particles...")
                     self.add_energy_to_particles()
@@ -430,7 +434,7 @@ class SimulationStepper:
                 metrics_update_interval = getattr(self.config, 'metrics_update_interval', 1)  # Changed from 10 to 1
                 if metrics_update_interval is None or metrics_update_interval < 1:
                     metrics_update_interval = 1
-                logger.info(f"DEBUG METRICS: step_count={self.step_count}, metrics_update_interval={metrics_update_interval}, config_value={getattr(self.config, 'metrics_update_interval', 'NOT_FOUND')}, condition={(self.step_count < 10 or (self.step_count % metrics_update_interval) == 0)}")
+                # logger.info(f"DEBUG METRICS: step_count={self.step_count}, metrics_update_interval={metrics_update_interval}, config_value={getattr(self.config, 'metrics_update_interval', 'NOT_FOUND')}, condition={(self.step_count < 10 or (self.step_count % metrics_update_interval) == 0)}")
                 # Always update metrics for first 10 steps to avoid getting stuck
                 if self.step_count < 10 or (self.step_count % metrics_update_interval) == 0:
                     logger.info(f"UPDATING METRICS at step {self.step_count}")
@@ -452,7 +456,7 @@ class SimulationStepper:
                 # self.update_graph_representation()  
                 # self.detect_novel_substances()
             
-            logger.info(f"DEBUG: try block completed successfully")
+            # logger.info(f"DEBUG: try block completed successfully")
             
         except Exception as e:
             print(f"STEP {self.step_count + 1}: ERROR - {e}")
@@ -462,17 +466,22 @@ class SimulationStepper:
         
         # Update time and step count
         self.current_time += dt
-        logger.info(f"DEBUG: Updated current_time to {self.current_time}")
+        # logger.info(f"DEBUG: Updated current_time to {self.current_time}")
         print(f"DEBUG: About to increment step_count from {self.step_count}")
         self.step_count += 1
         print(f"DEBUG: step_count incremented to {self.step_count}")
+        
+        # End performance timing
+        step_time = self.performance_monitor.end_step_timing()
+        if self.step_count % 10 == 0:  # Log every 10 steps
+            logger.info(f"Step {self.step_count} completed in {step_time*1000:.1f}ms")
 
         # Update metrics after updating current_time (every 50 steps for performance)
         if self.step_count % 50 == 0:
-            logger.info(f"DEBUG: Updating metrics at step {self.step_count} with current_time={self.current_time}")
+        # logger.info(f"DEBUG: Updating metrics at step {self.step_count} with current_time={self.current_time}")
             try:
                 self.update_metrics()
-                logger.info(f"DEBUG: Metrics updated successfully at step {self.step_count}")
+                # logger.info(f"DEBUG: Metrics updated successfully at step {self.step_count}")
             except Exception as e:
                 logger.error(f"ERROR in update_metrics at step {self.step_count}: {e}")
                 import traceback
@@ -490,7 +499,7 @@ class SimulationStepper:
             energy_drift = self._get_energy_drift()
             print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}, energy_drift={energy_drift:.4f}%")
         
-        logger.info(f"DEBUG: _perform_step completed successfully, step_count={self.step_count}, current_time={self.current_time}")
+        # logger.info(f"DEBUG: _perform_step completed successfully, step_count={self.step_count}, current_time={self.current_time}")
     
     def _get_total_energy(self):
         """Calculate total energy of the system"""
@@ -642,18 +651,18 @@ class SimulationStepper:
     
     def add_energy_to_particles(self):
         """Add energy from field to particles - OPTIMIZED VERSION"""
-        logger.info(f"DEBUG: add_energy_to_particles called at step {self.step_count}")
+        # logger.info(f"DEBUG: add_energy_to_particles called at step {self.step_count}")
         # Use vectorized kernel instead of Python loops
         self._add_energy_to_particles_kernel()
         
         # Log debug info from kernel
         total_energy_available = self.debug_energy_total[None]
         particles_with_energy = self.debug_particles_with_energy[None]
-        logger.info(f"DEBUG: Energy field has {total_energy_available:.4f} total energy for {particles_with_energy} particles")
+        # logger.info(f"DEBUG: Energy field has {total_energy_available:.4f} total energy for {particles_with_energy} particles")
         
         # Apply energy to particles (outside kernel to avoid nested kernels)
         self.particles.add_energy(self.energy_amounts)
-        logger.info(f"DEBUG: add_energy_to_particles completed at step {self.step_count}")
+        # logger.info(f"DEBUG: add_energy_to_particles completed at step {self.step_count}")
     
     @ti.kernel
     def _add_energy_to_particles_kernel(self):
@@ -797,9 +806,14 @@ class SimulationStepper:
     
     def update_metrics(self):
         """Update all metrics"""
+        import time
+        start_time = time.time()
+        
         # Update particle metrics (includes mass, stored energy, and kinetic energy)
         particle_count = self.particles.particle_count[None]
-        logger.info(f"DEBUG: update_metrics called, particle_count from ParticleSystem={particle_count}")
+        # logger.info(f"DEBUG: update_metrics called, particle_count from ParticleSystem={particle_count}")
+        
+        particle_start = time.time()
         self.metrics.update_particle_metrics(
             self.particles.active,
             self.particles.attributes,
@@ -807,53 +821,73 @@ class SimulationStepper:
             self.particles.velocities,
             particle_count
         )
+        particle_time = time.time() - particle_start
+        print(f"DEBUG: Particle metrics update took {particle_time:.3f}s")
         
-        # Update bond metrics manually
+        # Update bond metrics manually - OPTIMIZED with NumPy
         bond_count = 0
         try:
-            bond_matrix = self.binding.bond_matrix
-            for i in range(min(particle_count, 1000)):
-                for j in range(i+1, min(particle_count, 1000)):
-                    if bond_matrix[i, j] > 0:
-                        bond_count += 1
+            bond_start = time.time()
+            # OPTIMIZATION: Use NumPy instead of Python loops
+            max_check = min(particle_count, 1000)
+            bond_matrix = self.binding.bond_matrix.to_numpy()[:max_check, :max_check]
+            bond_active = self.binding.bond_active.to_numpy()[:max_check, :max_check]
+            
+            # Count active bonds using NumPy (much faster than Python loops)
+            import numpy as np
+            bond_count = int(np.sum(np.triu(bond_active, k=1)))
             self.metrics.bond_count[None] = bond_count
-            logger.info(f"DEBUG: Manual bond calculation - bonds={bond_count}")
+            bond_time = time.time() - bond_start
+            print(f"DEBUG: Bond metrics update took {bond_time:.3f}s")
+            # logger.info(f"DEBUG: Manual bond calculation - bonds={bond_count}")
         except Exception as e:
             logger.error(f"ERROR in bond calculation: {e}")
             self.metrics.bond_count[None] = 0
         
-        # Update cluster metrics manually
+        # Update cluster metrics manually - OPTIMIZED with simplified algorithm
         cluster_count = 0
         try:
-            # Simple cluster counting - count connected components
-            visited = [False] * min(particle_count, 1000)
-            for i in range(min(particle_count, 1000)):
-                if not visited[i] and self.particles.active[i] == 1:
-                    cluster_count += 1
-                    # Simple DFS to mark connected particles
-                    stack = [i]
-                    while stack:
-                        node = stack.pop()
-                        if not visited[node]:
-                            visited[node] = True
-                            for j in range(min(particle_count, 1000)):
-                                if not visited[j] and self.binding.bond_matrix[node, j] > 0:
-                                    stack.append(j)
+            cluster_start = time.time()
+            # OPTIMIZATION: Use simplified cluster counting instead of DFS
+            # Count particles with bonds as approximate cluster count
+            max_check = min(particle_count, 1000)
+            
+            # Safe array access with bounds checking
+            if max_check > 0:
+                bond_active = self.binding.bond_active.to_numpy()[:max_check, :max_check]
+                particles_active = self.particles.active.to_numpy()[:max_check]
+                
+                # Count particles that have at least one bond
+                import numpy as np
+                particles_with_bonds = np.sum(particles_active * np.any(bond_active, axis=1))
+                
+                # Simple approximation: particles_with_bonds / 2 (assuming average 2 particles per cluster)
+                cluster_count = max(1, int(particles_with_bonds / 2))
+            else:
+                cluster_count = 1
+            
             self.metrics.cluster_count[None] = cluster_count
-            logger.info(f"DEBUG: Manual cluster calculation - clusters={cluster_count}")
+            cluster_time = time.time() - cluster_start
+            print(f"DEBUG: Cluster metrics update took {cluster_time:.3f}s")
+            # logger.info(f"DEBUG: Manual cluster calculation - clusters={cluster_count}")
         except Exception as e:
             logger.error(f"ERROR in cluster calculation: {e}")
-            self.metrics.cluster_count[None] = 0
+            # Fallback to simple count
+            self.metrics.cluster_count[None] = max(1, min(particle_count, 100))
         
         # Update energy field metrics
+        energy_start = time.time()
         energy_field = self.energy_manager.energy_system.energy_field
         self.metrics.update_energy_field_metrics(
             energy_field,
             self.config.grid_width,
             self.config.grid_height
         )
+        energy_time = time.time() - energy_start
+        print(f"DEBUG: Energy field metrics update took {energy_time:.3f}s")
         
         # Record metrics
+        record_start = time.time()
         additional_metrics = {
             'novelty_rate': self.novelty_tracker.get_novelty_rate(),
             'discovery_rate': self.novelty_tracker.get_discovery_rate(),
@@ -864,6 +898,11 @@ class SimulationStepper:
         
         self.metrics.record_metrics(additional_metrics)
         self.aggregator.update_aggregated_stats()
+        record_time = time.time() - record_start
+        print(f"DEBUG: Record metrics took {record_time:.3f}s")
+        
+        total_time = time.time() - start_time
+        print(f"DEBUG: TOTAL update_metrics took {total_time:.3f}s")
     
     def _log_diagnostics(self):
         """Log diagnostics data for current step"""
@@ -985,25 +1024,37 @@ class SimulationStepper:
     
     def get_visualization_data(self) -> Dict:
         """Get data for visualization - SIMPLIFIED VERSION for speed"""
+        # Start visualization timing
+        self.performance_monitor.start_visualization_timing()
+        
         import time
         t_start = time.time()
         
+        # Time metrics collection
+        t_metrics_start = time.time()
         metrics = self.aggregator.get_aggregated_stats()
-        logger.debug(f"get_visualization_data: metrics keys={list(metrics.keys())}")
-        logger.debug(f"get_visualization_data: particle_count from metrics={metrics.get('particle_count', 'NOT_FOUND')}")
+        t_metrics_end = time.time()
+        
+        # Time performance metrics
+        t_perf_start = time.time()
+        performance_metrics = self.performance_monitor.get_performance_metrics(self.step_count)
+        t_perf_end = time.time()
 
         data = {
             'metrics': metrics,
             'step_count': self.step_count,  # Add step count for frontend
-            'current_time': self.current_time  # Add current time for frontend
+            'current_time': self.current_time,  # Add current time for frontend
+            'performance': performance_metrics
         }
 
         # Debug: Log step_count and current_time
         if self.step_count < 5:
             print(f"DEBUG get_visualization_data: step_count={self.step_count}, current_time={self.current_time}")
         
-        # Energy field (always present) - SIMPLIFIED: direct to_numpy() call
+        # Time energy field extraction
+        t_energy_start = time.time()
         data['energy_field'] = self.energy_manager.energy_system.energy_field.to_numpy()
+        t_energy_end = time.time()
         
         if self.config.mode == "preset_prebiotic":
             # Provide concentration fields for preset mode
@@ -1022,16 +1073,55 @@ class SimulationStepper:
                 except Exception:
                     pass
         else:
-            # Provide particle/bond/cluster data for open chemistry - SIMPLIFIED
-            positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
+            # Provide particle/bond/cluster data for open chemistry - OPTIMIZED with caching
+            # Time particles extraction
+            t_particles_start = time.time()
+            # OPTIMIZATION: Only get particles every 3 steps to reduce load (similar to bonds/clusters)
+            if self.step_count % 3 == 0:
+                positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
+                # Cache the data for intermediate steps
+                self._cached_particles_data = {
+                    'positions': positions,
+                    'attributes': attributes,
+                    'active_mask': active_mask,
+                    'energies': energies
+                }
+            else:
+                # Use cached data for intermediate steps
+                if hasattr(self, '_cached_particles_data'):
+                    positions = self._cached_particles_data['positions']
+                    attributes = self._cached_particles_data['attributes']
+                    active_mask = self._cached_particles_data['active_mask']
+                    energies = self._cached_particles_data['energies']
+                else:
+                    # Fallback: get fresh data if cache doesn't exist
+                    positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
+            t_particles_end = time.time()
             
-            # Only get bonds/clusters every 5 steps to reduce load (was 10)
-            if self.step_count % 5 == 0:
+            # Time bonds/clusters extraction
+            t_bonds_start = time.time()
+            # OPTIMIZATION: Only get bonds/clusters every 10 steps to reduce load (was 5)
+            if self.step_count % 10 == 0:
+                print(f"DEBUG: Getting fresh bonds/clusters at step {self.step_count}")
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
+                # Cache the data for intermediate steps
+                self._cached_bonds_clusters_data = {
+                    'bonds': bonds,
+                    'clusters': clusters
+                }
             else:
-                bonds = []  # Empty for intermediate steps
-                clusters = []
+                # Use cached data for intermediate steps
+                if hasattr(self, '_cached_bonds_clusters_data'):
+                    print(f"DEBUG: Using cached bonds/clusters at step {self.step_count}")
+                    bonds = self._cached_bonds_clusters_data['bonds']
+                    clusters = self._cached_bonds_clusters_data['clusters']
+                else:
+                    # Fallback: get fresh data if cache doesn't exist
+                    print(f"DEBUG: Fallback - getting fresh bonds/clusters at step {self.step_count}")
+                    bonds = self.binding.get_bonds()
+                    clusters = self.binding.get_clusters()
+            t_bonds_end = time.time()
             
             # OPTIMIZATION: Return NumPy arrays instead of lists
             data['particles'] = {
@@ -1045,7 +1135,24 @@ class SimulationStepper:
         
         t_end = time.time()
         if (t_end - t_start) > 1.0:
-            print(f"⚠️ TOTAL get_visualization_data took {t_end-t_start:.2f}s")
+            print(f"WARNING: TOTAL get_visualization_data took {t_end-t_start:.2f}s")
+        
+        # Log detailed timing breakdown
+        if (t_end - t_start) > 0.1:  # Log if total takes more than 100ms
+            logger.warning(f"Slow visualization breakdown:")
+            logger.warning(f"  Metrics: {(t_metrics_end-t_metrics_start)*1000:.1f}ms")
+            logger.warning(f"  Performance: {(t_perf_end-t_perf_start)*1000:.1f}ms")
+            logger.warning(f"  Energy field: {(t_energy_end-t_energy_start)*1000:.1f}ms")
+            if 't_particles_end' in locals():
+                logger.warning(f"  Particles: {(t_particles_end-t_particles_start)*1000:.1f}ms")
+            if 't_bonds_end' in locals():
+                logger.warning(f"  Bonds/Clusters: {(t_bonds_end-t_bonds_start)*1000:.1f}ms")
+            logger.warning(f"  Total: {(t_end-t_start)*1000:.1f}ms")
+        
+        # End visualization timing
+        viz_time = self.performance_monitor.end_visualization_timing()
+        if viz_time > 0.1:  # Log if visualization takes more than 100ms
+            logger.warning(f"Slow visualization: {viz_time*1000:.1f}ms")
         
         return data
     

@@ -155,12 +155,12 @@ class MetricsCollector:
     
     def update_particle_metrics(self, active, attributes, energy, velocities, particle_count: int):
         """Update particle-related metrics"""
-        logger.info(f"DEBUG: MetricsCollector.update_particle_metrics called with particle_count={particle_count}")
+        # logger.info(f"DEBUG: MetricsCollector.update_particle_metrics called with particle_count={particle_count}")
         
         # Debug: check first few active particles before kernel
-        logger.info(f"DEBUG: Before kernel - checking first 5 active particles:")
-        for i in range(min(5, particle_count)):
-            logger.info(f"DEBUG: particle {i} active={active[i]}")
+        # logger.info(f"DEBUG: Before kernel - checking first 5 active particles:")
+        # for i in range(min(5, particle_count)):
+        #     logger.info(f"DEBUG: particle {i} active={active[i]}")
         
         update_particle_metrics_kernel(active, attributes, energy, velocities, particle_count)
         
@@ -168,7 +168,7 @@ class MetricsCollector:
         ti.sync()
         
         # DEBUG: Calculate metrics manually since kernel doesn't work
-        logger.info(f"DEBUG: Calculating metrics manually for {particle_count} particles")
+        # logger.info(f"DEBUG: Calculating metrics manually for {particle_count} particles")
         
         total_energy = 0.0
         total_mass = 0.0
@@ -189,20 +189,20 @@ class MetricsCollector:
                 kinetic_energy = 0.5 * mass * (vx * vx + vy * vy)
                 total_energy += kinetic_energy
                 
-                # Debug first few particles
-                if i < 3:
-                    logger.info(f"DEBUG: Particle {i}: energy={particle_energy:.4f}, kinetic={kinetic_energy:.4f}, mass={mass:.4f}, vx={vx:.4f}, vy={vy:.4f}")
+                # Debug first few particles - DISABLED for performance
+                # if i < 3:
+                #     logger.info(f"DEBUG: Particle {i}: energy={particle_energy:.4f}, kinetic={kinetic_energy:.4f}, mass={mass:.4f}, vx={vx:.4f}, vy={vy:.4f}")
         
         # Set all fields directly
         self.particle_count[None] = active_particles
         self.total_energy[None] = total_energy
         self.total_mass[None] = total_mass
         
-        logger.info(f"DEBUG: Manual calculation - particles={active_particles}, energy={total_energy}, mass={total_mass}")
+        # logger.info(f"DEBUG: Manual calculation - particles={active_particles}, energy={total_energy}, mass={total_mass}")
         
-        logger.info(f"DEBUG: After kernel, particle_count_field={self.particle_count[None]}")
-        logger.info(f"DEBUG: After kernel, total_energy_field={self.total_energy[None]}")
-        logger.info(f"DEBUG: After kernel, total_mass_field={self.total_mass[None]}")
+        # logger.info(f"DEBUG: After kernel, particle_count_field={self.particle_count[None]}")
+        # logger.info(f"DEBUG: After kernel, total_energy_field={self.total_energy[None]}")
+        # logger.info(f"DEBUG: After kernel, total_mass_field={self.total_mass[None]}")
     
     def update_bond_metrics(self, bond_matrix, particle_count: int):
         """Update bond-related metrics"""
@@ -250,9 +250,9 @@ class MetricsCollector:
         energy_field_max = float(self.energy_field_max[None])
         energy_field_mean = float(self.energy_field_mean[None])
 
-        logger.debug(f"get_current_metrics: particle_count={particle_count}")
-        logger.debug(f"get_current_metrics: total_energy={total_energy}")
-        logger.debug(f"get_current_metrics: total_mass={total_mass}")
+        # logger.debug(f"get_current_metrics: particle_count={particle_count}")
+        # logger.debug(f"get_current_metrics: total_energy={total_energy}")
+        # logger.debug(f"get_current_metrics: total_mass={total_mass}")
 
         return {
             'particle_count': particle_count,
@@ -440,21 +440,21 @@ class MetricsAggregator:
         # Basic metrics
         if self.metrics_collector:
             basic_metrics = self.metrics_collector.get_current_metrics()
-            logger.debug(f"update_aggregated_stats: basic_metrics keys={list(basic_metrics.keys())}")
-            logger.debug(f"update_aggregated_stats: basic_metrics particle_count={basic_metrics.get('particle_count', 'NOT_FOUND')}")
+            # logger.debug(f"update_aggregated_stats: basic_metrics keys={list(basic_metrics.keys())}")
+            # logger.debug(f"update_aggregated_stats: basic_metrics particle_count={basic_metrics.get('particle_count', 'NOT_FOUND')}")
             stats.update(basic_metrics)
             stats.update(self.metrics_collector.get_metrics_trends())
 
         # Novelty metrics
         if self.novelty_tracker:
             novelty_stats = self.novelty_tracker.get_stats()
-            logger.debug(f"update_aggregated_stats: novelty_stats keys={list(novelty_stats.keys())}")
+            # logger.debug(f"update_aggregated_stats: novelty_stats keys={list(novelty_stats.keys())}")
             stats.update(novelty_stats)
 
         # Catalog metrics
         if self.substance_catalog:
             catalog_stats = self.substance_catalog.get_catalog_stats()
-            logger.debug(f"update_aggregated_stats: catalog_stats keys={list(catalog_stats.keys())}")
+            # logger.debug(f"update_aggregated_stats: catalog_stats keys={list(catalog_stats.keys())}")
             stats.update(catalog_stats)
 
         # System metrics
@@ -464,10 +464,10 @@ class MetricsAggregator:
         # Add health score
         health_score = self.get_health_score()
         stats['health_score'] = health_score
-        logger.debug(f"update_aggregated_stats: calculated health_score={health_score}")
-
-        logger.debug(f"update_aggregated_stats: final stats keys={list(stats.keys())}")
-        logger.debug(f"update_aggregated_stats: final particle_count={stats.get('particle_count', 'NOT_FOUND')}")
+        # logger.debug(f"update_aggregated_stats: calculated health_score={health_score}")
+        
+        # logger.debug(f"update_aggregated_stats: final stats keys={list(stats.keys())}")
+        # logger.debug(f"update_aggregated_stats: final particle_count={stats.get('particle_count', 'NOT_FOUND')}")
 
         self.aggregated_stats = stats
         self.last_update_time = current_time
@@ -475,8 +475,8 @@ class MetricsAggregator:
     def get_aggregated_stats(self) -> Dict:
         """Get aggregated statistics"""
         stats = self.aggregated_stats.copy()
-        logger.debug(f"get_aggregated_stats: returning {len(stats)} metrics")
-        logger.debug(f"get_aggregated_stats: particle_count={stats.get('particle_count', 'NOT_FOUND')}")
+        # logger.debug(f"get_aggregated_stats: returning {len(stats)} metrics")
+        # logger.debug(f"get_aggregated_stats: particle_count={stats.get('particle_count', 'NOT_FOUND')}")
         return stats
     
     def get_health_score(self) -> float:
@@ -505,3 +505,192 @@ class MetricsAggregator:
         health_score = (novelty_score + discovery_score + particle_score + bond_score) / 4.0
         
         return max(0.0, min(1.0, health_score))
+
+
+class PerformanceMonitor:
+    """Monitors simulation performance metrics like FPS, step times, etc."""
+    
+    def __init__(self, history_size: int = 100):
+        self.history_size = history_size
+        
+        # Performance tracking
+        self.step_times = deque(maxlen=history_size)
+        self.visualization_times = deque(maxlen=history_size)
+        self.broadcast_times = deque(maxlen=history_size)
+        self.total_times = deque(maxlen=history_size)
+        
+        # Timing state
+        self.step_start_time = None
+        self.visualization_start_time = None
+        self.broadcast_start_time = None
+        
+        # Performance thresholds
+        self.target_fps = 60.0
+        self.min_fps = 10.0
+        self.max_step_time = 1.0 / self.min_fps  # 100ms max per step
+        self.max_visualization_time = 0.1  # 100ms max for visualization
+        
+        # Performance status
+        self.performance_status = "unknown"
+        self.last_warning_time = 0
+        self.warning_cooldown = 5.0  # seconds between warnings
+        
+        # Cached metrics to avoid expensive calculations
+        self._cached_metrics = {}
+        self._last_metrics_update_step = 0
+        self._metrics_update_interval = 50  # Update every 50 steps
+        
+    def start_step_timing(self):
+        """Start timing a simulation step"""
+        self.step_start_time = time.time()
+        
+    def end_step_timing(self):
+        """End timing a simulation step"""
+        if self.step_start_time is not None:
+            step_time = time.time() - self.step_start_time
+            self.step_times.append(step_time)
+            self.step_start_time = None
+            return step_time
+        return 0.0
+        
+    def start_visualization_timing(self):
+        """Start timing visualization data generation"""
+        self.visualization_start_time = time.time()
+        
+    def end_visualization_timing(self):
+        """End timing visualization data generation"""
+        if self.visualization_start_time is not None:
+            viz_time = time.time() - self.visualization_start_time
+            self.visualization_times.append(viz_time)
+            self.visualization_start_time = None
+            return viz_time
+        return 0.0
+        
+    def start_broadcast_timing(self):
+        """Start timing WebSocket broadcast"""
+        self.broadcast_start_time = time.time()
+        
+    def end_broadcast_timing(self):
+        """End timing WebSocket broadcast"""
+        if self.broadcast_start_time is not None:
+            broadcast_time = time.time() - self.broadcast_start_time
+            self.broadcast_times.append(broadcast_time)
+            self.broadcast_start_time = None
+            return broadcast_time
+        return 0.0
+        
+    def get_performance_metrics(self, current_step: int = 0) -> Dict[str, float]:
+        """Get current performance metrics - OPTIMIZED with caching"""
+        # Check if we need to update cached metrics
+        if (current_step - self._last_metrics_update_step >= self._metrics_update_interval or 
+            not self._cached_metrics):
+            self._update_cached_metrics()
+            self._last_metrics_update_step = current_step
+        
+        return self._cached_metrics.copy()
+        
+    def _update_cached_metrics(self):
+        """Update cached metrics - expensive operation done only when needed"""
+        metrics = {}
+        
+        # Calculate FPS from step times
+        if len(self.step_times) > 0:
+            avg_step_time = np.mean(list(self.step_times))
+            fps = 1.0 / avg_step_time if avg_step_time > 0 else 0.0
+            metrics['fps'] = fps
+            metrics['avg_step_time_ms'] = avg_step_time * 1000
+            metrics['min_step_time_ms'] = min(self.step_times) * 1000
+            metrics['max_step_time_ms'] = max(self.step_times) * 1000
+        else:
+            metrics['fps'] = 0.0
+            metrics['avg_step_time_ms'] = 0.0
+            metrics['min_step_time_ms'] = 0.0
+            metrics['max_step_time_ms'] = 0.0
+            
+        # Visualization performance
+        if len(self.visualization_times) > 0:
+            metrics['avg_visualization_time_ms'] = np.mean(list(self.visualization_times)) * 1000
+            metrics['max_visualization_time_ms'] = max(self.visualization_times) * 1000
+        else:
+            metrics['avg_visualization_time_ms'] = 0.0
+            metrics['max_visualization_time_ms'] = 0.0
+            
+        # Broadcast performance
+        if len(self.broadcast_times) > 0:
+            metrics['avg_broadcast_time_ms'] = np.mean(list(self.broadcast_times)) * 1000
+            metrics['max_broadcast_time_ms'] = max(self.broadcast_times) * 1000
+        else:
+            metrics['avg_broadcast_time_ms'] = 0.0
+            metrics['max_broadcast_time_ms'] = 0.0
+            
+        # Performance status
+        metrics['performance_status'] = self.get_performance_status()
+        metrics['performance_score'] = self.get_performance_score()
+        
+        self._cached_metrics = metrics
+        
+    def get_performance_status(self) -> str:
+        """Get current performance status"""
+        if len(self.step_times) < 5:  # Need some samples
+            return "warming_up"
+            
+        avg_fps = 1.0 / np.mean(list(self.step_times)) if np.mean(list(self.step_times)) > 0 else 0.0
+        
+        if avg_fps >= self.target_fps * 0.9:  # 90% of target
+            return "excellent"
+        elif avg_fps >= self.target_fps * 0.7:  # 70% of target
+            return "good"
+        elif avg_fps >= self.min_fps:
+            return "acceptable"
+        else:
+            return "poor"
+            
+    def get_performance_score(self) -> float:
+        """Get performance score (0.0 to 1.0)"""
+        if len(self.step_times) < 5:
+            return 0.5  # Unknown
+            
+        avg_fps = 1.0 / np.mean(list(self.step_times)) if np.mean(list(self.step_times)) > 0 else 0.0
+        
+        # Score based on FPS relative to target
+        if avg_fps >= self.target_fps:
+            return 1.0
+        elif avg_fps >= self.min_fps:
+            # Linear interpolation between min and target FPS
+            return (avg_fps - self.min_fps) / (self.target_fps - self.min_fps)
+        else:
+            return 0.0
+            
+    def check_performance_warnings(self) -> List[str]:
+        """Check for performance issues and return warnings"""
+        warnings = []
+        current_time = time.time()
+        
+        # Cooldown to avoid spam
+        if current_time - self.last_warning_time < self.warning_cooldown:
+            return warnings
+            
+        if len(self.step_times) < 5:
+            return warnings
+            
+        avg_fps = 1.0 / np.mean(list(self.step_times)) if np.mean(list(self.step_times)) > 0 else 0.0
+        avg_step_time = np.mean(list(self.step_times))
+        
+        # Check FPS
+        if avg_fps < self.min_fps:
+            warnings.append(f"Low FPS: {avg_fps:.1f} (target: {self.target_fps})")
+            
+        # Check step time
+        if avg_step_time > self.max_step_time:
+            warnings.append(f"Slow steps: {avg_step_time*1000:.1f}ms (max: {self.max_step_time*1000:.1f}ms)")
+            
+        # Check visualization time
+        if len(self.visualization_times) > 0:
+            avg_viz_time = np.mean(list(self.visualization_times))
+            if avg_viz_time > self.max_visualization_time:
+                warnings.append(f"Slow visualization: {avg_viz_time*1000:.1f}ms (max: {self.max_visualization_time*1000:.1f}ms)")
+                
+        if warnings:
+            self.last_warning_time = current_time
+            
+        return warnings

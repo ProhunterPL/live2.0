@@ -168,6 +168,24 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
           URL.revokeObjectURL(url)
         }
         
+        watermarkImg.onerror = () => {
+          // Proceed without watermark
+          const mimeType = format === 'png' ? 'image/png' : 'image/jpeg'
+          const quality = format === 'jpg' ? 0.9 : undefined
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const link = document.createElement('a')
+              link.download = `largest_cluster_${Date.now()}.${format}`
+              link.href = URL.createObjectURL(blob)
+              link.click()
+              URL.revokeObjectURL(link.href)
+            }
+          }, mimeType, quality)
+          
+          URL.revokeObjectURL(url)
+        }
+        
         // Load watermark image
         watermarkImg.src = '/images/logolivebw.png'
       }

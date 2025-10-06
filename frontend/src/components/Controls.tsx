@@ -11,8 +11,6 @@ interface ControlsProps {
   selectedSubstance?: string | null
   onSubstanceChange?: (id: string | null) => void
   runtimeMs?: number
-  metricsOverride?: Metrics | null
-  currentStep?: number | null
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -22,9 +20,7 @@ const Controls: React.FC<ControlsProps> = ({
   availableSpecies,
   selectedSubstance,
   onSubstanceChange,
-  runtimeMs,
-  metricsOverride,
-  currentStep
+  runtimeMs
 }) => {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [novelSubstances, setNovelSubstances] = useState<any[]>([])

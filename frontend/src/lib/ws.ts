@@ -13,19 +13,45 @@ export class WebSocketClient {
   private reconnectDelay = 1000
   private listeners: Map<string, Function[]> = new Map()
   private shouldReconnect = true  // Flag to prevent reconnection for non-existent simulations
+  private currentSimulationId: string | null = null  // Track current simulation ID
 
   constructor(url: string = 'ws://localhost:8001/simulation') {
     this.url = url
   }
 
-  connect(urlOrId?: string): Promise<void> {
-    return new Promise((resolve, reject) => {
+  async connect(urlOrId?: string): Promise<void> {
+    return new Promise(async (resolve, reject) => {
       try {
         // Allow passing a full ws URL or just a simulationId
         const isFull = !!urlOrId && /^(ws|wss):\/\//.test(urlOrId)
         const wsUrl = isFull
           ? (urlOrId as string)
           : (urlOrId ? `${this.url}/${urlOrId}/stream` : this.url)
+        
+        // OPTIMIZATION: Check if simulation exists before connecting (only for simulationId, not full URLs)
+        if (!isFull && urlOrId) {
+          try {
+            const response = await fetch(`http://localhost:8001/simulation/${urlOrId}/status`)
+            if (!response.ok) {
+              console.warn(`Simulation ${urlOrId} not found. Rejecting connection.`)
+              this.emit('simulation_not_found', { simulationId: urlOrId })
+              reject(new Error(`Simulation ${urlOrId} not found`))
+              return
+            }
+            // Store current simulation ID for reconnection
+            this.currentSimulationId = urlOrId
+          } catch (error) {
+            console.warn(`Failed to check simulation ${urlOrId} before connecting:`, error)
+            // Continue with connection attempt if check fails
+            this.currentSimulationId = urlOrId
+          }
+        } else if (isFull) {
+          // For full URLs, extract simulation ID from URL
+          const match = urlOrId.match(/\/simulation\/([^\/]+)\/stream/)
+          if (match) {
+            this.currentSimulationId = match[1]
+          }
+        }
         
         // Reset reconnect flag for new connection attempts
         this.shouldReconnect = true
@@ -85,13 +111,13 @@ export class WebSocketClient {
           // Only reconnect if:
           // - it's not a normal closure (1000)
           // - we haven't exceeded max attempts
-          // - we have a valid simulation ID
+          // - we have a valid current simulation ID
           // - shouldReconnect flag is true
           if (event.code !== 1000 && 
               this.shouldReconnect && 
               this.reconnectAttempts < this.maxReconnectAttempts && 
-              urlOrId) {
-            this.reconnect(urlOrId)
+              this.currentSimulationId) {
+            this.reconnect(this.currentSimulationId)
           } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.warn(`Max reconnection attempts (${this.maxReconnectAttempts}) reached. Giving up.`)
             this.emit('reconnect_failed')
@@ -109,7 +135,7 @@ export class WebSocketClient {
     })
   }
 
-  private reconnect(simulationId?: string) {
+  private async reconnect(simulationId?: string) {
     this.reconnectAttempts++
     console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`)
     
@@ -117,6 +143,21 @@ export class WebSocketClient {
     if (!simulationId) {
       console.log('No simulation ID provided, skipping reconnect')
       return
+    }
+    
+    // OPTIMIZATION: Check if simulation exists before reconnecting
+    try {
+      const response = await fetch(`http://localhost:8001/simulation/${simulationId}/status`)
+      if (!response.ok) {
+        console.warn(`Simulation ${simulationId} not found during reconnect. Stopping reconnection attempts.`)
+        this.shouldReconnect = false
+        this.currentSimulationId = null  // Clear current simulation ID
+        this.emit('simulation_not_found', { simulationId })
+        return
+      }
+    } catch (error) {
+      console.warn(`Failed to check simulation ${simulationId} during reconnect:`, error)
+      // Continue with reconnection attempt if check fails
     }
     
     setTimeout(() => {
@@ -130,6 +171,7 @@ export class WebSocketClient {
     // Prevent automatic reconnection on manual disconnect
     this.shouldReconnect = false
     this.reconnectAttempts = 0
+    this.currentSimulationId = null  // Clear current simulation ID
     
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect')

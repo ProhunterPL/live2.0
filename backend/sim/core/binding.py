@@ -120,7 +120,7 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                             strength = 15.0
                         
                         # Probabilistic bond formation - LOWER THRESHOLD FOR MORE BONDS
-                        theta_bind = 0.3  # Lowered from 0.68
+                        theta_bind = 0.1  # Lowered from 0.3 for easier bonding
                         dE = -dist  # Simplified energy change
                         
                         # Sigmoid probability with easier formation
@@ -226,7 +226,7 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     
     # Condition 1: Overload - too much stretch/compression
     strain = ti.abs(r - rest_len) / ti.max(rest_len, 0.1)
-    if strain > 0.5:  # 50% strain threshold
+    if strain > 1.0:  # 100% strain threshold (more stable bonds)
         result = 1
     
     # Condition 2: Distance too large (safety check)
@@ -234,16 +234,16 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         result = 1
     
     # Condition 3: Aging - probabilistic breaking for old bonds
-    # Different bond types have different max ages
-    max_age = 100.0  # default
+    # Different bond types have different max ages (INCREASED for stability)
+    max_age = 500.0  # default (increased from 100.0)
     if bond_type == 0:  # vdW - short lived
-        max_age = 50.0
+        max_age = 200.0  # increased from 50.0
     elif bond_type == 1:  # covalent - long lived
-        max_age = 200.0
+        max_age = 1000.0  # increased from 200.0
     elif bond_type == 2:  # H-bond - medium
-        max_age = 80.0
+        max_age = 400.0  # increased from 80.0
     else:  # metallic
-        max_age = 150.0
+        max_age = 600.0  # increased from 150.0
     
     if age > max_age:
         # Probabilistic: higher age = higher chance to break
@@ -552,12 +552,15 @@ class BindingSystem:
             self.cluster_id[root_j] = root_i
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
-        """Get list of active bonds - OPTIMIZED with NumPy"""
-        bond_matrix = self.bond_matrix.to_numpy()
-        bond_active = self.bond_active.to_numpy()
+        """Get list of active bonds - OPTIMIZED with limited matrix size"""
+        # OPTIMIZATION: Limit to reasonable number of particles (1000 max) before to_numpy()
+        max_check = min(1000, self.max_particles)
         
-        # OPTIMIZATION: Use NumPy to find active bonds (100x faster than Python loops)
-        # Get upper triangle indices where bonds are active
+        # Convert only limited portion to numpy
+        bond_matrix = self.bond_matrix.to_numpy()[:max_check, :max_check]
+        bond_active = self.bond_active.to_numpy()[:max_check, :max_check]
+        
+        # Use NumPy to find active bonds (fast)
         import numpy as np
         i_indices, j_indices = np.where(np.triu(bond_active, k=1) == 1)
         
@@ -568,11 +571,15 @@ class BindingSystem:
         return bonds
     
     def get_clusters(self, min_size: int = 2) -> List[List[int]]:
-        """Get list of clusters with minimum size - OPTIMIZED"""
-        cluster_id = self.cluster_id.to_numpy()
-        cluster_sizes = self.cluster_sizes.to_numpy()
+        """Get list of clusters with minimum size - OPTIMIZED with limited array size"""
+        # OPTIMIZATION: Limit to reasonable number of particles (1000 max) before to_numpy()
+        max_check = min(1000, self.max_particles)
         
-        # OPTIMIZATION: Use NumPy boolean indexing for faster filtering
+        # Convert only limited portion to numpy
+        cluster_id = self.cluster_id.to_numpy()[:max_check]
+        cluster_sizes = self.cluster_sizes.to_numpy()[:max_check]
+        
+        # Use NumPy boolean indexing for faster filtering
         import numpy as np
         
         # Find valid clusters (size >= min_size)

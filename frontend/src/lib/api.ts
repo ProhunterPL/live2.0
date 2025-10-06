@@ -249,4 +249,10 @@ export class SimulationAPI {
     if (!response.ok) throw new Error(`Failed to load snapshot: ${response.statusText}`)
     return response.json()
   }
+
+  async getPerformanceMetrics(id: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/simulation/${id}/performance`)
+    if (!response.ok) throw new Error(`Failed to get performance metrics: ${response.statusText}`)
+    return response.json()
+  }
 }

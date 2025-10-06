@@ -421,6 +421,22 @@ class Live2Server:
             
             return {"metrics": metrics}
         
+        @self.app.get("/simulation/{simulation_id}/performance")
+        async def get_performance_metrics(simulation_id: str):
+            """Get simulation performance metrics"""
+            if simulation_id not in self.simulations:
+                raise HTTPException(status_code=404, detail="Simulation not found")
+            
+            simulation = self.simulations[simulation_id]
+            performance_metrics = simulation.performance_monitor.get_performance_metrics(simulation.step_count)
+            warnings = simulation.performance_monitor.check_performance_warnings()
+            
+            return {
+                "performance": performance_metrics,
+                "warnings": warnings,
+                "status": "ok"
+            }
+        
         @self.app.get("/simulation/{simulation_id}/novel-substances")
         async def get_novel_substances(simulation_id: str, count: int = 10):
             """Get novel substances discovered in simulation"""
@@ -458,10 +474,14 @@ class Live2Server:
                 logger.warning(f"Failed to get novel substances for simulation {simulation_id}: {e}")
                 return {"substances": []}
         
+        print("DEBUG: Registering WebSocket endpoint")
         @self.app.websocket("/simulation/{simulation_id}/stream")
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):
             """WebSocket endpoint for real-time data streaming"""
             logger.info(f"WebSocket connection attempt for simulation {simulation_id}")
+            logger.debug(f"WebSocket endpoint called with simulation_id: {simulation_id}")
+            print(f"DEBUG: WebSocket endpoint called with simulation_id: {simulation_id}")
+            print(f"DEBUG: WebSocket endpoint registered and called")
             
             # Validate simulation exists before accepting connection
             if simulation_id not in self.simulations:
@@ -491,6 +511,16 @@ class Live2Server:
                 self.broadcast_tasks[simulation_id] = asyncio.create_task(
                     self.broadcast_simulation_data(simulation_id)
                 )
+            else:
+                # Check if broadcast task is still running
+                task = self.broadcast_tasks[simulation_id]
+                if task.done():
+                    logger.info(f"Broadcast task finished for simulation {simulation_id}, restarting")
+                    self.broadcast_tasks[simulation_id] = asyncio.create_task(
+                        self.broadcast_simulation_data(simulation_id)
+                    )
+                else:
+                    logger.debug(f"Broadcast task already exists and running for simulation {simulation_id}")
             
             try:
                 # Passive keep-alive; disconnections are handled in broadcast on send failure
@@ -504,6 +534,7 @@ class Live2Server:
                 # Stop broadcasting if no connections
                 if not self.active_connections[simulation_id]:
                     if simulation_id in self.broadcast_tasks:
+                        logger.info(f"Cancelling broadcast task for simulation {simulation_id} - no connections")
                         self.broadcast_tasks[simulation_id].cancel()
                         del self.broadcast_tasks[simulation_id]
     
@@ -520,17 +551,22 @@ class Live2Server:
         
         while True:
             try:
+                logger.debug(f"Broadcast loop iteration for {simulation_id}")
                 # Check if simulation still exists
                 if simulation_id not in self.simulations:
                     logger.info(f"Simulation {simulation_id} removed, stopping broadcast")
                     break
-                # OPTIMIZED: Send data more frequently since we reduced bandwidth by 16x
+                # OPTIMIZED: Send data less frequently to avoid overwhelming slow get_visualization_data
                 # Wait for simulation to progress (don't spam if simulation is slow)
-                await asyncio.sleep(0.1)  # 10 FPS broadcast - FASTER for frontend sync
+                await asyncio.sleep(0.5)  # 2 FPS broadcast - SLOWER to avoid WebSocket timeouts
 
                 # Get visualization data with timing
                 t0 = time.time()
                 logger.debug(f"Calling get_visualization_data for {simulation_id} at step {simulation.step_count}")
+                
+                # Start broadcast timing
+                simulation.performance_monitor.start_broadcast_timing()
+                
                 data = simulation.get_visualization_data()
                 t1 = time.time()
                 logger.debug(f"get_visualization_data returned in {t1-t0:.2f}s")
@@ -614,14 +650,20 @@ class Live2Server:
                 disconnected = []
                 if simulation_id in self.active_connections:
                     client_count = len(self.active_connections[simulation_id])
-                    logger.debug(f"BROADCAST: Sending data to {client_count} clients, step {simulation.step_count}")
+                    # logger.debug(f"BROADCAST: Sending data to {client_count} clients, step {simulation.step_count}")
                     for websocket in self.active_connections[simulation_id]:
                         try:
                             await websocket.send_bytes(binary_data)
                         except:
                             disconnected.append(websocket)
+                    
+                    # End broadcast timing
+                    broadcast_time = simulation.performance_monitor.end_broadcast_timing()
+                    if broadcast_time > 0.05:  # Log if broadcast takes more than 50ms
+                        logger.warning(f"Slow broadcast: {broadcast_time*1000:.1f}ms")
+                        
                 else:
-                    logger.debug(f"BROADCAST: No active connections for {simulation_id}")
+                    pass  # No active connections
                 
                 # Remove disconnected clients
                 if simulation_id in self.active_connections:
@@ -629,8 +671,8 @@ class Live2Server:
                         if websocket in self.active_connections[simulation_id]:
                             self.active_connections[simulation_id].remove(websocket)
                 
-                # Wait before next broadcast (about 15 FPS for better performance)
-                await asyncio.sleep(0.02)  # 50 FPS broadcasting - FASTER for sync
+                # Wait before next broadcast (about 2 FPS for better performance)
+                await asyncio.sleep(0.5)  # 2 FPS broadcasting - CONSISTENT with above
                 
             except Exception as e:
                 logger.error(f"BROADCAST ERROR: {e}")

@@ -62,18 +62,10 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !memoizedData) {
-      console.log('HeatmapCanvas: No canvas or data', { canvas: !!canvas, data: !!memoizedData })
       return
     }
 
-    console.log('HeatmapCanvas: Rendering with data:', {
-      particles: memoizedData.particles,
-      energy_field: memoizedData.energy_field?.length,
-      bonds: memoizedData.bonds?.length,
-      showParticles,
-      showEnergy,
-      showBonds
-    })
+    // Debug logging removed for performance
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -129,7 +121,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
       drawMouseInfo(ctx, mousePos, memoizedData, width, height)
     }
 
-  }, [memoizedData, selectedSubstance, showParticles, showEnergy, showBonds, particleSize, energyOpacity, mousePos])
+  }, [memoizedData, selectedSubstance, showParticles, showEnergy, showBonds, particleSize, energyOpacity])
 
   // Throttle mouse position updates to reduce re-renders
   const throttledMouseMove = useRef<number | null>(null)
@@ -358,10 +350,19 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
     if (!canvas) return
 
     const rect = canvas.getBoundingClientRect()
-    setMousePos({
+    const newPos = {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top
-    })
+    }
+    
+    // Throttle mouse position updates to reduce re-renders
+    if (throttledMouseMove.current) {
+      clearTimeout(throttledMouseMove.current)
+    }
+    
+    throttledMouseMove.current = window.setTimeout(() => {
+      setMousePos(newPos)
+    }, 16) // ~60fps
   }
 
   const handleMouseLeave = () => {

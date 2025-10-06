@@ -3,6 +3,7 @@ import { Play, Pause, Square, RotateCcw } from 'lucide-react'
 import HeatmapCanvas from './components/HeatmapCanvas'
 import Controls from './components/Controls'
 import GraphPreview from './components/GraphPreview'
+import PerformancePanel from './components/PerformancePanel'
 import { SimulationAPI } from './lib/api.ts'
 import { WebSocketClient } from './lib/ws.ts'
 import type { SimulationData, SimulationStatus, Metrics } from './lib/types.ts'
@@ -12,6 +13,7 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<SimulationStatus | null>(null)
   const [simulationData, setSimulationData] = useState<SimulationData | null>(null)
   const [metricsSnapshot, setMetricsSnapshot] = useState<Metrics | null>(null)
+  const [performanceData, setPerformanceData] = useState<any>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [selectedSubstance, setSelectedSubstance] = useState<string | null>(null)
   const [mode, setMode] = useState<'preset_prebiotic' | 'open_chemistry'>('open_chemistry')
@@ -83,12 +85,25 @@ const App: React.FC = () => {
         console.log('🔍 Checking for existing simulation...')
         const currentSim = await api.getCurrentSimulation()
         console.log('📊 Current simulation result:', currentSim)
+        
+        // OPTIMIZATION: Clear old simulation ID if it doesn't exist on backend
+        if (simulationId && currentSim.exists && simulationId !== currentSim.simulation_id) {
+          console.log(`🧹 Clearing old simulation ID: ${simulationId}`)
+          setSimulationId(null)
+          setStatus(null)
+          setIsConnected(false)
+          wsClient.disconnect()
+        }
+        
         if (currentSim.exists && currentSim.simulation_id) {
           // Jeśli backend ma symulację a my nie, lub ma INNĄ symulację
           if (!simulationId || simulationId !== currentSim.simulation_id) {
             console.log(`🔄 Auto-switching to simulation: ${currentSim.simulation_id}`)
             setSimulationId(currentSim.simulation_id)
-            await connectWebSocket(currentSim.simulation_id)
+            // OPTIMIZATION: Only connect if not already connected to this simulation
+            if (!isConnected || simulationId !== currentSim.simulation_id) {
+              await connectWebSocket(currentSim.simulation_id)
+            }
             setRuntimeAccumulatedMs(0)
             setRuntimeStartMs(null)
             // Sprawdź czy symulacja jest uruchomiona
@@ -110,10 +125,10 @@ const App: React.FC = () => {
     // Sprawdź przy starcie
     checkForNewSimulation()
     
-    // Sprawdzaj co 10 sekund czy nie ma nowszej symulacji
-    const interval = setInterval(checkForNewSimulation, 10000)
+    // OPTIMIZATION: Check every 30s instead of 10s to reduce reconnection frequency
+    const interval = setInterval(checkForNewSimulation, 30000)
     return () => clearInterval(interval)
-  }, [simulationId, api])
+  }, [simulationId, api, isConnected])
 
   // Poll status periodically so the time advances even if WS data is delayed
   useEffect(() => {
@@ -302,6 +317,11 @@ const App: React.FC = () => {
         })
         if (data.metrics) {
           setMetricsSnapshot(data.metrics)
+        }
+        
+        // Update performance data
+        if (data.performance) {
+          setPerformanceData(data.performance)
         }
         
         // Extract available species for preset mode
@@ -526,13 +546,16 @@ const App: React.FC = () => {
           <Controls
             simulationId={simulationId}
             status={status}
-            metricsOverride={metricsSnapshot}
             onStatusUpdate={updateStatus}
             availableSpecies={availableSpecies}
             selectedSubstance={selectedSubstance}
             onSubstanceChange={setSelectedSubstance}
             runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
-            currentStep={simulationData?.step_count ?? status?.step_count ?? null}
+          />
+          
+          <PerformancePanel
+            simulationId={simulationId}
+            performanceData={performanceData}
           />
           
           <GraphPreview
