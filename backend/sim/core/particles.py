@@ -210,9 +210,9 @@ class ParticleSystem:
                         binding_sites: int, binding_strength: float) -> int:
         """Add a particle from Python scope to avoid Taichi kernel return constraints."""
         idx = int(self.particle_count[None])
-        print(f"DEBUG: add_particle_py called, current count={idx}, max={self.max_particles}")
+        # print(f"DEBUG: add_particle_py called, current count={idx}, max={self.max_particles}")
         if idx >= int(self.max_particles):
-            print(f"DEBUG: add_particle_py failed - too many particles")
+            # print(f"DEBUG: add_particle_py failed - too many particles")
             return -1
         self.positions[idx] = pos
         self.velocities[idx] = vel
@@ -225,7 +225,7 @@ class ParticleSystem:
         self.age[idx] = 0.0
         self.last_mutation[idx] = 0.0
         self.particle_count[None] = idx + 1
-        print(f"DEBUG: add_particle_py success, new count={self.particle_count[None]}")
+        # print(f"DEBUG: add_particle_py success, new count={self.particle_count[None]}")
         return idx
     
     def remove_particle(self, idx: int):

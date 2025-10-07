@@ -28,7 +28,7 @@ file_handler = RotatingFileHandler(
 )
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,  # Changed from DEBUG to INFO
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         file_handler,
@@ -38,8 +38,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Set level for all loggers
-logging.getLogger().setLevel(logging.DEBUG)
-logging.getLogger('sim.core.stepper').setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)  # Changed from DEBUG to INFO
+logging.getLogger('sim.core.stepper').setLevel(logging.INFO)  # Changed from DEBUG to INFO
 
 # Initialize Taichi: prefer CUDA, then Vulkan, then CPU
 try:
@@ -223,9 +223,7 @@ class Live2Server:
             """Create a new simulation"""
             try:
                 # DEBUG: Print received request
-                print(f"DEBUG: Received request.mode = {request.mode}")
-                print(f"DEBUG: Received request.config type = {type(request.config)}")
-                print(f"DEBUG: Received request.config keys = {list(request.config.keys()) if isinstance(request.config, dict) else 'not a dict'}")
+                # Debug prints removed for performance
                 
                 # Enforce single simulation: stop and cleanup existing ones
                 self.stop_all_simulations()
@@ -235,15 +233,11 @@ class Live2Server:
                 
                 # Parse configuration
                 if request.mode == "preset_prebiotic":
-                    print(f"DEBUG: Creating PresetPrebioticConfig...")
                     config = PresetPrebioticConfig(**request.config)
                 elif request.mode == "open_chemistry":
-                    print(f"DEBUG: Creating SimulationConfig...")
                     config = SimulationConfig(**request.config)
                 else:
                     raise ValueError(f"Unknown mode: {request.mode}")
-                
-                print(f"DEBUG: Config created successfully")
                 
                 # Create simulation
                 simulation = SimulationStepper(config)
@@ -286,7 +280,7 @@ class Live2Server:
         @self.app.post("/simulation/{simulation_id}/start")
         async def start_simulation(simulation_id: str):
             """Start simulation"""
-            print(f"START SIMULATION API called for {simulation_id}")
+            # Debug print removed for performance
             logger.info(f"START SIMULATION called for {simulation_id}")
             if simulation_id not in self.simulations:
                 logger.error(f"Simulation {simulation_id} not found")
@@ -370,10 +364,10 @@ class Live2Server:
         @self.app.post("/simulation/{simulation_id}/snapshot/save")
         async def save_snapshot(simulation_id: str, request: Request):
             """Save simulation snapshot with optional image generation"""
-            print(f"DEBUG: API save_snapshot called for {simulation_id}")
+            # Debug print removed for performance
             
             if simulation_id not in self.simulations:
-                print(f"ERROR: Simulation {simulation_id} not found")
+                logger.error(f"Simulation {simulation_id} not found")
                 raise HTTPException(status_code=404, detail="Simulation not found")
             
             # Get parameters from query string
@@ -381,20 +375,20 @@ class Live2Server:
             filename = query_params.get("filename")
             save_images = query_params.get("save_images", "true").lower() == "true"
             
-            print(f"DEBUG: Parameters - filename={filename}, save_images={save_images}")
+            # Debug print removed for performance
             
             if filename is None:
                 filename = f"snapshot_{simulation_id}_{int(time.time())}.json"
             
             simulation = self.simulations[simulation_id]
-            print(f"DEBUG: About to call simulation.save_snapshot...")
+            # Debug print removed for performance
             
             try:
                 saved_filename = simulation.save_snapshot(filename, save_images=save_images)
-                print(f"DEBUG: simulation.save_snapshot returned: {saved_filename}")
+                logger.info(f"Snapshot saved: {saved_filename}")
                 return {"success": True, "filename": saved_filename, "images_generated": save_images}
             except Exception as e:
-                print(f"ERROR: simulation.save_snapshot failed: {e}")
+                logger.error(f"Snapshot save failed: {e}")
                 import traceback
                 traceback.print_exc()
                 raise HTTPException(status_code=500, detail=f"Failed to save snapshot: {str(e)}")
@@ -452,16 +446,31 @@ class Live2Server:
                     # Convert to expected format
                     formatted_substances = []
                     for substance in substances:
+                        # Convert numpy types to Python types for JSON serialization
+                        complexity = float(substance.graph.get_complexity())
+                        density = float(substance.graph.get_density())
+                        
+                        # Handle properties safely
+                        properties = substance.properties if hasattr(substance, 'properties') else {}
+                        avg_mass = float(properties.get('avg_mass', 1.0)) if 'avg_mass' in properties else 1.0
+                        avg_charge = properties.get('avg_charge', [0.0, 0.0, 0.0])
+                        
+                        # Convert charge to Python floats if it's numpy array
+                        if hasattr(avg_charge, 'tolist'):
+                            avg_charge = avg_charge.tolist()
+                        elif isinstance(avg_charge, np.ndarray):
+                            avg_charge = [float(x) for x in avg_charge]
+                        
                         formatted_substances.append({
-                            "id": substance.id,
-                            "timestamp": substance.last_seen,
-                            "size": substance.graph.get_node_count(),
-                            "complexity": substance.graph.get_complexity(),
+                            "id": str(substance.id),
+                            "timestamp": float(substance.last_seen),
+                            "size": int(substance.graph.get_node_count()),
+                            "complexity": complexity,
                             "properties": {
-                                "mass": substance.properties.get('avg_mass', 1.0),
-                                "charge": substance.properties.get('avg_charge', [0.0, 0.0, 0.0]),
-                                "bonds": substance.graph.get_edge_count(),
-                                "graph_density": substance.graph.get_density()
+                                "mass": avg_mass,
+                                "charge": avg_charge,
+                                "bonds": int(substance.graph.get_edge_count()),
+                                "graph_density": density
                             }
                         })
                     substances = formatted_substances
@@ -474,14 +483,10 @@ class Live2Server:
                 logger.warning(f"Failed to get novel substances for simulation {simulation_id}: {e}")
                 return {"substances": []}
         
-        print("DEBUG: Registering WebSocket endpoint")
         @self.app.websocket("/simulation/{simulation_id}/stream")
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):
             """WebSocket endpoint for real-time data streaming"""
             logger.info(f"WebSocket connection attempt for simulation {simulation_id}")
-            logger.debug(f"WebSocket endpoint called with simulation_id: {simulation_id}")
-            print(f"DEBUG: WebSocket endpoint called with simulation_id: {simulation_id}")
-            print(f"DEBUG: WebSocket endpoint registered and called")
             
             # Validate simulation exists before accepting connection
             if simulation_id not in self.simulations:
@@ -687,7 +692,7 @@ class Live2Server:
     
     async def run_simulation_loop(self, simulation_id: str):
         """Run simulation loop for a specific simulation"""
-        print(f"RUN_SIMULATION_LOOP: Starting for {simulation_id}")
+        logger.info(f"Starting simulation loop for {simulation_id}")
         simulation = self.simulations[simulation_id]
         logger.info(f"Starting simulation loop for {simulation_id}")
         
@@ -711,30 +716,30 @@ class Live2Server:
                     traceback.print_exc()
                     break
             
-            await asyncio.sleep(0.1)  # 10 FPS simulation - SLOWER for frontend sync
+            await asyncio.sleep(0.05)  # 20 FPS simulation - FASTER for better performance
         
         logger.info(f"Simulation loop ended for {simulation_id}")
     
     def start_simulation_loop(self, simulation_id: str):
         """Start simulation loop"""
-        print(f"DEBUG start_simulation_loop: called for {simulation_id}")
-        print(f"DEBUG start_simulation_loop: simulation exists = {simulation_id in self.simulations}")
+        # Debug print removed for performance
+        # Debug print removed for performance
         
         if simulation_id in self.simulations:
             task_exists = simulation_id in self.simulation_tasks
             task_done = self.simulation_tasks[simulation_id].done() if task_exists else False
-            print(f"DEBUG start_simulation_loop: task_exists={task_exists}, task_done={task_done}")
+            # Debug print removed for performance
             
             if simulation_id not in self.simulation_tasks or self.simulation_tasks[simulation_id].done():
                 logger.info(f"Creating simulation task for {simulation_id}")
-                print(f"DEBUG start_simulation_loop: Creating new task...")
+                logger.info(f"Creating new simulation task for {simulation_id}")
                 self.simulation_tasks[simulation_id] = asyncio.create_task(self.run_simulation_loop(simulation_id))
-                print(f"DEBUG start_simulation_loop: Task created successfully")
+                logger.info(f"Simulation task created successfully for {simulation_id}")
             else:
-                print(f"DEBUG start_simulation_loop: Task already running, skipping")
+                logger.info(f"Simulation task already running for {simulation_id}")
                 logger.info(f"Simulation task already running for {simulation_id}")
         else:
-            print(f"DEBUG start_simulation_loop: Simulation {simulation_id} not found!")
+            logger.error(f"Simulation {simulation_id} not found!")
             logger.error(f"Cannot start simulation loop: simulation {simulation_id} not found")
     
     def cleanup_simulation(self, simulation_id: str):

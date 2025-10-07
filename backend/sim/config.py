@@ -19,12 +19,12 @@ class SimulationConfig(BaseModel):
     dt: float = Field(default=0.005, gt=0, le=1.0)  # Even smaller timestep for stability
     max_time: float = Field(default=1000.0, gt=0)
     
-    # Energy settings - STABILIZED for particle retention
-    energy_decay: float = Field(default=0.98, gt=0, lt=1)  # Slower decay for stability
+    # Energy settings - INCREASED ACTIVITY for more novelty
+    energy_decay: float = Field(default=0.92, gt=0, lt=1)  # Slower decay for more activity
     energy_threshold: float = Field(default=0.1, gt=0)
-    pulse_every: int = Field(default=48, gt=0)  # Less frequent pulses for stability
-    pulse_radius: float = Field(default=20.0, gt=0)  # Smaller radius to avoid disruption
-    pulse_amplitude: float = Field(default=3.0, gt=0)  # Reduced amplitude for stability
+    pulse_every: int = Field(default=50, gt=0)  # More frequent pulses (was 100)
+    pulse_radius: float = Field(default=12.0, gt=0)  # Larger pulse radius (was 8.0)
+    pulse_amplitude: float = Field(default=2.5, gt=0)  # Higher pulse amplitude (was 1.5)
     diffuse_D: float = Field(default=0.2, gt=0)  # Slower diffusion for stability
     target_energy: float = Field(default=0.3, gt=0)  # Lower background energy
     thermostat_alpha: float = Field(default=0.005, gt=0)  # Gentler thermostat
@@ -33,9 +33,9 @@ class SimulationConfig(BaseModel):
     max_particles: int = Field(default=10000, gt=0, le=100000)
     particle_radius: float = Field(default=0.5, gt=0)
     
-    # Binding settings - ULTRA AGGRESSIVE for maximum clustering
-    binding_threshold: float = Field(default=0.01, gt=0, le=1)  # Extremely low for easy bonding
-    unbinding_threshold: float = Field(default=0.001, gt=0, le=1)  # Very low for stable bonds
+    # Binding settings - MUCH MORE CONSERVATIVE to prevent single large cluster
+    binding_threshold: float = Field(default=0.6, gt=0, le=1)  # Much higher threshold (was 0.3)
+    unbinding_threshold: float = Field(default=0.2, gt=0, le=1)  # Higher threshold for breaking (was 0.1)
     
     # Novelty detection
     novelty_window: int = Field(default=100, gt=0)
@@ -45,10 +45,10 @@ class SimulationConfig(BaseModel):
     vis_frequency: int = Field(default=5, gt=0)  # Zmniejszone z 3 dla stabilności
     log_frequency: int = Field(default=100, gt=0)
     
-    # Mutations
-    p_mut_base: float = Field(default=5e-4, gt=0)  # Zwiększone mutacje (5x więcej)
-    p_mut_gain: float = Field(default=20.0, gt=0)  # Zwiększone z 14.0
-    attr_sigma: float = Field(default=0.12, gt=0)  # Silniejsza perturbacja
+    # Mutations - INCREASED for more diversity and novelty
+    p_mut_base: float = Field(default=1e-3, gt=0)  # Increased mutations (2x more)
+    p_mut_gain: float = Field(default=30.0, gt=0)  # Increased from 20.0
+    attr_sigma: float = Field(default=0.15, gt=0)  # Stronger perturbation
     
     # Performance optimization parameters
     energy_update_interval: int = Field(default=5, gt=0, description="Update energy every N steps")
@@ -60,7 +60,7 @@ class SimulationConfig(BaseModel):
     diagnostics_frequency: int = Field(default=10, gt=0, description="Log diagnostics every N steps")
     
     # Random seed
-    seed: Optional[int] = Field(default=None)
+    seed: Optional[int] = Field(default=42)
 
 class PresetPrebioticConfig(BaseModel):
     """Configuration for Preset Prebiotic mode"""
@@ -108,15 +108,15 @@ class OpenChemistryConfig(BaseModel):
     energy_sources: int = Field(default=3, ge=0)
     energy_intensity: float = Field(default=5.0, gt=0)
     
-    # Bond system configuration - ULTRA AGGRESSIVE for maximum clustering
+    # Bond system configuration - MUCH MORE CONSERVATIVE to prevent single large cluster
     enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
     enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
-    theta_bind: float = Field(default=0.01, gt=0)  # Extremely low for easy bonding
-    theta_break: float = Field(default=10.0, gt=0)  # Very stable bonds
-    vmax: float = Field(default=3.0, gt=0)  # Lower max velocity for stability
-    neighbor_radius: float = Field(default=5.0, gt=0)  # Larger radius for more bonding
-    rebuild_neighbors_every: int = Field(default=5, gt=0)  # More frequent updates
-    clamp_density_per_cell: int = Field(default=64, gt=0)  # Higher density limit
+    theta_bind: float = Field(default=0.6, gt=0)  # Much higher binding threshold (was 0.3)
+    theta_break: float = Field(default=1.0, gt=0)  # Lower breaking threshold for easier breaking (was 2.0)
+    vmax: float = Field(default=8.0, gt=0)  # Higher max velocity for more movement (was 5.0)
+    neighbor_radius: float = Field(default=2.0, gt=0)  # Smaller neighbor radius (was 2.5)
+    rebuild_neighbors_every: int = Field(default=15, gt=0)  # Less frequent updates (was 10)
+    clamp_density_per_cell: int = Field(default=16, gt=0)  # Much lower density limit (was 32)
     bond_types: Dict[int, Dict[str, float]] = Field(default={
         0: {'name': 'vdW', 'k_spring': 2.0, 'rest_len_factor': 1.0, 'damping': 0.1, 'strength': 5.0, 'max_age': 50.0},
         1: {'name': 'covalent', 'k_spring': 10.0, 'rest_len_factor': 0.9, 'damping': 0.2, 'strength': 20.0, 'max_age': 200.0},

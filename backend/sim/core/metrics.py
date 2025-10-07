@@ -175,7 +175,7 @@ class MetricsCollector:
         active_particles = 0
         
         # Calculate metrics manually
-        for i in range(min(particle_count, 1000)):  # Limit to avoid performance issues
+        for i in range(min(particle_count, 500)):  # Reduced limit for better performance
             if active[i] == 1:
                 active_particles += 1
                 mass = attributes[i][0]

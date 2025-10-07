@@ -36,7 +36,7 @@ class SimulationStepper:
     """Main simulation coordinator"""
     
     def __init__(self, config: SimulationConfig):
-        print(f"DEBUG: SimulationStepper.__init__ called with mode={config.mode}")
+        # print(f"DEBUG: SimulationStepper.__init__ called with mode={config.mode}")
         self.config = config
         self.current_time = 0.0
         self.step_count = 0
@@ -106,12 +106,12 @@ class SimulationStepper:
     
     def initialize_simulation(self):
         """Initialize simulation with initial conditions"""
-        print(f"DEBUG: initialize_simulation called with mode={self.config.mode}")
+        # Debug print removed for performance
         if self.config.mode == "preset_prebiotic":
-            print("DEBUG: Calling initialize_preset_mode")
+            # Debug print removed for performance
             self.initialize_preset_mode()
         else:
-            print("DEBUG: Calling initialize_open_chemistry_mode")
+            # Debug print removed for performance
             self.initialize_open_chemistry_mode()
         
         # Initialize metrics
@@ -148,7 +148,7 @@ class SimulationStepper:
         """Initialize open chemistry mode"""
         # Add initial particles with random properties
         num_initial_particles = min(500, self.config.max_particles)  # NAPRAWIONE: Zwiększone z 100 dla większej aktywności
-        print(f"DEBUG: initialize_open_chemistry_mode called, adding {num_initial_particles} particles")
+        # Debug print removed for performance
         
         for i in range(num_initial_particles):
             # Random position
@@ -176,7 +176,7 @@ class SimulationStepper:
             # Add particle
             self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
         
-        print(f"DEBUG: Added {num_initial_particles} particles, particle_count is now {self.particles.particle_count[None]}")
+        # Debug print removed for performance
         
         # Add energy sources
         for _ in range(self.open_chemistry_config.energy_sources):
@@ -191,52 +191,54 @@ class SimulationStepper:
     
     def step(self, dt: float = None):
         """Perform one simulation step with adaptive timestep control"""
-        print("STEP FUNCTION CALLED")
-        print(f"STEP ENTRY: step_count={self.step_count}, is_running={self.is_running}, is_paused={self.is_paused}")
-        sys.stdout.flush()
-        print(f"DEBUG: dt param = {dt}")
-        sys.stdout.flush()
+        # print("STEP FUNCTION CALLED")  # Disabled to prevent infinite loop
+        # Debug prints disabled to prevent infinite loop
+        # print(f"STEP ENTRY: step_count={self.step_count}, is_running={self.is_running}, is_paused={self.is_paused}")
+        # sys.stdout.flush()
+        # print(f"DEBUG: dt param = {dt}")
+        # sys.stdout.flush()
 
-        if self.step_count < 5:
-            print(f"STEP {self.step_count + 1}: step() called with dt={dt}")
-            sys.stdout.flush()
+        # Debug prints disabled to prevent infinite loop
+        # if self.step_count < 5:
+        #     print(f"STEP {self.step_count + 1}: step() called with dt={dt}")
+        #     sys.stdout.flush()
 
         if dt is None:
-            print(f"DEBUG: Computing adaptive timestep")
-            sys.stdout.flush()
+            # print(f"DEBUG: Computing adaptive timestep")
+            # sys.stdout.flush()
             try:
                 dt = self._compute_adaptive_timestep()
-                print(f"DEBUG: Computed dt = {dt}")
-                sys.stdout.flush()
+                # print(f"DEBUG: Computed dt = {dt}")
+                # sys.stdout.flush()
             except Exception as e:
-                print(f"ERROR: _compute_adaptive_timestep() failed: {e}")
+                logger.error(f"Adaptive timestep computation failed: {e}")
                 sys.stdout.flush()
                 return
 
-        if self.step_count < 5:
-            print(f"STEP {self.step_count + 1}: computed dt={dt:.6f}")
-            sys.stdout.flush()
+        # if self.step_count < 5:
+        #     print(f"STEP {self.step_count + 1}: computed dt={dt:.6f}")
+        #     sys.stdout.flush()
 
         # Store previous state for error estimation
-        print(f"DEBUG: About to get prev_energy")
-        sys.stdout.flush()
+        # print(f"DEBUG: About to get prev_energy")
+        # sys.stdout.flush()
         try:
             prev_energy = self._get_total_energy()
-            print(f"DEBUG: prev_energy = {prev_energy}")
+            # print(f"DEBUG: prev_energy = {prev_energy}")
         except Exception as e:
-            print(f"ERROR: _get_total_energy() failed: {e}")
+            logger.error(f"Energy calculation failed: {e}")
             return
 
         # Perform step with current dt
-        print(f"DEBUG: About to call _perform_step with dt={dt}")
+        # print(f"DEBUG: About to call _perform_step with dt={dt}")
         self._perform_step(dt)
-        print(f"DEBUG: _perform_step returned")
+        # print(f"DEBUG: _perform_step returned")
 
-        print(f"DEBUG: _perform_step completed, about to get current_energy")
+        # print(f"DEBUG: _perform_step completed, about to get current_energy")
 
         # Estimate error and adjust timestep if needed
         current_energy = self._get_total_energy()
-        print(f"DEBUG: current_energy = {current_energy}, prev_energy = {prev_energy}")
+        # print(f"DEBUG: current_energy = {current_energy}, prev_energy = {prev_energy}")
         energy_error = abs(current_energy - prev_energy) / max(prev_energy, 1e-6)
         
         # Adaptive timestep control based on energy conservation
@@ -301,7 +303,8 @@ class SimulationStepper:
         
         # Log every step for first 5 steps, then every 10 steps
         if self.step_count < 5 or self.step_count % 10 == 0:
-            print(f"STEP {self.step_count + 1}: Starting - mode={self.config.mode}, sim_time={self.current_time:.6f}, dt={dt:.6f}")
+            # Debug print removed for performance
+            pass
 
         # logger.info(f"DEBUG: _perform_step executing, step_count={self.step_count}")
 
@@ -311,12 +314,14 @@ class SimulationStepper:
             # logger.info(f"DEBUG: Inside try block, about to update energy")
             # Update energy system
             if self.step_count < 5:
-                print(f"STEP {self.step_count + 1}: Updating energy system...")
+                # Debug print removed for performance
+                pass
             self.energy_manager.update(dt)
             
             # Add energy diffusion and thermostat
             if self.step_count < 5:
-                print(f"STEP {self.step_count + 1}: Applying energy diffusion and thermostat...")
+                # Debug print removed for performance
+                pass
             self._energy_diffuse(dt)
             self._energy_thermostat()
             
@@ -324,7 +329,8 @@ class SimulationStepper:
             pulse_every = getattr(self.config, 'pulse_every', 48)
             if pulse_every and self.step_count % pulse_every == 0:
                 if self.step_count < 5:
-                    print(f"STEP {self.step_count + 1}: Adding energy pulse...")
+                    # Debug print removed for performance
+                    pass
                 self._add_energy_pulse()
 
             if self.config.mode == "preset_prebiotic":
@@ -339,18 +345,21 @@ class SimulationStepper:
             else:
                 # Open chemistry branch
                 if self.step_count < 5:
-                    print(f"STEP {self.step_count + 1}: Open chemistry mode - starting symplectic integration...")
+                    # Debug print removed for performance
+                    pass
                 if False:  # Temporarily disable symplectic integrator
                     # Use symplectic integrator for better energy conservation
                     particle_count = self.particles.particle_count[None]
                     
                     if self.step_count < 5:
-                        print(f"STEP {self.step_count + 1}: Updating spatial hash...")
+                        # Debug print removed for performance
+                        pass
                     # Update spatial hash first for force computation
                     self.grid.update_spatial_hash()
                     
                     if self.step_count < 5:
-                        print(f"STEP {self.step_count + 1}: Computing forces...")
+                        # Debug print removed for performance
+                        pass
                     # Compute forces for Verlet first stage
                     self.potentials.compute_forces(
                         self.particles.positions,
@@ -439,7 +448,8 @@ class SimulationStepper:
                 if self.step_count < 10 or (self.step_count % energy_update_interval) == 0:
                     # logger.info(f"DEBUG: Energy update condition met at step {self.step_count} (step < 10: {self.step_count < 10}, step % {energy_update_interval} == 0: {(self.step_count % energy_update_interval) == 0})")
                     if self.step_count < 5:
-                        print(f"STEP {self.step_count + 1}: Adding energy to particles...")
+                        # Debug print removed for performance
+                        pass
                     self.add_energy_to_particles()
                 
                 # Re-enable operations one by one for performance testing
@@ -465,15 +475,15 @@ class SimulationStepper:
                 if self.step_count % diag_freq == 0:
                     self._log_diagnostics()
                 
-                # Skip expensive operations for now
-                # self.apply_mutations(dt)
-                # self.update_graph_representation()  
-                # self.detect_novel_substances()
+                # Enable novelty detection and mutations for proper simulation
+                self.apply_mutations(dt)
+                self.update_graph_representation()  
+                self.detect_novel_substances()
             
             # logger.info(f"DEBUG: try block completed successfully")
             
         except Exception as e:
-            print(f"STEP {self.step_count + 1}: ERROR - {e}")
+            logger.error(f"Step execution failed: {e}")
             import traceback
             traceback.print_exc()
             raise  # Re-raise to see the full error
@@ -481,13 +491,13 @@ class SimulationStepper:
         # Update time and step count
         self.current_time += dt
         # logger.info(f"DEBUG: Updated current_time to {self.current_time}")
-        print(f"DEBUG: About to increment step_count from {self.step_count}")
+        # print(f"DEBUG: About to increment step_count from {self.step_count}")
         self.step_count += 1
-        print(f"DEBUG: step_count incremented to {self.step_count}")
+        # print(f"DEBUG: step_count incremented to {self.step_count}")
         
         # End performance timing
         step_time = self.performance_monitor.end_step_timing()
-        if self.step_count % 10 == 0:  # Log every 10 steps
+        if self.step_count % 100 == 0:  # Log every 100 steps for better performance
             logger.info(f"Step {self.step_count} completed in {step_time*1000:.1f}ms")
 
         # Update metrics after updating current_time (every 50 steps for performance)
@@ -501,9 +511,9 @@ class SimulationStepper:
                 import traceback
                 traceback.print_exc()
 
-        # Debug: Log step completion
-        if self.step_count <= 5:
-            print(f"STEP {self.step_count}: COMPLETED - time={self.current_time:.6f}, dt={dt:.6f}")
+        # Debug: Log step completion (disabled to prevent infinite loop)
+        # if self.step_count <= 5:
+        #     print(f"STEP {self.step_count}: COMPLETED - time={self.current_time:.6f}, dt={dt:.6f}")
         
         # Update energy conservation monitoring
         self._update_energy_conservation()
@@ -613,7 +623,7 @@ class SimulationStepper:
                 return False, 0.0
                 
         except Exception as e:
-            print(f"WARNING: Symplectic integration failed: {e}")
+            logger.warning(f"Symplectic integration failed: {e}")
             return False, 0.0
 
     def get_integration_stats(self) -> Dict[str, Any]:
@@ -652,7 +662,7 @@ class SimulationStepper:
         if drift > self.energy_conservation_threshold * 100.0:  # Convert threshold to percentage
             # Log warning only every 1000 steps to avoid spam
             if self.step_count % 1000 == 0:
-                print(f"WARNING: Energy drift ({drift:.2f}%) exceeds threshold ({self.energy_conservation_threshold*100.0:.2f}%)")
+                logger.warning(f"Energy drift ({drift:.2f}%) exceeds threshold ({self.energy_conservation_threshold*100.0:.2f}%)")
     
     def _get_energy_drift(self):
         """Calculate energy drift percentage from initial energy"""
@@ -803,11 +813,41 @@ class SimulationStepper:
                 # Calculate complexity
                 complexity = self.calculate_complexity(graph, particle_attributes)
                 
+                # Calculate properties for the substance
+                properties = self._calculate_substance_properties(particle_attributes)
+                
                 # Add to catalog
-                is_novel, substance_id = self.catalog.add_substance(graph, self.current_time)
+                is_novel, substance_id = self.catalog.add_substance(graph, self.current_time, properties)
                 
                 # Update novelty tracker
                 self.novelty_tracker.record_discovery(is_novel, complexity)
+    
+    def _calculate_substance_properties(self, particle_attributes: Dict[int, np.ndarray]) -> Dict[str, Any]:
+        """Calculate properties for a substance based on particle attributes"""
+        if not particle_attributes:
+            return {}
+        
+        # Convert to numpy array for easier processing
+        attributes_list = list(particle_attributes.values())
+        attributes_array = np.array(attributes_list)
+        
+        # Calculate average mass (first component of attributes)
+        avg_mass = float(np.mean(attributes_array[:, 0]))
+        
+        # Calculate average charge (components 1-3 of attributes)
+        avg_charge = [float(x) for x in np.mean(attributes_array[:, 1:4], axis=0)]
+        
+        # Calculate other properties
+        mass_std = float(np.std(attributes_array[:, 0]))
+        charge_magnitude = float(np.linalg.norm(avg_charge))
+        
+        return {
+            'avg_mass': avg_mass,
+            'avg_charge': avg_charge,
+            'mass_std': mass_std,
+            'charge_magnitude': charge_magnitude,
+            'particle_count': len(particle_attributes)
+        }
     
     def calculate_complexity(self, graph: MolecularGraph, 
                            particle_attributes: Dict[int, np.ndarray]) -> float:
@@ -836,7 +876,7 @@ class SimulationStepper:
             particle_count
         )
         particle_time = time.time() - particle_start
-        print(f"DEBUG: Particle metrics update took {particle_time:.3f}s")
+        # Debug print removed for performance
         
         # Update bond metrics manually - OPTIMIZED with NumPy
         bond_count = 0
@@ -852,7 +892,7 @@ class SimulationStepper:
             bond_count = int(np.sum(np.triu(bond_active, k=1)))
             self.metrics.bond_count[None] = bond_count
             bond_time = time.time() - bond_start
-            print(f"DEBUG: Bond metrics update took {bond_time:.3f}s")
+            # Debug print removed for performance
             # logger.info(f"DEBUG: Manual bond calculation - bonds={bond_count}")
         except Exception as e:
             logger.error(f"ERROR in bond calculation: {e}")
@@ -882,7 +922,7 @@ class SimulationStepper:
             
             self.metrics.cluster_count[None] = cluster_count
             cluster_time = time.time() - cluster_start
-            print(f"DEBUG: Cluster metrics update took {cluster_time:.3f}s")
+            # Debug print removed for performance
             # logger.info(f"DEBUG: Manual cluster calculation - clusters={cluster_count}")
         except Exception as e:
             logger.error(f"ERROR in cluster calculation: {e}")
@@ -898,7 +938,7 @@ class SimulationStepper:
             self.config.grid_height
         )
         energy_time = time.time() - energy_start
-        print(f"DEBUG: Energy field metrics update took {energy_time:.3f}s")
+        # Debug print removed for performance
         
         # Record metrics
         record_start = time.time()
@@ -913,10 +953,10 @@ class SimulationStepper:
         self.metrics.record_metrics(additional_metrics)
         self.aggregator.update_aggregated_stats()
         record_time = time.time() - record_start
-        print(f"DEBUG: Record metrics took {record_time:.3f}s")
+        # Debug print removed for performance
         
         total_time = time.time() - start_time
-        print(f"DEBUG: TOTAL update_metrics took {total_time:.3f}s")
+        # Debug print removed for performance
     
     def _log_diagnostics(self):
         """Log diagnostics data for current step"""
@@ -1016,6 +1056,9 @@ class SimulationStepper:
         
         # Reinitialize
         self.initialize_simulation()
+        
+        # Start simulation automatically after reset
+        self.start()
     
     def get_simulation_state(self) -> Dict:
         """Get current simulation state"""
@@ -1063,7 +1106,8 @@ class SimulationStepper:
 
         # Debug: Log step_count and current_time
         if self.step_count < 5:
-            print(f"DEBUG get_visualization_data: step_count={self.step_count}, current_time={self.current_time}")
+            # Debug print removed for performance
+            pass
         
         # Time energy field extraction
         t_energy_start = time.time()
@@ -1116,7 +1160,7 @@ class SimulationStepper:
             t_bonds_start = time.time()
             # OPTIMIZATION: Only get bonds/clusters every 10 steps to reduce load (was 5)
             if self.step_count % 10 == 0:
-                print(f"DEBUG: Getting fresh bonds/clusters at step {self.step_count}")
+                # Debug print removed for performance
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
                 # Cache the data for intermediate steps
@@ -1127,12 +1171,12 @@ class SimulationStepper:
             else:
                 # Use cached data for intermediate steps
                 if hasattr(self, '_cached_bonds_clusters_data'):
-                    print(f"DEBUG: Using cached bonds/clusters at step {self.step_count}")
+                    # Debug print removed for performance
                     bonds = self._cached_bonds_clusters_data['bonds']
                     clusters = self._cached_bonds_clusters_data['clusters']
                 else:
                     # Fallback: get fresh data if cache doesn't exist
-                    print(f"DEBUG: Fallback - getting fresh bonds/clusters at step {self.step_count}")
+                    # Debug print removed for performance
                     bonds = self.binding.get_bonds()
                     clusters = self.binding.get_clusters()
             t_bonds_end = time.time()
@@ -1149,7 +1193,7 @@ class SimulationStepper:
         
         t_end = time.time()
         if (t_end - t_start) > 1.0:
-            print(f"WARNING: TOTAL get_visualization_data took {t_end-t_start:.2f}s")
+            logger.warning(f"Visualization data took {t_end-t_start:.2f}s")
         
         # Log detailed timing breakdown
         if (t_end - t_start) > 0.1:  # Log if total takes more than 100ms
@@ -1185,29 +1229,29 @@ class SimulationStepper:
     def save_snapshot(self, filename: str, save_images: bool = True):
         """Save simulation snapshot with optional image generation"""
         import os
-        print(f"DEBUG: STEP {self.step_count} - save_snapshot called with filename={filename}, save_images={save_images}")
-        print(f"DEBUG: STEP {self.step_count} - Current working directory: {os.getcwd()}")
+        # Debug print removed for performance
+        # Debug print removed for performance
         
         try:
             # Serialize simulation data
-            print(f"DEBUG: STEP {self.step_count} - Calling SnapshotSerializer.serialize_simulation...")
+            # Debug print removed for performance
             snapshot_data = SnapshotSerializer.serialize_simulation(self)
-            print(f"DEBUG: STEP {self.step_count} - Snapshot data serialized, keys: {list(snapshot_data.keys())}")
+            # Debug print removed for performance
             
             # Use SnapshotManager to save with image generation
             name = filename.replace('.json', '')  # Remove .json extension for name
-            print(f"DEBUG: STEP {self.step_count} - About to save snapshot with name={name}")
+            # Debug print removed for performance
             
             saved_filename = self.snapshot_manager.create_snapshot(
                 snapshot_data, 
                 name=name, 
                 save_images=save_images
             )
-            print(f"DEBUG: STEP {self.step_count} - Snapshot saved as: {saved_filename}")
+            logger.info(f"Snapshot saved: {saved_filename}")
             return saved_filename
             
         except Exception as e:
-            print(f"ERROR: Failed to save snapshot: {e}")
+            logger.error(f"Snapshot save failed: {e}")
             import traceback
             traceback.print_exc()
             raise
@@ -1252,7 +1296,7 @@ class SimulationStepper:
             radius=pulse_radius
         )
         
-        print(f"Energy pulse added at ({x:.1f}, {y:.1f}) with intensity {pulse_amplitude}, radius {pulse_radius}")
+        logger.info(f"Energy pulse added at ({x:.1f}, {y:.1f}) with intensity {pulse_amplitude}, radius {pulse_radius}")
     
     @ti.kernel
     def _energy_thermostat(self):

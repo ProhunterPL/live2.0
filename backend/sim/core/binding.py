@@ -215,9 +215,6 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                         
                         # Only form bond if both particles have valence available
                         if valence_i < max_valence_i and valence_j < max_valence_j:
-                            # RADICAL SOLUTION: FORCE BOND FORMATION for maximum clustering
-                            # Skip probability calculation - just form bonds!
-                            
                             # Form bond with type-specific parameters
                             bond_active_field[i, j] = 1
                             bond_active_field[j, i] = 1
@@ -257,6 +254,46 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                 ti.atomic_sub(particle_bond_count_field[j], 1)
 
 @ti.func
+def calculate_binding_probability(i: ti.i32, j: ti.i32, positions: ti.template(),
+                                attributes: ti.template()) -> ti.f32:
+    """Calculate binding probability based on particle compatibility"""
+    pos_i = positions[i]
+    pos_j = positions[j]
+    
+    # Calculate distance
+    r_vec = pos_i - pos_j
+    r = r_vec.norm()
+    
+    # Get particle properties
+    mass_i = attributes[i][0]
+    mass_j = attributes[j][0]
+    charge_i = attributes[i][1]
+    charge_j = attributes[j][1]
+    
+    # Calculate compatibility metrics
+    mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
+    charge_product = charge_i * charge_j
+    charge_sum = ti.abs(charge_i + charge_j)
+    
+    # Base probability from distance (closer = higher probability)
+    distance_factor = ti.exp(-r / 2.0)  # Exponential decay with distance
+    
+    # Compatibility factor based on particle properties
+    compatibility_factor = 0.0
+    if mass_ratio > 0.7:  # Similar masses
+        compatibility_factor = 0.8
+    elif charge_product < -0.5:  # Opposite charges
+        compatibility_factor = 0.6
+    elif charge_sum > 0.5:  # Similar charges
+        compatibility_factor = 0.4
+    elif mass_ratio > 0.3:  # Some mass compatibility
+        compatibility_factor = 0.2
+    
+    # Final probability
+    probability = distance_factor * compatibility_factor
+    return ti.min(probability, 1.0)  # Cap at 1.0
+
+@ti.func
 def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
                          attributes: ti.template()) -> ti.i32:
     """Check if two particles should form a bond, returns bond type (-1 = no bond)"""
@@ -270,28 +307,33 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     # Default: no bond
     bond_type = -1
     
-    if r <= PARTICLE_RADIUS_COMPILE * 15.0:  # ULTRA MASSIVE binding range for maximum clustering
-        # Get particle properties
-        mass_i = attributes[i][0]
-        mass_j = attributes[j][0]
-        charge_i = attributes[i][1]
-        charge_j = attributes[j][1]
+    if r <= PARTICLE_RADIUS_COMPILE * 2.0:  # Much smaller binding range to prevent over-clustering
+        # Calculate binding probability
+        binding_probability = calculate_binding_probability(i, j, positions, attributes)
         
-        # Calculate compatibility metrics
-        mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
-        charge_product = charge_i * charge_j
-        charge_sum = ti.abs(charge_i + charge_j)
-        
-        # ULTRA RELAXED bonding conditions - ALWAYS form bonds if in range
-        # Just assign bond type based on properties, but always form bond
-        if mass_ratio > 0.01:  # Ultra relaxed
-            bond_type = 1  # covalent
-        elif charge_product < 0.0:
-            bond_type = 2  # H-bond
-        elif charge_sum > 0.0:
-            bond_type = 3  # metallic
-        else:
-            bond_type = 0  # vdW
+        # Only proceed if probability is high enough
+        if binding_probability > 0.6:  # Much higher threshold to prevent over-clustering
+            # Get particle properties
+            mass_i = attributes[i][0]
+            mass_j = attributes[j][0]
+            charge_i = attributes[i][1]
+            charge_j = attributes[j][1]
+            
+            # Calculate compatibility metrics
+            mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
+            charge_product = charge_i * charge_j
+            charge_sum = ti.abs(charge_i + charge_j)
+            
+            # SCIENTIFICALLY REALISTIC bonding conditions
+            # Only form bonds if particles are compatible and conditions are met
+            if mass_ratio > 0.7:  # Similar masses for covalent bonds
+                bond_type = 1  # covalent
+            elif charge_product < -0.5:  # Opposite charges for ionic bonds
+                bond_type = 2  # H-bond
+            elif charge_sum > 0.5:  # Similar charges for metallic bonds
+                bond_type = 3  # metallic
+            elif mass_ratio > 0.3:  # Some mass compatibility for vdW
+                bond_type = 0  # vdW
     
     return bond_type
 
