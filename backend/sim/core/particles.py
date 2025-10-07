@@ -61,11 +61,21 @@ def reset_particles_kernel():
 
 @ti.kernel
 def update_positions_kernel(dt: ti.f32):
-    """Update particle positions - module-level kernel"""
+    """Update particle positions - module-level kernel with stability checks"""
     for i in range(MAX_PARTICLES_COMPILE):
         if active[i] == 1:
+            # Update position
             positions[i] += velocities[i] * dt
             age[i] += dt
+            
+            # Stability check: prevent particles from moving too far in one step
+            # This helps prevent numerical instabilities
+            max_step_size = 5.0  # Maximum distance a particle can move in one step
+            step_distance = velocities[i].norm() * dt
+            if step_distance > max_step_size:
+                # Scale down velocity to prevent excessive movement
+                scale_factor = max_step_size / step_distance
+                velocities[i] *= scale_factor
 
 @ti.kernel
 def apply_forces_kernel(forces: ti.template(), dt: ti.f32):
@@ -342,7 +352,7 @@ class ParticleSystem:
     
     @ti.kernel
     def thermal_kick(self, vmax: float, k_sigma: float, energy_field: ti.template()):
-        """Add thermal noise to particle velocities based on local energy"""
+        """Add thermal noise to particle velocities based on local energy - STABILIZED VERSION"""
         for p in range(self.max_particles):
             if self.active[p] == 1:
                 # Get grid position
@@ -350,14 +360,20 @@ class ParticleSystem:
                 j = ti.cast(self.positions[p].y, ti.i32) % energy_field.shape[1]
                 E = energy_field[i, j]
                 
-                # Sigma grows with energy (clipped)
-                sigma = k_sigma * ti.min(1.0, E)
+                # Reduced thermal noise to prevent particle drift
+                # Sigma grows with energy but is much smaller
+                sigma = k_sigma * 0.1 * ti.min(0.5, E)  # Reduced by factor of 10
                 
-                # Add thermal noise
-                self.velocities[p].x += (ti.random(ti.f32) - 0.5) * sigma
-                self.velocities[p].y += (ti.random(ti.f32) - 0.5) * sigma
+                # Add smaller thermal noise
+                thermal_x = (ti.random(ti.f32) - 0.5) * sigma
+                thermal_y = (ti.random(ti.f32) - 0.5) * sigma
                 
-                # Clamp velocity
+                # Apply thermal noise with damping to prevent runaway velocities
+                damping_factor = 0.8  # Reduce existing velocity by 20%
+                self.velocities[p].x = self.velocities[p].x * damping_factor + thermal_x
+                self.velocities[p].y = self.velocities[p].y * damping_factor + thermal_y
+                
+                # Clamp velocity to prevent excessive speeds
                 v2 = self.velocities[p].x * self.velocities[p].x + self.velocities[p].y * self.velocities[p].y
                 if v2 > vmax * vmax:
                     s = vmax / ti.sqrt(v2)

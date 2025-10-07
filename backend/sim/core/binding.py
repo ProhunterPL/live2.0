@@ -82,7 +82,7 @@ def reset_binding_kernel():
     for i in range(MAX_PARTICLES_COMPILE):
         cluster_id_field[i] = -1
         cluster_sizes_field[i] = 0
-        particle_valence_max_field[i] = 4  # Default valence limit
+        particle_valence_max_field[i] = 20  # MASSIVE valence limit for huge clusters
         particle_bond_count_field[i] = 0
     
     next_cluster_id_field[None] = 0
@@ -215,46 +215,32 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                         
                         # Only form bond if both particles have valence available
                         if valence_i < max_valence_i and valence_j < max_valence_j:
-                            # Probabilistic bond formation - MUCH LOWER THRESHOLD FOR MORE BONDS
-                            theta_bind = 0.05  # Even lower for much easier bonding
-                            dE = -dist  # Simplified energy change
+                            # RADICAL SOLUTION: FORCE BOND FORMATION for maximum clustering
+                            # Skip probability calculation - just form bonds!
                             
-                            # Sigmoid probability with easier formation
-                            p = 1.0 / (1.0 + ti.exp(-(-dE - theta_bind) * 2.0))
+                            # Form bond with type-specific parameters
+                            bond_active_field[i, j] = 1
+                            bond_active_field[j, i] = 1
+                            bond_matrix_field[i, j] = 1.0
+                            bond_matrix_field[j, i] = 1.0
+                            bond_type_field[i, j] = bond_type
+                            bond_type_field[j, i] = bond_type
+                            bond_k_spring_field[i, j] = k_spring
+                            bond_k_spring_field[j, i] = k_spring
+                            bond_rest_len_field[i, j] = rest_len
+                            bond_rest_len_field[j, i] = rest_len
+                            bond_damping_field[i, j] = damping
+                            bond_damping_field[j, i] = damping
+                            bond_strength_field[i, j] = strength
+                            bond_strength_field[j, i] = strength
+                            bond_energy_field[i, j] = -1.0  # Negative binding energy
+                            bond_energy_field[j, i] = -1.0
+                            bond_age_field[i, j] = 0.0
+                            bond_age_field[j, i] = 0.0
                             
-                            # Energy-dependent noise - MORE AGGRESSIVE BONDING
-                            # Get local energy (simplified)
-                            E = 0.5  # Placeholder - should get from energy field
-                            p *= (1.0 + 1.0 * E)  # Increased energy factor
-                            
-                            # Additional distance factor - closer particles bond easier
-                            distance_factor = 1.0 / (1.0 + dist * 0.5)
-                            p *= distance_factor
-                            
-                            if ti.random(ti.f32) < p:
-                                # Form bond with type-specific parameters
-                                bond_active_field[i, j] = 1
-                                bond_active_field[j, i] = 1
-                                bond_matrix_field[i, j] = 1.0
-                                bond_matrix_field[j, i] = 1.0
-                                bond_type_field[i, j] = bond_type
-                                bond_type_field[j, i] = bond_type
-                                bond_k_spring_field[i, j] = k_spring
-                                bond_k_spring_field[j, i] = k_spring
-                                bond_rest_len_field[i, j] = rest_len
-                                bond_rest_len_field[j, i] = rest_len
-                                bond_damping_field[i, j] = damping
-                                bond_damping_field[j, i] = damping
-                                bond_strength_field[i, j] = strength
-                                bond_strength_field[j, i] = strength
-                                bond_energy_field[i, j] = 0.0
-                                bond_energy_field[j, i] = 0.0
-                                bond_age_field[i, j] = 0.0
-                                bond_age_field[j, i] = 0.0
-                                
-                                # Update bond counts for valence system
-                                ti.atomic_add(particle_bond_count_field[i], 1)
-                                ti.atomic_add(particle_bond_count_field[j], 1)
+                            # Update bond counts for valence system
+                            ti.atomic_add(particle_bond_count_field[i], 1)
+                            ti.atomic_add(particle_bond_count_field[j], 1)
     
     # Check for bond breaking
     for i, j in ti.ndrange(MAX_PARTICLES_COMPILE, MAX_PARTICLES_COMPILE):
@@ -284,7 +270,7 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     # Default: no bond
     bond_type = -1
     
-    if r <= PARTICLE_RADIUS_COMPILE * 4.0:  # INCREASED binding range (was 2.5, now 4.0)
+    if r <= PARTICLE_RADIUS_COMPILE * 15.0:  # ULTRA MASSIVE binding range for maximum clustering
         # Get particle properties
         mass_i = attributes[i][0]
         mass_j = attributes[j][0]
@@ -296,18 +282,15 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         charge_product = charge_i * charge_j
         charge_sum = ti.abs(charge_i + charge_j)
         
-        # Determine bond type based on properties - EXTREMELY RELAXED for more bonds
-        if mass_ratio > 0.2 and ti.abs(charge_product) > -1.0:  # Very relaxed
-            # Similar mass, moderate charge interaction → covalent-like (strong)
+        # ULTRA RELAXED bonding conditions - ALWAYS form bonds if in range
+        # Just assign bond type based on properties, but always form bond
+        if mass_ratio > 0.01:  # Ultra relaxed
             bond_type = 1  # covalent
-        elif charge_product < 0.0:  # Any opposite charge
-            # Opposite charges → hydrogen bond-like
+        elif charge_product < 0.0:
             bond_type = 2  # H-bond
-        elif mass_ratio > 0.1 and charge_sum > 0.0:  # Very relaxed metal
-            # Medium mass ratio, moderate total charge → metallic-like
+        elif charge_sum > 0.0:
             bond_type = 3  # metallic
         else:
-            # ALWAYS form vdW bond if within range
             bond_type = 0  # vdW
     
     return bond_type
@@ -638,6 +621,10 @@ class BindingSystem:
     def update_clusters(self, positions, active, particle_count: int):
         """Update cluster assignments using union-find algorithm"""
         update_clusters_kernel(active, particle_count)
+        
+        # SPATIAL MERGING: Connect nearby clusters for larger structures
+        self._merge_nearby_clusters(positions, active, particle_count)
+        
         # Compute cluster metrics
         compute_cluster_metrics_kernel(positions, particle_count)
     
@@ -666,6 +653,62 @@ class BindingSystem:
         
         if root_i != root_j:
             self.cluster_id[root_j] = root_i
+    
+    @ti.kernel
+    def _merge_nearby_clusters(self, positions: ti.template(), active: ti.template(), particle_count: ti.i32):
+        """Merge nearby clusters by creating bonds between close particles from different clusters"""
+        # Find particles from different clusters that are close enough to bond
+        for i in range(particle_count):
+            if active[i] == 1:
+                cluster_i = cluster_id_field[i]
+                
+                for j in range(i + 1, particle_count):
+                    if active[j] == 1:
+                        cluster_j = cluster_id_field[j]
+                        
+                        # Only consider particles from different clusters
+                        if cluster_i != cluster_j:
+                            pos_i = positions[i]
+                            pos_j = positions[j]
+                            
+                            # Calculate distance
+                            dx = pos_j[0] - pos_i[0]
+                            dy = pos_j[1] - pos_i[1]
+                            dist = ti.sqrt(dx * dx + dy * dy)
+                            
+                            # If particles are close enough, create a bond to merge clusters
+                            merge_distance = PARTICLE_RADIUS_COMPILE * 8.0  # Larger than normal bonding
+                            if dist <= merge_distance and bond_active_field[i, j] == 0:
+                                # Check valence constraints
+                                valence_i = particle_bond_count_field[i]
+                                valence_j = particle_bond_count_field[j]
+                                max_valence_i = particle_valence_max_field[i]
+                                max_valence_j = particle_valence_max_field[j]
+                                
+                                if valence_i < max_valence_i and valence_j < max_valence_j:
+                                    # Create bond to merge clusters
+                                    bond_active_field[i, j] = 1
+                                    bond_active_field[j, i] = 1
+                                    bond_matrix_field[i, j] = 1.0
+                                    bond_matrix_field[j, i] = 1.0
+                                    bond_type_field[i, j] = 0  # vdW bond for merging
+                                    bond_type_field[j, i] = 0
+                                    bond_k_spring_field[i, j] = 1.0  # Weak spring for merging
+                                    bond_k_spring_field[j, i] = 1.0
+                                    bond_rest_len_field[i, j] = dist  # Use current distance
+                                    bond_rest_len_field[j, i] = dist
+                                    bond_damping_field[i, j] = 0.05  # Low damping
+                                    bond_damping_field[j, i] = 0.05
+                                    bond_strength_field[i, j] = 2.0  # Low strength
+                                    bond_strength_field[j, i] = 2.0
+                                    bond_energy_field[i, j] = -0.5  # Weak binding energy
+                                    bond_energy_field[j, i] = -0.5
+                                    bond_age_field[i, j] = 0.0
+                                    bond_age_field[j, i] = 0.0
+                                    
+                                    # Update valence counts
+                                    ti.atomic_add(particle_bond_count_field[i], 1)
+                                    ti.atomic_add(particle_bond_count_field[j], 1)
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
         """Get list of active bonds - OPTIMIZED with limited matrix size"""

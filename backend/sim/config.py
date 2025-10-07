@@ -15,27 +15,27 @@ class SimulationConfig(BaseModel):
     # Simulation mode
     mode: str = Field(default="open_chemistry", pattern="^(preset_prebiotic|open_chemistry)$")
     
-    # Time settings
-    dt: float = Field(default=0.01, gt=0, le=1.0)  # Bardzo mały krok dla stabilności numerycznej
+    # Time settings - STABILIZED for particle retention
+    dt: float = Field(default=0.005, gt=0, le=1.0)  # Even smaller timestep for stability
     max_time: float = Field(default=1000.0, gt=0)
     
-    # Energy settings
-    energy_decay: float = Field(default=0.96, gt=0, lt=1)  # Wolniejsze wygaszanie z 0.95
+    # Energy settings - STABILIZED for particle retention
+    energy_decay: float = Field(default=0.98, gt=0, lt=1)  # Slower decay for stability
     energy_threshold: float = Field(default=0.1, gt=0)
-    pulse_every: int = Field(default=24, gt=0)  # Częstsze pulsy (co 24 kroki)
-    pulse_radius: float = Field(default=32.0, gt=0)  # Większy promień (32 jednostki)
-    pulse_amplitude: float = Field(default=8.0, gt=0)  # Większa amplituda (8.0)
-    diffuse_D: float = Field(default=0.5, gt=0)  # Szybsza dyfuzja energii
-    target_energy: float = Field(default=0.5, gt=0)  # Wyższe tło energii
-    thermostat_alpha: float = Field(default=0.01, gt=0)  # Silniejszy termostat
+    pulse_every: int = Field(default=48, gt=0)  # Less frequent pulses for stability
+    pulse_radius: float = Field(default=20.0, gt=0)  # Smaller radius to avoid disruption
+    pulse_amplitude: float = Field(default=3.0, gt=0)  # Reduced amplitude for stability
+    diffuse_D: float = Field(default=0.2, gt=0)  # Slower diffusion for stability
+    target_energy: float = Field(default=0.3, gt=0)  # Lower background energy
+    thermostat_alpha: float = Field(default=0.005, gt=0)  # Gentler thermostat
     
     # Particle settings
     max_particles: int = Field(default=10000, gt=0, le=100000)
     particle_radius: float = Field(default=0.5, gt=0)
     
-    # Binding settings - OPTIMIZED for active bond formation
-    binding_threshold: float = Field(default=0.1, gt=0, le=1)  # NAPRAWIONE: Obniżone z 0.25 dla łatwiejszego tworzenia wiązań
-    unbinding_threshold: float = Field(default=0.05, gt=0, le=1)  # NAPRAWIONE: Obniżone z 0.15 dla stabilnych wiązań
+    # Binding settings - ULTRA AGGRESSIVE for maximum clustering
+    binding_threshold: float = Field(default=0.01, gt=0, le=1)  # Extremely low for easy bonding
+    unbinding_threshold: float = Field(default=0.001, gt=0, le=1)  # Very low for stable bonds
     
     # Novelty detection
     novelty_window: int = Field(default=100, gt=0)
@@ -108,15 +108,15 @@ class OpenChemistryConfig(BaseModel):
     energy_sources: int = Field(default=3, ge=0)
     energy_intensity: float = Field(default=5.0, gt=0)
     
-    # Bond system configuration
+    # Bond system configuration - ULTRA AGGRESSIVE for maximum clustering
     enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
     enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
-    theta_bind: float = Field(default=0.1, gt=0)  # NAPRAWIONE: obniżone z 0.25 dla łatwiejszego tworzenia wiązań
-    theta_break: float = Field(default=3.0, gt=0)  # MUCH INCREASED for much more stable bonds
-    vmax: float = Field(default=8.0, gt=0)  # NOWE: zwiększone z 4.5
-    neighbor_radius: float = Field(default=4.0, gt=0)  # INCREASED for easier bonding
-    rebuild_neighbors_every: int = Field(default=8, gt=0)  # NOWE
-    clamp_density_per_cell: int = Field(default=64, gt=0)  # NOWE
+    theta_bind: float = Field(default=0.01, gt=0)  # Extremely low for easy bonding
+    theta_break: float = Field(default=10.0, gt=0)  # Very stable bonds
+    vmax: float = Field(default=3.0, gt=0)  # Lower max velocity for stability
+    neighbor_radius: float = Field(default=5.0, gt=0)  # Larger radius for more bonding
+    rebuild_neighbors_every: int = Field(default=5, gt=0)  # More frequent updates
+    clamp_density_per_cell: int = Field(default=64, gt=0)  # Higher density limit
     bond_types: Dict[int, Dict[str, float]] = Field(default={
         0: {'name': 'vdW', 'k_spring': 2.0, 'rest_len_factor': 1.0, 'damping': 0.1, 'strength': 5.0, 'max_age': 50.0},
         1: {'name': 'covalent', 'k_spring': 10.0, 'rest_len_factor': 0.9, 'damping': 0.2, 'strength': 20.0, 'max_age': 200.0},

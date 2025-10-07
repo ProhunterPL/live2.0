@@ -48,12 +48,12 @@ def reset_binding_matrix_kernel():
 @ti.kernel
 def compute_forces_kernel(positions: ti.template(), attributes: ti.template(),
                          active: ti.template(), particle_count: ti.i32):
-    """Compute forces between all particle pairs - module-level kernel"""
+    """Compute forces between all particle pairs - module-level kernel with stability improvements"""
     # Clear forces
     for i in range(MAX_PARTICLES_COMPILE):
         forces_field[i] = ti.Vector([0.0, 0.0])
     
-    # Compute pairwise forces
+    # Compute pairwise forces with improved stability
     for i in range(particle_count):
         if active[i] == 1:
             for j in range(i + 1, particle_count):
@@ -65,7 +65,11 @@ def compute_forces_kernel(positions: ti.template(), attributes: ti.template(),
                     r_vec = pos_i - pos_j
                     r = r_vec.norm()
                     
-                    if r > 0.1:  # Avoid division by zero
+                    # Improved distance handling with soft cutoff
+                    min_distance = 0.2  # Increased from 0.1 for stability
+                    max_distance = 10.0  # Add maximum interaction distance
+                    
+                    if r > min_distance and r < max_distance:
                         # Normalize distance vector
                         r_hat = r_vec / r
                         
@@ -75,15 +79,17 @@ def compute_forces_kernel(positions: ti.template(), attributes: ti.template(),
                         charge_i = attributes[i][1]  # x-component of charge vector
                         charge_j = attributes[j][1]  # x-component of charge vector
                         
-                        # Compute forces
-                        # Lennard-Jones force
-                        lj_force = lennard_jones_force_func(r, 1.0, 1.0)
+                        # Compute forces with reduced strength for stability
+                        # Lennard-Jones force (reduced strength)
+                        lj_force = lennard_jones_force_func(r, 0.5, 1.0)  # Reduced epsilon
                         
-                        # Coulomb force
-                        coulomb_force = coulomb_force_func(r, charge_i, charge_j, 1.0)
+                        # Coulomb force (reduced strength)
+                        coulomb_force = coulomb_force_func(r, charge_i, charge_j, 0.5)  # Reduced strength
                         
-                        # Total force magnitude
+                        # Total force magnitude with cap
                         total_force = lj_force + coulomb_force
+                        max_force = 5.0  # Cap maximum force magnitude
+                        total_force = ti.max(-max_force, ti.min(max_force, total_force))
                         
                         # Apply force to both particles (Newton's third law)
                         force_vec = total_force * r_hat

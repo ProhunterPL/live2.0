@@ -381,6 +381,15 @@ class SimulationStepper:
                 vmax = getattr(self.open_chemistry_config, 'vmax', 8.0)
                 self.particles.thermal_kick(vmax, 0.6, self.energy_manager.energy_system.energy_field)
                 
+                # Add clustering assistance - particles move towards high energy regions
+                self._assist_clustering()
+                
+                # Add particle attraction mechanism for better bonding
+                self._attract_particles_for_bonding()
+                
+                # Add strong clustering force - particles move towards center
+                self._force_clustering_to_center()
+                
                 # Update metrics for open chemistry mode
                 self.update_metrics()
                 
@@ -395,7 +404,8 @@ class SimulationStepper:
                         self.particles.particle_count[None]
                     )
                 
-                # Update binding system
+                # Update binding system - MORE FREQUENT for better clustering
+                # Update bonds every step for maximum responsiveness
                 self.binding.update_bonds(
                     self.particles.positions,
                     self.particles.attributes,
@@ -413,6 +423,9 @@ class SimulationStepper:
                 
                 # Apply periodic boundary conditions
                 self.grid.apply_periodic_boundary()
+                
+                # Additional stability: ensure particles stay within grid bounds
+                self._stabilize_particle_positions()
                 
                 # Update energy field (legacy decay path)
                 self.grid.decay_energy_field(self.config.energy_decay)
@@ -1261,3 +1274,112 @@ class SimulationStepper:
         if not SnapshotSerializer.validate_snapshot(snapshot):
             raise ValueError("Invalid snapshot data")
         SnapshotSerializer.deserialize_simulation(snapshot, self)
+    
+    @ti.kernel
+    def _stabilize_particle_positions(self):
+        """Additional stabilization to prevent particles from drifting out of grid"""
+        for i in range(self.config.max_particles):
+            if self.particles.active[i] == 1:
+                pos = self.particles.positions[i]
+                
+                # Check if particle is outside grid bounds
+                if pos[0] < 0 or pos[0] >= self.config.grid_width or \
+                   pos[1] < 0 or pos[1] >= self.config.grid_height:
+                    
+                    # Reset position to center of grid if particle escaped
+                    self.particles.positions[i] = ti.Vector([
+                        self.config.grid_width * 0.5,
+                        self.config.grid_height * 0.5
+                    ])
+                    
+                    # Reset velocity to prevent immediate re-escape
+                    self.particles.velocities[i] = ti.Vector([0.0, 0.0])
+    
+    @ti.kernel
+    def _assist_clustering(self):
+        """Assist clustering by moving particles towards high energy regions"""
+        # Find high energy regions and move nearby particles towards them
+        for i in range(self.config.max_particles):
+            if self.particles.active[i] == 1:
+                pos = self.particles.positions[i]
+                
+                # Get local energy
+                x = int(pos[0]) % self.energy_manager.energy_system.width
+                y = int(pos[1]) % self.energy_manager.energy_system.height
+                local_energy = self.energy_manager.energy_system.energy_field[x, y]
+                
+                # If in high energy region, add small attractive force towards center
+                if local_energy > 0.5:  # High energy threshold
+                    # Calculate direction towards grid center
+                    center_x = self.config.grid_width * 0.5
+                    center_y = self.config.grid_height * 0.5
+                    
+                    dx = center_x - pos[0]
+                    dy = center_y - pos[1]
+                    dist = ti.sqrt(dx * dx + dy * dy)
+                    
+                    if dist > 0.1:  # Avoid division by zero
+                        # Normalize direction
+                        dx /= dist
+                        dy /= dist
+                        
+                        # Add small attractive velocity
+                        attraction_strength = 0.1 * local_energy
+                        self.particles.velocities[i].x += dx * attraction_strength
+                        self.particles.velocities[i].y += dy * attraction_strength
+    
+    @ti.kernel
+    def _attract_particles_for_bonding(self):
+        """Attract particles to each other to facilitate bonding"""
+        # Find nearby particles and add attractive forces
+        for i in range(self.config.max_particles):
+            if self.particles.active[i] == 1:
+                pos_i = self.particles.positions[i]
+                
+                # Look for nearby particles
+                for j in range(i + 1, self.config.max_particles):
+                    if self.particles.active[j] == 1:
+                        pos_j = self.particles.positions[j]
+                        
+                        # Calculate distance
+                        dx = pos_j[0] - pos_i[0]
+                        dy = pos_j[1] - pos_i[1]
+                        dist = ti.sqrt(dx * dx + dy * dy)
+                        
+                        # If particles are close but not too close, add attraction
+                        if dist > 0.5 and dist < 5.0:  # Attraction range
+                            # Normalize direction
+                            dx /= dist
+                            dy /= dist
+                            
+                            # Add attractive velocity (particles move towards each other)
+                            attraction_strength = 0.05  # Small attraction force
+                            self.particles.velocities[i].x += dx * attraction_strength
+                            self.particles.velocities[i].y += dy * attraction_strength
+                            self.particles.velocities[j].x -= dx * attraction_strength
+                            self.particles.velocities[j].y -= dy * attraction_strength
+    
+    @ti.kernel
+    def _force_clustering_to_center(self):
+        """Force all particles to move towards grid center for maximum clustering"""
+        center_x = self.config.grid_width * 0.5
+        center_y = self.config.grid_height * 0.5
+        
+        for i in range(self.config.max_particles):
+            if self.particles.active[i] == 1:
+                pos = self.particles.positions[i]
+                
+                # Calculate direction towards center
+                dx = center_x - pos[0]
+                dy = center_y - pos[1]
+                dist = ti.sqrt(dx * dx + dy * dy)
+                
+                if dist > 0.1:  # Avoid division by zero
+                    # Normalize direction
+                    dx /= dist
+                    dy /= dist
+                    
+                    # Add strong attractive velocity towards center
+                    center_attraction = 0.2  # Strong attraction force
+                    self.particles.velocities[i].x += dx * center_attraction
+                    self.particles.velocities[i].y += dy * center_attraction

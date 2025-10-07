@@ -88,13 +88,27 @@ def update_spatial_hash_kernel():
 
 @ti.kernel
 def apply_periodic_boundary_kernel():
-    """Apply periodic boundary conditions - module-level kernel"""
+    """Apply periodic boundary conditions - module-level kernel with improved stability"""
     for i in range(MAX_PARTICLES_COMPILE):
         if particle_active_field[i] == 1:
             pos = particle_positions_field[i]
-            # Wrap positions to grid bounds
-            pos[0] = pos[0] % GRID_WIDTH_COMPILE
-            pos[1] = pos[1] % GRID_HEIGHT_COMPILE
+            
+            # Improved periodic boundary conditions with proper wrapping
+            # Handle negative coordinates correctly
+            if pos[0] < 0:
+                pos[0] = pos[0] % GRID_WIDTH_COMPILE + GRID_WIDTH_COMPILE
+            else:
+                pos[0] = pos[0] % GRID_WIDTH_COMPILE
+                
+            if pos[1] < 0:
+                pos[1] = pos[1] % GRID_HEIGHT_COMPILE + GRID_HEIGHT_COMPILE
+            else:
+                pos[1] = pos[1] % GRID_HEIGHT_COMPILE
+            
+            # Ensure positions are within bounds
+            pos[0] = ti.max(0.0, ti.min(pos[0], GRID_WIDTH_COMPILE - 0.001))
+            pos[1] = ti.max(0.0, ti.min(pos[1], GRID_HEIGHT_COMPILE - 0.001))
+            
             particle_positions_field[i] = pos
 
 @ti.kernel
