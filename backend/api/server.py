@@ -434,53 +434,72 @@ class Live2Server:
         @self.app.get("/simulation/{simulation_id}/novel-substances")
         async def get_novel_substances(simulation_id: str, count: int = 10):
             """Get novel substances discovered in simulation"""
+            logger.info(f"Getting novel substances for simulation {simulation_id}, count={count}")
+            
             if simulation_id not in self.simulations:
+                logger.error(f"Simulation {simulation_id} not found")
                 raise HTTPException(status_code=404, detail="Simulation not found")
             
             simulation = self.simulations[simulation_id]
+            logger.info(f"Simulation found: {type(simulation)}")
             
             # Get novel substances from simulation state or catalog
             try:
-                if hasattr(simulation, 'catalog') and hasattr(simulation.catalog, 'get_recent_substances'):
-                    substances = simulation.catalog.get_recent_substances(count)
-                    # Convert to expected format
-                    formatted_substances = []
-                    for substance in substances:
-                        # Convert numpy types to Python types for JSON serialization
-                        complexity = float(substance.graph.get_complexity())
-                        density = float(substance.graph.get_density())
+                if hasattr(simulation, 'catalog'):
+                    logger.info(f"Simulation has catalog: {type(simulation.catalog)}")
+                    if hasattr(simulation.catalog, 'get_recent_substances'):
+                        logger.info(f"Catalog has get_recent_substances method")
+                        substances = simulation.catalog.get_recent_substances(count)
+                        logger.info(f"Retrieved {len(substances)} substances")
                         
-                        # Handle properties safely
-                        properties = substance.properties if hasattr(substance, 'properties') else {}
-                        avg_mass = float(properties.get('avg_mass', 1.0)) if 'avg_mass' in properties else 1.0
-                        avg_charge = properties.get('avg_charge', [0.0, 0.0, 0.0])
+                        # Convert to expected format
+                        formatted_substances = []
+                        for substance in substances:
+                            try:
+                                # Convert numpy types to Python types for JSON serialization
+                                complexity = float(substance.graph.get_complexity())
+                                density = float(substance.graph.get_density())
+                                
+                                # Handle properties safely
+                                properties = substance.properties if hasattr(substance, 'properties') else {}
+                                avg_mass = float(properties.get('avg_mass', 1.0)) if 'avg_mass' in properties else 1.0
+                                avg_charge = properties.get('avg_charge', [0.0, 0.0, 0.0])
+                                
+                                # Convert charge to Python floats if it's numpy array
+                                if hasattr(avg_charge, 'tolist'):
+                                    avg_charge = avg_charge.tolist()
+                                elif isinstance(avg_charge, np.ndarray):
+                                    avg_charge = [float(x) for x in avg_charge]
+                                
+                                formatted_substances.append({
+                                    "id": str(substance.id),
+                                    "timestamp": float(substance.last_seen),
+                                    "size": int(substance.graph.get_node_count()),
+                                    "complexity": complexity,
+                                    "properties": {
+                                        "mass": avg_mass,
+                                        "charge": avg_charge,
+                                        "bonds": int(substance.graph.get_edge_count()),
+                                        "graph_density": density
+                                    }
+                                })
+                            except Exception as e:
+                                logger.warning(f"Error formatting substance {substance.id}: {e}")
+                                continue
                         
-                        # Convert charge to Python floats if it's numpy array
-                        if hasattr(avg_charge, 'tolist'):
-                            avg_charge = avg_charge.tolist()
-                        elif isinstance(avg_charge, np.ndarray):
-                            avg_charge = [float(x) for x in avg_charge]
-                        
-                        formatted_substances.append({
-                            "id": str(substance.id),
-                            "timestamp": float(substance.last_seen),
-                            "size": int(substance.graph.get_node_count()),
-                            "complexity": complexity,
-                            "properties": {
-                                "mass": avg_mass,
-                                "charge": avg_charge,
-                                "bonds": int(substance.graph.get_edge_count()),
-                                "graph_density": density
-                            }
-                        })
-                    substances = formatted_substances
+                        substances = formatted_substances
+                        logger.info(f"Formatted {len(substances)} substances")
+                    else:
+                        logger.warning(f"Catalog does not have get_recent_substances method")
+                        substances = []
                 else:
-                    # Fallback: return empty list or mock data
+                    logger.warning(f"Simulation does not have catalog attribute")
                     substances = []
                 
+                logger.info(f"Returning {len(substances)} substances")
                 return {"substances": substances}
             except Exception as e:
-                logger.warning(f"Failed to get novel substances for simulation {simulation_id}: {e}")
+                logger.error(f"Failed to get novel substances for simulation {simulation_id}: {e}", exc_info=True)
                 return {"substances": []}
         
         @self.app.websocket("/simulation/{simulation_id}/stream")

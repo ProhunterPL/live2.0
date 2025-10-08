@@ -413,22 +413,24 @@ class SimulationStepper:
                         self.particles.particle_count[None]
                     )
                 
-                # Update binding system - MORE FREQUENT for better clustering
-                # Update bonds every step for maximum responsiveness
-                self.binding.update_bonds(
-                    self.particles.positions,
-                    self.particles.attributes,
-                    self.particles.active,
-                    self.particles.particle_count[None],
-                    dt
-                )
+                # Update binding system (heavily throttled for performance)
+                # Update bonds every 20 steps for much better performance
+                if self.step_count % 20 == 0:
+                    self.binding.update_bonds(
+                        self.particles.positions,
+                        self.particles.attributes,
+                        self.particles.active,
+                        self.particles.particle_count[None],
+                        dt
+                    )
                 
-                # Update clusters
-                self.binding.update_clusters(
-                    self.particles.positions,
-                    self.particles.active,
-                    self.particles.particle_count[None]
-                )
+                # Update clusters every 50 steps
+                if self.step_count % 50 == 0:
+                    self.binding.update_clusters(
+                        self.particles.positions,
+                        self.particles.active,
+                        self.particles.particle_count[None]
+                    )
                 
                 # Apply periodic boundary conditions
                 self.grid.apply_periodic_boundary()
@@ -439,13 +441,13 @@ class SimulationStepper:
                 # Update energy field (legacy decay path)
                 self.grid.decay_energy_field(self.config.energy_decay)
                 
-                # Add energy from sources to particles (now optimized)
-                # Add energy from field to particles (always for first few steps, then throttled)
-                energy_update_interval = getattr(self.config, 'energy_update_interval', 5)
+                # Add energy from sources to particles (heavily optimized)
+                # Add energy from field to particles (always for first few steps, then heavily throttled)
+                energy_update_interval = getattr(self.config, 'energy_update_interval', 20)
                 if energy_update_interval is None or energy_update_interval < 1:
-                    energy_update_interval = 5
-                # Always update energy for first 10 steps to avoid getting stuck
-                if self.step_count < 10 or (self.step_count % energy_update_interval) == 0:
+                    energy_update_interval = 20
+                # Always update energy for first 5 steps to avoid getting stuck
+                if self.step_count < 5 or (self.step_count % energy_update_interval) == 0:
                     # logger.info(f"DEBUG: Energy update condition met at step {self.step_count} (step < 10: {self.step_count < 10}, step % {energy_update_interval} == 0: {(self.step_count % energy_update_interval) == 0})")
                     if self.step_count < 5:
                         # Debug print removed for performance
@@ -454,13 +456,12 @@ class SimulationStepper:
                 
                 # Re-enable operations one by one for performance testing
                 
-                # Update metrics (always for first few steps, then throttled)
-                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 1)  # Changed from 10 to 1
+                # Update metrics (heavily throttled for performance)
+                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 100)  # Changed from 50 to 100 for better performance
                 if metrics_update_interval is None or metrics_update_interval < 1:
-                    metrics_update_interval = 1
-                # logger.info(f"DEBUG METRICS: step_count={self.step_count}, metrics_update_interval={metrics_update_interval}, config_value={getattr(self.config, 'metrics_update_interval', 'NOT_FOUND')}, condition={(self.step_count < 10 or (self.step_count % metrics_update_interval) == 0)}")
-                # Always update metrics for first 10 steps to avoid getting stuck
-                if self.step_count < 10 or (self.step_count % metrics_update_interval) == 0:
+                    metrics_update_interval = 100
+                # Always update metrics for first 3 steps, then every 100 steps
+                if self.step_count < 3 or (self.step_count % metrics_update_interval) == 0:
                     logger.info(f"UPDATING METRICS at step {self.step_count}")
                     try:
                         self.update_metrics()
@@ -475,10 +476,18 @@ class SimulationStepper:
                 if self.step_count % diag_freq == 0:
                     self._log_diagnostics()
                 
-                # Enable novelty detection and mutations for proper simulation
-                self.apply_mutations(dt)
-                self.update_graph_representation()  
-                self.detect_novel_substances()
+                # Enable novelty detection and mutations for proper simulation (heavily throttled for performance)
+                # Apply mutations every 100 steps
+                if self.step_count % 100 == 0:
+                    self.apply_mutations(dt)
+                
+                # Update graph representation every 50 steps
+                if self.step_count % 50 == 0:
+                    self.update_graph_representation()
+                
+                # Detect novel substances every 200 steps
+                if self.step_count % 200 == 0:
+                    self.detect_novel_substances()
             
             # logger.info(f"DEBUG: try block completed successfully")
             
