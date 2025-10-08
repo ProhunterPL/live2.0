@@ -582,7 +582,7 @@ class Live2Server:
                     break
                 # OPTIMIZED: Send data less frequently to avoid overwhelming slow get_visualization_data
                 # Wait for simulation to progress (don't spam if simulation is slow)
-                await asyncio.sleep(0.5)  # 2 FPS broadcast - SLOWER to avoid WebSocket timeouts
+                await asyncio.sleep(0.1)  # 10 FPS broadcast - FASTER for better responsiveness
 
                 # Get visualization data with timing
                 t0 = time.time()
@@ -695,8 +695,8 @@ class Live2Server:
                         if websocket in self.active_connections[simulation_id]:
                             self.active_connections[simulation_id].remove(websocket)
                 
-                # Wait before next broadcast (about 2 FPS for better performance)
-                await asyncio.sleep(0.5)  # 2 FPS broadcasting - CONSISTENT with above
+                # Wait before next broadcast (about 10 FPS for better performance)
+                await asyncio.sleep(0.1)  # 10 FPS broadcasting - CONSISTENT with above
                 
             except Exception as e:
                 logger.error(f"BROADCAST ERROR: {e}")
@@ -735,7 +735,7 @@ class Live2Server:
                     traceback.print_exc()
                     break
             
-            await asyncio.sleep(0.05)  # 20 FPS simulation - FASTER for better performance
+            await asyncio.sleep(0.01)  # 100 FPS simulation - MUCH FASTER for better performance
         
         logger.info(f"Simulation loop ended for {simulation_id}")
     

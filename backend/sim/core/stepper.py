@@ -30,6 +30,7 @@ from .fields_ca import PresetPrebioticSimulator
 from .diagnostics import DiagnosticsLogger
 from ..io.snapshot import SnapshotManager, SnapshotSerializer
 from .integrators import SymplecticIntegrators, AdaptiveIntegrator
+from .thermodynamics import ThermodynamicValidator
 
 @ti.data_oriented
 class SimulationStepper:
@@ -83,6 +84,11 @@ class SimulationStepper:
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         snapshots_path = os.path.join(project_root, "snapshots")
         self.snapshot_manager = SnapshotManager(snapshot_dir=snapshots_path)
+        
+        # Thermodynamic validator
+        self.validator = ThermodynamicValidator(config)
+        self.validation_interval = getattr(config, 'validate_every_n_steps', 200)  # Less frequent
+        self.validation_log = []
         
         # Symplectic integrators for better energy conservation
         self.integrator = AdaptiveIntegrator(config.max_particles, method="verlet")
@@ -219,6 +225,11 @@ class SimulationStepper:
         #     print(f"STEP {self.step_count + 1}: computed dt={dt:.6f}")
         #     sys.stdout.flush()
 
+        # Store previous state for thermodynamic validation
+        state_before = self._create_state_snapshot()
+        energy_injected = 0.0
+        energy_dissipated = 0.0
+
         # Store previous state for error estimation
         # print(f"DEBUG: About to get prev_energy")
         # sys.stdout.flush()
@@ -251,11 +262,28 @@ class SimulationStepper:
         base_dt = float(self.config.dt)
         self._current_dt = max(base_dt * 0.1, min(base_dt * 2.0, self._current_dt))
         
+        # Thermodynamic validation (every N steps)
+        if self.step_count % self.validation_interval == 0:
+            state_after = self._create_state_snapshot()
+            validation_results = self.validator.validate_all(
+                state_before, state_after, energy_injected, energy_dissipated, self.step_count
+            )
+            self.validator.log_validation_results(validation_results)
+            
+            # Log validation summary every 10 validations
+            if len(self.validation_log) % 10 == 0:
+                summary = self.validator.get_validation_summary()
+                logger.info(f"Thermodynamic validation summary: {summary}")
+        
         # Periodic memory cleanup
         current_time = time.time()
         if current_time - self.last_cleanup_time > self.cleanup_interval:
             self.catalog.cleanup_old_data(max_age_hours=0.5)  # Keep only last 30 minutes of data
             self.last_cleanup_time = current_time
+            
+            # Force garbage collection every cleanup
+            import gc
+            gc.collect()
     
     def _compute_adaptive_timestep(self):
         """Compute adaptive timestep based on multiple factors"""
@@ -414,8 +442,8 @@ class SimulationStepper:
                     )
                 
                 # Update binding system (heavily throttled for performance)
-                # Update bonds every 20 steps for much better performance
-                if self.step_count % 20 == 0:
+                # Update bonds every 100 steps for much better performance
+                if self.step_count % 100 == 0:
                     self.binding.update_bonds(
                         self.particles.positions,
                         self.particles.attributes,
@@ -424,8 +452,8 @@ class SimulationStepper:
                         dt
                     )
                 
-                # Update clusters every 50 steps
-                if self.step_count % 50 == 0:
+                # Update clusters every 200 steps
+                if self.step_count % 200 == 0:
                     self.binding.update_clusters(
                         self.particles.positions,
                         self.particles.active,
@@ -443,9 +471,9 @@ class SimulationStepper:
                 
                 # Add energy from sources to particles (heavily optimized)
                 # Add energy from field to particles (always for first few steps, then heavily throttled)
-                energy_update_interval = getattr(self.config, 'energy_update_interval', 20)
+                energy_update_interval = getattr(self.config, 'energy_update_interval', 50)
                 if energy_update_interval is None or energy_update_interval < 1:
-                    energy_update_interval = 20
+                    energy_update_interval = 50
                 # Always update energy for first 5 steps to avoid getting stuck
                 if self.step_count < 5 or (self.step_count % energy_update_interval) == 0:
                     # logger.info(f"DEBUG: Energy update condition met at step {self.step_count} (step < 10: {self.step_count < 10}, step % {energy_update_interval} == 0: {(self.step_count % energy_update_interval) == 0})")
@@ -457,10 +485,10 @@ class SimulationStepper:
                 # Re-enable operations one by one for performance testing
                 
                 # Update metrics (heavily throttled for performance)
-                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 100)  # Changed from 50 to 100 for better performance
+                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 200)  # Changed from 100 to 200 for better performance
                 if metrics_update_interval is None or metrics_update_interval < 1:
-                    metrics_update_interval = 100
-                # Always update metrics for first 3 steps, then every 100 steps
+                    metrics_update_interval = 200
+                # Always update metrics for first 3 steps, then every 200 steps
                 if self.step_count < 3 or (self.step_count % metrics_update_interval) == 0:
                     logger.info(f"UPDATING METRICS at step {self.step_count}")
                     try:
@@ -477,16 +505,16 @@ class SimulationStepper:
                     self._log_diagnostics()
                 
                 # Enable novelty detection and mutations for proper simulation (heavily throttled for performance)
-                # Apply mutations every 100 steps
-                if self.step_count % 100 == 0:
+                # Apply mutations every 200 steps
+                if self.step_count % 200 == 0:
                     self.apply_mutations(dt)
                 
-                # Update graph representation every 50 steps
-                if self.step_count % 50 == 0:
+                # Update graph representation every 100 steps
+                if self.step_count % 100 == 0:
                     self.update_graph_representation()
                 
-                # Detect novel substances every 200 steps
-                if self.step_count % 200 == 0:
+                # Detect novel substances every 500 steps
+                if self.step_count % 500 == 0:
                     self.detect_novel_substances()
             
             # logger.info(f"DEBUG: try block completed successfully")
@@ -506,11 +534,11 @@ class SimulationStepper:
         
         # End performance timing
         step_time = self.performance_monitor.end_step_timing()
-        if self.step_count % 100 == 0:  # Log every 100 steps for better performance
+        if self.step_count % 500 == 0:  # Log every 500 steps for better performance
             logger.info(f"Step {self.step_count} completed in {step_time*1000:.1f}ms")
 
-        # Update metrics after updating current_time (every 50 steps for performance)
-        if self.step_count % 50 == 0:
+        # Update metrics after updating current_time (every 200 steps for performance)
+        if self.step_count % 200 == 0:
         # logger.info(f"DEBUG: Updating metrics at step {self.step_count} with current_time={self.current_time}")
             try:
                 self.update_metrics()
@@ -527,12 +555,25 @@ class SimulationStepper:
         # Update energy conservation monitoring
         self._update_energy_conservation()
         
-        # Log completion for first 5 steps or every 100 steps
-        if self.step_count <= 5 or self.step_count % 100 == 0:
+        # Log completion for first 5 steps or every 500 steps
+        if self.step_count <= 5 or self.step_count % 500 == 0:
             energy_drift = self._get_energy_drift()
             print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}, energy_drift={energy_drift:.4f}%")
         
         # logger.info(f"DEBUG: _perform_step completed successfully, step_count={self.step_count}, current_time={self.current_time}")
+    
+    def _create_state_snapshot(self):
+        """Create a snapshot of current simulation state for validation"""
+        class StateSnapshot:
+            def __init__(self, stepper):
+                self.positions = stepper.particles.positions
+                self.velocities = stepper.particles.velocities
+                self.attributes = stepper.particles.attributes
+                self.active = stepper.particles.active
+                self.energy_field = stepper.energy_manager.energy_system.energy_field
+                self.bond_energy = 0.0  # Placeholder - would need to compute from bonds
+        
+        return StateSnapshot(self)
     
     def _get_total_energy(self):
         """Calculate total energy of the system"""
@@ -770,8 +811,8 @@ class SimulationStepper:
                         )
                         total_applied += 1
         
-        # Log mutations only every 50 steps
-        if self.step_count % 50 == 0:
+        # Log mutations only every 200 steps
+        if self.step_count % 200 == 0:
             print(
                 f"STEP {self.step_count + 1}: Mutations applied={total_applied}, "
                 f"regions_considered={len(selected_regions)}/{len(high_energy_regions)}, "
@@ -1143,8 +1184,8 @@ class SimulationStepper:
             # Provide particle/bond/cluster data for open chemistry - OPTIMIZED with caching
             # Time particles extraction
             t_particles_start = time.time()
-            # OPTIMIZATION: Only get particles every 3 steps to reduce load (similar to bonds/clusters)
-            if self.step_count % 3 == 0:
+            # OPTIMIZATION: Only get particles every 5 steps to reduce load (similar to bonds/clusters)
+            if self.step_count % 5 == 0:
                 positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
                 # Cache the data for intermediate steps
                 self._cached_particles_data = {
@@ -1167,8 +1208,8 @@ class SimulationStepper:
             
             # Time bonds/clusters extraction
             t_bonds_start = time.time()
-            # OPTIMIZATION: Only get bonds/clusters every 10 steps to reduce load (was 5)
-            if self.step_count % 10 == 0:
+            # OPTIMIZATION: Only get bonds/clusters every 20 steps to reduce load (was 10)
+            if self.step_count % 20 == 0:
                 # Debug print removed for performance
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
@@ -1222,6 +1263,14 @@ class SimulationStepper:
             logger.warning(f"Slow visualization: {viz_time*1000:.1f}ms")
         
         return data
+    
+    def get_thermodynamic_validation_summary(self) -> Dict[str, Any]:
+        """Get summary of thermodynamic validation results"""
+        return self.validator.get_validation_summary()
+    
+    def get_validation_log(self) -> List[Dict[str, Any]]:
+        """Get full validation log"""
+        return self.validator.validation_log
     
     @ti.kernel
     def _copy_energy_field_to_taichi(self):

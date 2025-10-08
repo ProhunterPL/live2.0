@@ -45,6 +45,11 @@ class SimulationConfig(BaseModel):
     vis_frequency: int = Field(default=5, gt=0)  # Zmniejszone z 3 dla stabilności
     log_frequency: int = Field(default=100, gt=0)
     
+    # Thermodynamic validation
+    validate_every_n_steps: int = Field(default=1000, gt=0)
+    energy_tolerance: float = Field(default=1e-3, gt=0)  # 0.1% energy tolerance
+    momentum_tolerance: float = Field(default=1e-4, gt=0)  # 0.01% momentum tolerance
+    
     # Mutations - INCREASED for more diversity and novelty
     p_mut_base: float = Field(default=1e-3, gt=0)  # Increased mutations (2x more)
     p_mut_gain: float = Field(default=30.0, gt=0)  # Increased from 20.0

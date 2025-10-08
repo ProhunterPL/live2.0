@@ -233,7 +233,7 @@ const Controls: React.FC<ControlsProps> = ({
               <div key={substance.id} className="substance-item">
                 <div className="substance-id">{substance.id.slice(-8)}</div>
                 <div className="substance-props">
-                  Size: {substance.size} | Complexity: {substance.complexity?.toFixed(1) || 'N/A'}
+                  Size: {substance.size} | Complexity: {(substance.complexity || 0).toFixed(1)}
                 </div>
               </div>
             ))}
