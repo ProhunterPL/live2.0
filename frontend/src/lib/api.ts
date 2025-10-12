@@ -255,4 +255,19 @@ export class SimulationAPI {
     if (!response.ok) throw new Error(`Failed to get performance metrics: ${response.statusText}`)
     return response.json()
   }
+
+  async getSubstanceDetails(simulationId: string, substanceId: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/simulation/${simulationId}/substance/${substanceId}/details`)
+    if (!response.ok) throw new Error(`Failed to get substance details: ${response.statusText}`)
+    return response.json()
+  }
+
+  async matchSubstanceToPubchem(simulationId: string, substanceId: string): Promise<any> {
+    const response = await fetch(
+      `${this.baseUrl}/simulation/${simulationId}/substance/${substanceId}/match`,
+      { method: 'POST' }
+    )
+    if (!response.ok) throw new Error(`Failed to match substance: ${response.statusText}`)
+    return response.json()
+  }
 }

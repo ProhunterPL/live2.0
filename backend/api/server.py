@@ -11,6 +11,8 @@ from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 from pydantic import BaseModel
 import uvicorn
 import numpy as np
@@ -19,10 +21,17 @@ import taichi as ti
 
 # Setup logging to file with rotation (max 5MB)
 from logging.handlers import RotatingFileHandler
+import os
+
+# Create logs directory if it doesn't exist
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+logs_dir = os.path.join(project_root, 'logs')
+os.makedirs(logs_dir, exist_ok=True)
 
 # Create rotating file handler with max 5MB per file, keep 3 backup files
+log_file_path = os.path.join(logs_dir, 'logs.txt')
 file_handler = RotatingFileHandler(
-    'logs.txt', 
+    log_file_path, 
     maxBytes=5*1024*1024,  # 5MB
     backupCount=3
 )
@@ -83,12 +92,51 @@ class NovelSubstance(BaseModel):
     complexity: float
     properties: Dict[str, Any]
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add security and cache headers"""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Add security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        # X-XSS-Protection is deprecated and removed (modern browsers have better protection)
+        
+        # Ensure Content-Type has charset=utf-8 for text/JSON responses
+        content_type = response.headers.get("content-type", "")
+        if content_type and ("application/json" in content_type or "text/" in content_type) and "charset=" not in content_type:
+            response.headers["content-type"] = f"{content_type}; charset=utf-8"
+        
+        # Add Cache-Control headers based on endpoint
+        if request.url.path.startswith("/simulation/") and request.url.path.endswith("/metrics"):
+            # Metrics endpoint - no cache (real-time data)
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        elif request.url.path.startswith("/simulation/") and "novel-substances" in request.url.path:
+            # Novel substances - short cache (5 minutes)
+            response.headers["Cache-Control"] = "public, max-age=300"
+        elif request.url.path.startswith("/simulation/") and request.url.path.endswith("/status"):
+            # Status endpoint - no cache (real-time data)
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        elif request.url.path.startswith("/simulation/create"):
+            # Create endpoint - no cache
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        else:
+            # Default - short cache for other endpoints
+            response.headers["Cache-Control"] = "public, max-age=60"
+        
+        return response
+
 class Live2Server:
     """Main server class for Live 2.0 simulation"""
     
     def __init__(self):
         self.app = FastAPI(title="Live 2.0 Simulation API", version="1.0.0")
-        self.setup_cors()
+        self.setup_middleware()
         self.setup_routes()
         
         # Simulation management
@@ -107,8 +155,12 @@ class Live2Server:
         # Default configuration
         self.default_config = SimulationConfig()
     
-    def setup_cors(self):
-        """Setup CORS middleware"""
+    def setup_middleware(self):
+        """Setup CORS and Security headers middleware"""
+        # Add Security headers middleware first
+        self.app.add_middleware(SecurityHeadersMiddleware)
+        
+        # Add CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],  # In production, specify actual origins
@@ -350,17 +402,6 @@ class Live2Server:
             
             return {"success": True, "message": "Simulation reset"}
         
-        @self.app.get("/simulation/{simulation_id}/novel-substances")
-        async def get_novel_substances(simulation_id: str, count: int = 10):
-            """Get recent novel substances"""
-            if simulation_id not in self.simulations:
-                raise HTTPException(status_code=404, detail="Simulation not found")
-            
-            simulation = self.simulations[simulation_id]
-            substances = simulation.get_novel_substances(count)
-            
-            return {"substances": substances}
-        
         @self.app.post("/simulation/{simulation_id}/snapshot/save")
         async def save_snapshot(simulation_id: str, request: Request):
             """Save simulation snapshot with optional image generation"""
@@ -501,6 +542,256 @@ class Live2Server:
             except Exception as e:
                 logger.error(f"Failed to get novel substances for simulation {simulation_id}: {e}", exc_info=True)
                 return {"substances": []}
+        
+        @self.app.get("/simulation/{simulation_id}/substance/{substance_id}/details")
+        async def get_substance_details(simulation_id: str, substance_id: str):
+            """Get detailed topology data for a specific substance/cluster"""
+            logger.info(f"Getting details for substance {substance_id} in simulation {simulation_id}")
+            
+            if simulation_id not in self.simulations:
+                logger.error(f"Simulation {simulation_id} not found")
+                raise HTTPException(status_code=404, detail="Simulation not found")
+            
+            simulation = self.simulations[simulation_id]
+            
+            try:
+                if hasattr(simulation, 'catalog'):
+                    # Get substance from catalog
+                    substance = None
+                    if hasattr(simulation.catalog, 'substances'):
+                        for sub in simulation.catalog.substances.values():
+                            if str(sub.id) == substance_id:
+                                substance = sub
+                                break
+                    
+                    if substance is None:
+                        logger.error(f"Substance {substance_id} not found in catalog")
+                        raise HTTPException(status_code=404, detail="Substance not found")
+                    
+                    # Extract graph topology
+                    graph = substance.graph
+                    
+                    # Prepare nodes data
+                    nodes = []
+                    for particle_idx in graph.particles:
+                        attrs = graph.particle_attributes.get(particle_idx, np.array([1.0, 0.0, 0.0, 0.0]))
+                        if isinstance(attrs, np.ndarray):
+                            attrs = attrs.tolist()
+                        
+                        nodes.append({
+                            "id": int(particle_idx),
+                            "label": "A",  # Generic label, can be enhanced later
+                            "mass": float(attrs[0]) if len(attrs) > 0 else 1.0,
+                            "charge": [float(attrs[1]), float(attrs[2]), float(attrs[3])] if len(attrs) >= 4 else [0.0, 0.0, 0.0],
+                            "energy": 0.0  # Can be enhanced with actual energy data
+                        })
+                    
+                    # Prepare bonds data
+                    bonds = []
+                    for i, j in graph.bonds:
+                        bonds.append({
+                            "a": int(i),
+                            "b": int(j),
+                            "order": 1  # Default bond order, can be enhanced
+                        })
+                    
+                    # Prepare metadata
+                    properties = substance.properties if hasattr(substance, 'properties') else {}
+                    metadata = {
+                        "size": int(graph.get_node_count()),
+                        "bonds": int(graph.get_edge_count()),
+                        "density": float(graph.get_density()),
+                        "avg_mass": float(properties.get('avg_mass', 1.0)) if 'avg_mass' in properties else 1.0,
+                        "complexity": float(graph.get_complexity()),
+                        "timestamp": float(substance.last_seen) if hasattr(substance, 'last_seen') else 0.0
+                    }
+                    
+                    return {
+                        "id": substance_id,
+                        "nodes": nodes,
+                        "bonds": bonds,
+                        "metadata": metadata
+                    }
+                else:
+                    logger.error(f"Simulation does not have catalog")
+                    raise HTTPException(status_code=500, detail="Simulation catalog not available")
+                    
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to get substance details: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"Failed to get substance details: {str(e)}")
+        
+        @self.app.post("/simulation/{simulation_id}/substance/{substance_id}/match")
+        async def match_substance_to_pubchem(simulation_id: str, substance_id: str):
+            """
+            Match a substance to PubChem and generate comparison files.
+            
+            This endpoint:
+            1. Gets substance topology
+            2. Converts to SMILES
+            3. Queries PubChem for similar molecules
+            4. Generates comparison panel and chemical format files
+            5. Returns match results
+            """
+            logger.info(f"Matching substance {substance_id} from simulation {simulation_id} to PubChem")
+            
+            if simulation_id not in self.simulations:
+                raise HTTPException(status_code=404, detail="Simulation not found")
+            
+            simulation = self.simulations[simulation_id]
+            
+            try:
+                # Get substance details (reuse existing logic)
+                if not hasattr(simulation, 'catalog'):
+                    raise HTTPException(status_code=500, detail="Simulation catalog not available")
+                
+                # Find substance
+                substance = None
+                if hasattr(simulation.catalog, 'substances'):
+                    for sub in simulation.catalog.substances.values():
+                        if str(sub.id) == substance_id:
+                            substance = sub
+                            break
+                
+                if substance is None:
+                    raise HTTPException(status_code=404, detail="Substance not found")
+                
+                # Import matcher functions
+                import sys
+                from pathlib import Path
+                matcher_path = Path(__file__).parent.parent.parent / "matcher"
+                if str(matcher_path) not in sys.path:
+                    sys.path.insert(0, str(matcher_path))
+                
+                from chem import json_to_mol, mol_to_smiles, pubchem_similar_top, export_all_formats, render_mol_png  # type: ignore
+                from compose import compose_panel_with_metadata  # type: ignore
+                
+                # Prepare cluster data
+                graph = substance.graph
+                nodes = []
+                for particle_idx in graph.particles:
+                    attrs = graph.particle_attributes.get(particle_idx, np.array([1.0, 0.0, 0.0, 0.0]))
+                    if isinstance(attrs, np.ndarray):
+                        attrs = attrs.tolist()
+                    
+                    nodes.append({
+                        "id": int(particle_idx),
+                        "label": "A",
+                        "mass": float(attrs[0]) if len(attrs) > 0 else 1.0,
+                        "charge": [float(attrs[1]), float(attrs[2]), float(attrs[3])] if len(attrs) >= 4 else [0.0, 0.0, 0.0],
+                        "energy": 0.0
+                    })
+                
+                bonds = [{"a": int(i), "b": int(j), "order": 1} for i, j in graph.bonds]
+                
+                cluster_data = {
+                    "id": substance_id,
+                    "nodes": nodes,
+                    "bonds": bonds,
+                    "metadata": {
+                        "size": int(graph.get_node_count()),
+                        "bonds": int(graph.get_edge_count()),
+                        "density": float(graph.get_density()),
+                        "complexity": float(graph.get_complexity())
+                    }
+                }
+                
+                # Convert to RDKit Mol
+                mol = json_to_mol(cluster_data)
+                smiles = mol_to_smiles(mol)
+                logger.info(f"Generated SMILES: {smiles}")
+                
+                # Create matches directory
+                matches_dir = Path(__file__).parent.parent.parent / "matches"
+                matches_dir.mkdir(exist_ok=True)
+                
+                # Generate timestamp
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                base_filename = f"cluster_{timestamp}"
+                
+                # Export to chemical formats
+                base_path = matches_dir / base_filename
+                export_all_formats(mol, str(base_path), stamp=substance_id)
+                
+                # Render LIVE cluster
+                live_png = matches_dir / f"{base_filename}_live.png"
+                render_mol_png(mol, str(live_png), size=512)
+                
+                # Query PubChem
+                logger.info("Querying PubChem...")
+                pubchem_match = pubchem_similar_top(smiles, threshold=80)
+                
+                pubchem_png = None
+                if pubchem_match and pubchem_match.get("smiles"):
+                    logger.info(f"Found PubChem match: CID {pubchem_match['cid']}")
+                    from rdkit import Chem
+                    from chem import render_pubchem_png  # type: ignore
+                    
+                    pubchem_mol = Chem.MolFromSmiles(pubchem_match["smiles"])
+                    if pubchem_mol:
+                        # Export PubChem to formats
+                        pubchem_base = matches_dir / f"{base_filename}_pubchem"
+                        export_all_formats(pubchem_mol, str(pubchem_base), stamp=f"PubChem_CID_{pubchem_match['cid']}")
+                        
+                        # Render PubChem molecule
+                        pubchem_png = matches_dir / f"{base_filename}_pubchem.png"
+                        render_pubchem_png(pubchem_match["smiles"], str(pubchem_png), size=512)
+                else:
+                    logger.info("No PubChem match found")
+                    pubchem_png = live_png  # Fallback
+                
+                # Compose comparison panel
+                panel_path = matches_dir / f"{base_filename}_match.png"
+                if pubchem_match:
+                    compose_panel_with_metadata(
+                        str(live_png),
+                        str(pubchem_png),
+                        cluster_data["metadata"],
+                        pubchem_match,
+                        str(panel_path)
+                    )
+                else:
+                    from compose import compose_panel  # type: ignore
+                    compose_panel(
+                        str(live_png),
+                        str(live_png),
+                        "LIVE 2.0 Cluster",
+                        "No PubChem Match",
+                        str(panel_path),
+                        f"Size: {cluster_data['metadata']['size']}",
+                        "No similar molecule found"
+                    )
+                
+                # Prepare result
+                result = {
+                    "success": True,
+                    "cluster_id": substance_id,
+                    "smiles": smiles,
+                    "timestamp": timestamp,
+                    "files": {
+                        "panel": f"matches/{base_filename}_match.png",
+                        "live_png": f"matches/{base_filename}_live.png",
+                        "mol": f"matches/{base_filename}.mol",
+                        "xyz": f"matches/{base_filename}.xyz"
+                    },
+                    "pubchem_match": pubchem_match
+                }
+                
+                if pubchem_match:
+                    result["files"]["pubchem_png"] = f"matches/{base_filename}_pubchem.png"
+                    result["files"]["pubchem_mol"] = f"matches/{base_filename}_pubchem.mol"
+                    result["files"]["pubchem_xyz"] = f"matches/{base_filename}_pubchem.xyz"
+                
+                logger.info(f"Match completed successfully: {base_filename}")
+                return result
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to match substance: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"Failed to match substance: {str(e)}")
         
         @self.app.websocket("/simulation/{simulation_id}/stream")
         async def websocket_endpoint(websocket: WebSocket, simulation_id: str):
@@ -695,8 +986,9 @@ class Live2Server:
                         if websocket in self.active_connections[simulation_id]:
                             self.active_connections[simulation_id].remove(websocket)
                 
-                # Wait before next broadcast (about 10 FPS for better performance)
-                await asyncio.sleep(0.1)  # 10 FPS broadcasting - CONSISTENT with above
+                # Wait before next broadcast
+                # OPTIMIZATION: 15 FPS broadcasting (was 10 FPS / 0.1s) for smoother visualization
+                await asyncio.sleep(0.067)  # ~15 FPS broadcasting
                 
             except Exception as e:
                 logger.error(f"BROADCAST ERROR: {e}")

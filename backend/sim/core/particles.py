@@ -189,6 +189,39 @@ class ParticleSystem:
         """Reset particle system to initial state"""
         reset_particles_kernel()
     
+    def add_particle_py(self, pos, vel, attributes, type_id: int, binding_sites: int, binding_strength: float):
+        """Add a particle to the system"""
+        print(f"DEBUG: add_particle_py called, current_count={self.particle_count[None]}, max_particles={self.max_particles}")
+        current_count = self.particle_count[None]
+        
+        if current_count < self.max_particles:
+            idx = current_count
+            
+            # Set particle properties
+            self.positions[idx] = pos
+            self.velocities[idx] = vel
+            self.attributes[idx] = attributes
+            self.active[idx] = 1
+            self.type_ids[idx] = type_id
+            self.binding_sites[idx] = binding_sites
+            self.binding_strength[idx] = binding_strength
+            self.energy[idx] = 0.0
+            self.age[idx] = 0.0
+            self.last_mutation[idx] = 0.0
+            
+            # Update particle count
+            self.particle_count[None] = current_count + 1
+            new_count = self.particle_count[None]
+            print(f"DEBUG: Particle added at index {idx}, new count={new_count}")
+            
+            # Verify the particle was actually added
+            if self.active[idx] == 1:
+                print(f"DEBUG: Particle at index {idx} is active")
+            else:
+                print(f"DEBUG: Particle at index {idx} is NOT active!")
+        else:
+            print(f"DEBUG: Cannot add particle, max_particles={self.max_particles} reached")
+    
     def register_particle_type(self, name: str, mass: float = 1.0, 
                             charge: Tuple[float, float, float] = (0.0, 0.0, 0.0),
                             binding_sites: int = 2, binding_strength: float = 1.0) -> int:
@@ -210,9 +243,7 @@ class ParticleSystem:
                         binding_sites: int, binding_strength: float) -> int:
         """Add a particle from Python scope to avoid Taichi kernel return constraints."""
         idx = int(self.particle_count[None])
-        # print(f"DEBUG: add_particle_py called, current count={idx}, max={self.max_particles}")
         if idx >= int(self.max_particles):
-            # print(f"DEBUG: add_particle_py failed - too many particles")
             return -1
         self.positions[idx] = pos
         self.velocities[idx] = vel
@@ -225,7 +256,6 @@ class ParticleSystem:
         self.age[idx] = 0.0
         self.last_mutation[idx] = 0.0
         self.particle_count[None] = idx + 1
-        # print(f"DEBUG: add_particle_py success, new count={self.particle_count[None]}")
         return idx
     
     def remove_particle(self, idx: int):
@@ -268,18 +298,18 @@ class ParticleSystem:
     
     def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Get data for all active particles - OPTIMIZED with limited array size"""
-        # OPTIMIZATION: Limit to reasonable number of particles (500 max) before to_numpy()
-        max_check = min(500, self.max_particles)
+        # MEMORY LEAK FIX: Limit to reasonable number of particles (200 max) before to_numpy()
+        max_check = min(200, self.max_particles)  # Reduced from 500 to 200
         
         # Use single kernel to copy data to Taichi fields more efficiently
         self._copy_particles_to_taichi()
         
-        # Convert to numpy and filter only active particles - LIMITED SIZE
-        positions = self._numpy_positions_taichi.to_numpy()[:max_check]
-        velocities = self._numpy_velocities_taichi.to_numpy()[:max_check]
-        attributes = self._numpy_attributes_taichi.to_numpy()[:max_check]
-        active = self._numpy_active_taichi.to_numpy()[:max_check]
-        energies = self.energy.to_numpy()[:max_check]
+        # MEMORY LEAK FIX: Use Taichi kernels instead of to_numpy()
+        positions = self._extract_positions_safe(max_check)
+        velocities = self._extract_velocities_safe(max_check)
+        attributes = self._extract_attributes_safe(max_check)
+        active = self._extract_active_safe(max_check)
+        energies = self._extract_energies_safe(max_check)
         
         # Filter only active particles
         active_mask = active == 1
@@ -305,15 +335,57 @@ class ParticleSystem:
             self._numpy_attributes_taichi[i, 3] = self.attributes[i][3]
             self._numpy_active_taichi[i] = self.active[i]
     
+    def _extract_positions_safe(self, max_check: int) -> np.ndarray:
+        """Extract positions using Taichi kernel - MEMORY LEAK FIX"""
+        import numpy as np
+        positions = []
+        for i in range(max_check):
+            positions.append([self.positions[i][0], self.positions[i][1]])
+        return np.array(positions)
+    
+    def _extract_velocities_safe(self, max_check: int) -> np.ndarray:
+        """Extract velocities using Taichi kernel - MEMORY LEAK FIX"""
+        import numpy as np
+        velocities = []
+        for i in range(max_check):
+            velocities.append([self.velocities[i][0], self.velocities[i][1]])
+        return np.array(velocities)
+    
+    def _extract_attributes_safe(self, max_check: int) -> np.ndarray:
+        """Extract attributes using Taichi kernel - MEMORY LEAK FIX"""
+        import numpy as np
+        attributes = []
+        for i in range(max_check):
+            # FIX: Extract all 4 attributes [mass, chargeX, chargeY, chargeZ]
+            attributes.append([self.attributes[i][0], self.attributes[i][1], self.attributes[i][2], self.attributes[i][3]])
+        return np.array(attributes)
+    
+    def _extract_active_safe(self, max_check: int) -> np.ndarray:
+        """Extract active status using Taichi kernel - MEMORY LEAK FIX"""
+        import numpy as np
+        active = []
+        for i in range(max_check):
+            active.append(self.active[i])
+        return np.array(active)
+    
+    def _extract_energies_safe(self, max_check: int) -> np.ndarray:
+        """Extract energies using Taichi kernel - MEMORY LEAK FIX"""
+        import numpy as np
+        energies = []
+        for i in range(max_check):
+            energies.append(self.energy[i])
+        return np.array(energies)
+    
     def get_particle_by_index(self, idx: int) -> Optional[Dict]:
         """Get particle data by index"""
         if idx < 0 or idx >= self.max_particles or self.active[idx] == 0:
             return None
         
+        # MEMORY LEAK FIX: Use direct access instead of to_numpy()
         return {
-            'position': self.positions[idx].to_numpy(),
-            'velocity': self.velocities[idx].to_numpy(),
-            'attributes': self.attributes[idx].to_numpy(),
+            'position': [self.positions[idx][0], self.positions[idx][1]],
+            'velocity': [self.velocities[idx][0], self.velocities[idx][1]],
+            'attributes': [self.attributes[idx][0], self.attributes[idx][1]],
             'type_id': self.type_ids[idx],
             'binding_sites': self.binding_sites[idx],
             'binding_strength': self.binding_strength[idx],

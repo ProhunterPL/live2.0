@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { TrendingUp, TestTube, Beaker, Microscope } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { TrendingUp, TestTube, Beaker, Microscope, Download } from 'lucide-react'
 import { SimulationAPI } from '../lib/api'
 
 interface NovelSubstance {
@@ -18,10 +18,16 @@ interface NovelSubstance {
 interface NovelSubstanceProps {
   substance: NovelSubstance
   onSelect?: (id: string) => void
+  onSave?: (id: string) => void
 }
 
-const NovelSubstanceCard: React.FC<NovelSubstanceProps> = ({ substance, onSelect }) => {
+const NovelSubstanceCard: React.FC<NovelSubstanceProps> = ({ substance, onSelect, onSave }) => {
   const timeStr = new Date(substance.timestamp * 1000).toLocaleTimeString()
+  
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onSave?.(substance.id)
+  }
   
   return (
     <div 
@@ -33,7 +39,16 @@ const NovelSubstanceCard: React.FC<NovelSubstanceProps> = ({ substance, onSelect
           <Beaker className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-medium text-blue-300">{substance.id.slice(-8)}</span>
         </div>
-        <span className="text-xs text-gray-400">{timeStr}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">{timeStr}</span>
+          <button
+            onClick={handleSaveClick}
+            className="p-1 hover:bg-gray-700 rounded transition-colors"
+            title="Save cluster for PubChem matching"
+          >
+            <Download className="w-3 h-3 text-green-400" />
+          </button>
+        </div>
       </div>
       
       <div className="space-y-1 text-xs text-gray-300">
@@ -74,17 +89,43 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
   const [totalDiscovered, setTotalDiscovered] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  const api = new SimulationAPI()
+  const api = useRef(new SimulationAPI()).current
 
   useEffect(() => {
-    if (!simulationId) return
+    if (!simulationId) {
+      console.log('NoveltyPanel: No simulationId, skipping update')
+      return
+    }
 
     const updateNovelty = async () => {
+      console.log('NoveltyPanel: Updating novelty data for simulation', simulationId)
       setLoading(true)
       try {
         // Get novel substances
         const novelResponse = await api.getNovelSubstances(simulationId, 20)
-        setNovelSubstances(novelResponse.substances || [])
+        console.log('NoveltyPanel: Received', novelResponse.substances?.length || 0, 'substances')
+        // BUGFIX: Deduplicate substances by ID to prevent React key warnings
+        const substances = novelResponse.substances || []
+        const uniqueSubstances = substances.filter((substance: NovelSubstance, index: number, self: NovelSubstance[]) => 
+          index === self.findIndex((s: NovelSubstance) => s.id === substance.id)
+        )
+        
+        // FLICKER FIX: Only update if there are actual changes
+        setNovelSubstances(prev => {
+          // If lengths differ, update
+          if (prev.length !== uniqueSubstances.length) {
+            return uniqueSubstances
+          }
+          
+          // Check if any IDs are different
+          const prevIds = new Set(prev.map((s: NovelSubstance) => s.id))
+          const newIds = new Set(uniqueSubstances.map((s: NovelSubstance) => s.id))
+          const hasChanges = prev.some((s: NovelSubstance) => !newIds.has(s.id)) || 
+                            uniqueSubstances.some((s: NovelSubstance) => !prevIds.has(s.id))
+          
+          // Only update if there are actual changes
+          return hasChanges ? uniqueSubstances : prev
+        })
 
         // Get metrics for novelty rate
         const metricsResponse = await api.getMetrics(simulationId)
@@ -92,11 +133,9 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
         
         setNoveltyRate(metrics.novelty_rate || 0)
         
-        // Parse catalog stats if available
-        if (metrics.catalog_stats) {
-          setTotalNovel(metrics.catalog_stats.total_novel || 0)
-          setTotalDiscovered(metrics.catalog_stats.total_discovered || 0)
-        }
+        // Catalog stats are directly in metrics (not nested)
+        setTotalNovel(metrics.total_novel || 0)
+        setTotalDiscovered(metrics.total_discovered || 0)
       } catch (error: any) {
         // Stop polling if simulation doesn't exist
         if (error?.message?.includes('404') || error?.message?.includes('not found')) {
@@ -111,10 +150,50 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
 
     updateNovelty()
     
-    // Update every 10 seconds
-    const interval = setInterval(updateNovelty, 10000)
+    // Update every 15 seconds (reduced frequency to minimize flicker)
+    const interval = setInterval(updateNovelty, 15000)
     return () => clearInterval(interval)
   }, [simulationId, api])
+
+  const handleSaveCluster = async (substanceId: string) => {
+    if (!simulationId) return
+    
+    try {
+      console.log(`🔍 Matching cluster ${substanceId} to PubChem...`)
+      
+      // Call backend API to match substance
+      const result = await api.matchSubstanceToPubchem(simulationId, substanceId)
+      
+      if (result.success) {
+        console.log('✅ Match completed!')
+        console.log(`SMILES: ${result.smiles}`)
+        
+        if (result.pubchem_match) {
+          console.log(`🎯 PubChem Match: CID ${result.pubchem_match.cid}`)
+          console.log(`   Name: ${result.pubchem_match.name}`)
+          console.log(`   Formula: ${result.pubchem_match.formula}`)
+        } else {
+          console.log('ℹ️  No PubChem match found')
+        }
+        
+        console.log('\n📁 Generated files:')
+        Object.entries(result.files).forEach(([key, path]) => {
+          console.log(`   ${key}: ${path}`)
+        })
+        
+        // Show success message to user
+        const matchInfo = result.pubchem_match 
+          ? `Matched to ${result.pubchem_match.name} (CID ${result.pubchem_match.cid})`
+          : 'No PubChem match found'
+        
+        alert(`✅ Cluster matched successfully!\n\n${matchInfo}\n\nSMILES: ${result.smiles}\n\nFiles saved to matches/ folder.`)
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to match cluster:', error)
+      alert(`Failed to match cluster: ${error}`)
+    }
+  }
 
   const getNoveltyColor = (rate: number) => {
     if (rate > 0.3) return 'text-red-400'
@@ -130,11 +209,11 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
   }
 
   return (
-    <div className="novelty-panel space-y-4">
+    <div className="novelty-panel space-y-4 border-2 border-purple-500 rounded-lg p-4">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-5 h-5 text-purple-400" />
-        <h3 className="text-lg font-semibold text-white">Novelty Detection</h3>
+        <h3 className="text-lg font-semibold text-white">🔬 PubChem Matcher</h3>
       </div>
 
       {/* Novelty Stats */}
@@ -183,14 +262,18 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
                 key={substance.id}
                 substance={substance}
                 onSelect={onSubstanceSelect}
+                onSave={handleSaveCluster}
               />
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-gray-400 bg-gray-800 bg-opacity-30 rounded border border-gray-600">
             <TestTube className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No novel substances detected yet...</p>
-            <p className="text-xs mt-1">Start simulation to detect emergence</p>
+            <p className="font-semibold text-yellow-400">⏳ Waiting for clusters...</p>
+            <p className="text-xs mt-2">No novel substances detected yet.</p>
+            <p className="text-xs mt-1">Clusters will appear after 100+ simulation steps.</p>
+            <p className="text-xs mt-1 text-blue-400">💡 Clusters need time to form through particle bonds.</p>
+            <p className="text-xs mt-2 text-purple-400">Click Download 🔽 button to match with PubChem! 🧪</p>
           </div>
         )}
       </div>

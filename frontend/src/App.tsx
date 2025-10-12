@@ -4,9 +4,12 @@ import HeatmapCanvas from './components/HeatmapCanvas'
 import Controls from './components/Controls'
 import GraphPreview from './components/GraphPreview'
 import PerformancePanel from './components/PerformancePanel'
+import NoveltyPanel from './components/NoveltyPanel'
 import { SimulationAPI } from './lib/api.ts'
 import { WebSocketClient } from './lib/ws.ts'
 import type { SimulationData, SimulationStatus, Metrics } from './lib/types.ts'
+import logoImage from './assets/logo.jpg'
+import headerImage from './assets/header.jpg'
 
 const App: React.FC = () => {
   const [simulationId, setSimulationId] = useState<string | null>(null)
@@ -24,6 +27,15 @@ const App: React.FC = () => {
   
   const api = useRef(new SimulationAPI()).current
   const wsClient = useRef(new WebSocketClient()).current
+  
+  // FIX: Update runtime clock every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRuntimeNowMs(Date.now())
+    }, 1000) // Update every second
+    
+    return () => clearInterval(interval)
+  }, [])
   const wsHandlersRef = useRef<Record<string, Function>>({})
 
   useEffect(() => {
@@ -105,13 +117,16 @@ const App: React.FC = () => {
               await connectWebSocket(currentSim.simulation_id)
             }
             setRuntimeAccumulatedMs(0)
-            setRuntimeStartMs(null)
             // Sprawdź czy symulacja jest uruchomiona
             const status = await api.getSimulationStatus(currentSim.simulation_id)
             console.log('📊 Simulation status:', status)
             if (!status.is_running) {
               console.log('▶️ Starting existing simulation')
               await startSimulation(currentSim.simulation_id)
+              setRuntimeStartMs(Date.now())  // FIX: Start runtime clock
+            } else {
+              console.log('✅ Simulation already running, starting runtime clock')
+              setRuntimeStartMs(Date.now())  // FIX: Start runtime clock for already running simulation
             }
           }
         } else {
@@ -204,9 +219,9 @@ const App: React.FC = () => {
           setSimulationId(response.simulation_id)
           await connectWebSocket(response.simulation_id)
           // Auto-start simulation after creation
-          await startSimulation(response.simulation_id)
           setRuntimeAccumulatedMs(0)
-          setRuntimeStartMs(null)
+          await startSimulation(response.simulation_id)
+          // startSimulation already sets runtimeStartMs to Date.now()
         }
       } catch (err) {
         console.error('Failed to recreate simulation:', err)
@@ -274,10 +289,9 @@ const App: React.FC = () => {
         setSimulationId(response.simulation_id)
         await connectWebSocket(response.simulation_id)
         // Auto-start simulation after creation
-        await startSimulation(response.simulation_id)
-        // start wall-clock runtime
         setRuntimeAccumulatedMs(0)
-        setRuntimeStartMs(null)
+        await startSimulation(response.simulation_id)
+        // startSimulation already sets runtimeStartMs to Date.now()
       }
     } catch (error) {
       console.error('Failed to initialize simulation:', error)
@@ -485,7 +499,7 @@ const App: React.FC = () => {
     <div className="app">
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <img src="/logo.jpg" alt="Live 2.0" style={{ height: '160px', width: 'auto' }} />
+          <img src={logoImage} alt="Live 2.0" style={{ height: '160px', width: 'auto' }} />
           <div className="status">
             <div className={`status-indicator ${getStatusIndicator()}`} />
             <span>{getStatusText()}</span>
@@ -498,15 +512,17 @@ const App: React.FC = () => {
         </div>
         
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-          <img src="/header.jpg" alt="Live 2.0 Header" style={{ height: '160px', width: 'auto' }} />
+          <img src={headerImage} alt="Live 2.0 Header" style={{ height: '160px', width: 'auto' }} />
         </div>
         
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-300">Mode:</label>
+          <label htmlFor="mode-select" className="text-sm text-gray-300">Mode:</label>
           <select
+            id="mode-select"
             value={mode}
             onChange={(e) => setMode(e.target.value as any)}
             className="text-sm px-2 py-1 border border-white/20 rounded bg-white/10 text-white"
+            aria-label="Simulation mode selection"
           >
             <option value="open_chemistry">Open Chemistry</option>
             <option value="preset_prebiotic">Preset Prebiotic</option>
@@ -564,15 +580,15 @@ const App: React.FC = () => {
             onSubstanceSelect={setSelectedSubstance}
           />
           
-          {/* Novelty Panel - TEMPORARILY DISABLED for debugging */}
-          {/* {simulationId && (
+          {/* Novelty Panel with PubChem Matcher */}
+          {simulationId && (
             <div className="mt-6">
               <NoveltyPanel
                 simulationId={simulationId}
                 onSubstanceSelect={setSelectedSubstance}
               />
             </div>
-          )} */}
+          )}
         </aside>
 
         <div className="canvas-container">

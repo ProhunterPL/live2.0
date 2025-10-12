@@ -68,13 +68,11 @@ docker-compose down
 
 **Backend:**
 ```powershell
-# Przejdź do katalogu backend
-cd backend
-
-# Zainstaluj zależności
+# Zainstaluj zależności (z głównego katalogu)
 pip install -r requirements.txt
 
-# Uruchom serwer
+# Przejdź do katalogu backend i uruchom serwer
+cd backend
 python -m api.server
 ```
 
@@ -178,7 +176,7 @@ docker-compose up -d
 **Dla deweloperów:** Lokalne środowisko
 ```powershell
 # Terminal 1 - Backend
-cd backend && pip install -r requirements.txt && python -m api.server
+pip install -r requirements.txt && cd backend && python -m api.server
 
 # Terminal 2 - Frontend  
 cd frontend && npm install && npm run dev

@@ -184,14 +184,25 @@ class SubstanceCatalog:
     
     def get_recent_substances(self, count: int = 10) -> List[SubstanceRecord]:
         """Get most recently discovered substances"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"get_recent_substances called with count={count}")
+        logger.info(f"discovery_timeline length: {len(self.discovery_timeline)}")
+        logger.info(f"total substances in catalog: {len(self.substances)}")
+        
         recent_discoveries = self.discovery_timeline[-count:]
         substances = []
         
-        for _, substance_id in recent_discoveries:
+        for timestamp, substance_id in recent_discoveries:
             substance = self.get_substance_by_id(substance_id)
             if substance:
                 substances.append(substance)
+                logger.info(f"Added substance {substance_id} to result")
+            else:
+                logger.warning(f"Substance {substance_id} not found in catalog")
         
+        logger.info(f"Returning {len(substances)} substances")
         return substances
     
     def get_substances_by_size(self, min_size: int = None, max_size: int = None) -> List[SubstanceRecord]:

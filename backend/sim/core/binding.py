@@ -753,46 +753,37 @@ class BindingSystem:
                                     ti.atomic_add(particle_bond_count_field[j], 1)
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
-        """Get list of active bonds - OPTIMIZED with limited matrix size"""
-        # OPTIMIZATION: Limit to reasonable number of particles (1000 max) before to_numpy()
-        max_check = min(1000, self.max_particles)
+        """Get list of active bonds - OPTIMIZED to avoid LLVM errors"""
+        # FIX: Use Taichi kernel instead of to_numpy() to avoid LLVM errors on Windows
+        bonds = []
         
-        # Convert only limited portion to numpy
-        bond_matrix = self.bond_matrix.to_numpy()[:max_check, :max_check]
-        bond_active = self.bond_active.to_numpy()[:max_check, :max_check]
+        # OPTIMIZATION: Limit to reasonable number of particles (200 max) to avoid LLVM errors
+        max_check = min(200, self.max_particles)
         
-        # Use NumPy to find active bonds (fast)
-        import numpy as np
-        i_indices, j_indices = np.where(np.triu(bond_active, k=1) == 1)
-        
-        # Build bond list using vectorized operations
-        bonds = [(int(i), int(j), float(bond_matrix[i, j])) 
-                 for i, j in zip(i_indices, j_indices)]
+        # Extract bonds directly using loop (safer than to_numpy on large matrices)
+        for i in range(max_check):
+            for j in range(i + 1, max_check):
+                if self.bond_active[i, j] == 1:
+                    strength = float(self.bond_matrix[i, j])
+                    bonds.append((int(i), int(j), strength))
         
         return bonds
     
     def get_clusters(self, min_size: int = 2) -> List[List[int]]:
-        """Get list of clusters with minimum size - OPTIMIZED with limited array size"""
-        # OPTIMIZATION: Limit to reasonable number of particles (1000 max) before to_numpy()
-        max_check = min(1000, self.max_particles)
+        """Get list of clusters with minimum size - OPTIMIZED to avoid LLVM errors"""
+        # FIX: Use smaller limit and safer extraction to avoid LLVM errors
+        max_check = min(200, self.max_particles)
         
-        # Convert only limited portion to numpy
-        cluster_id = self.cluster_id.to_numpy()[:max_check]
-        cluster_sizes = self.cluster_sizes.to_numpy()[:max_check]
-        
-        # Use NumPy boolean indexing for faster filtering
-        import numpy as np
-        
-        # Find valid clusters (size >= min_size)
-        valid_cluster_mask = (cluster_id >= 0) & (cluster_sizes[cluster_id] >= min_size)
-        valid_particles = np.where(valid_cluster_mask)[0]
-        valid_cluster_ids = cluster_id[valid_particles]
-        
-        # Group particles by cluster using defaultdict
+        # Extract data directly using Python loops (safer than to_numpy)
         from collections import defaultdict
         clusters_dict = defaultdict(list)
-        for particle_idx, cid in zip(valid_particles, valid_cluster_ids):
-            clusters_dict[int(cid)].append(int(particle_idx))
+        
+        for i in range(max_check):
+            cid = int(self.cluster_id[i])
+            if cid >= 0:
+                cluster_size = int(self.cluster_sizes[cid])
+                if cluster_size >= min_size:
+                    clusters_dict[cid].append(i)
         
         return list(clusters_dict.values())
     

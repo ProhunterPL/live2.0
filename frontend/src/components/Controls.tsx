@@ -67,7 +67,11 @@ const Controls: React.FC<ControlsProps> = ({
     
     try {
       const response = await api.getNovelSubstances(simulationId, 5)
-      setNovelSubstances(response.substances)
+      // BUGFIX: Deduplicate substances by ID to prevent React key warnings
+      const uniqueSubstances = response.substances.filter((substance: any, index: number, self: any[]) => 
+        index === self.findIndex((s: any) => s.id === substance.id)
+      )
+      setNovelSubstances(uniqueSubstances)
     } catch (error: any) {
       // Stop polling if simulation doesn't exist
       if (error?.message?.includes('404') || error?.message?.includes('not found')) {
@@ -135,7 +139,7 @@ const Controls: React.FC<ControlsProps> = ({
         
         {/* Status */}
         <div className="control-group">
-          <label>Status</label>
+          <div className="text-sm font-semibold text-gray-300 mb-1">Status</div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${
               status?.is_running ? (status.is_paused ? 'bg-yellow-500' : 'bg-green-500') : 'bg-red-500'
@@ -149,9 +153,19 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Time (wall-clock runtime) */}
         {typeof runtimeMs === 'number' && (
           <div className="control-group">
-            <label>Simulation Time</label>
+            <div className="text-sm font-semibold text-gray-300 mb-1">Wall-Clock Runtime</div>
             <div className="text-sm font-mono">
               {formatTime((runtimeMs as number) / 1000)}
+            </div>
+          </div>
+        )}
+
+        {/* Simulation Time (from backend) */}
+        {status && (
+          <div className="control-group">
+            <div className="text-sm font-semibold text-gray-300 mb-1">Simulation Time</div>
+            <div className="text-sm font-mono">
+              {status.current_time.toFixed(2)}s
             </div>
           </div>
         )}
@@ -159,7 +173,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Step Count */}
         {status && (
           <div className="control-group">
-            <label>Step Count</label>
+            <div className="text-sm font-semibold text-gray-300 mb-1">Step Count</div>
             <div className="text-sm font-mono">
               {formatNumber(status.step_count)}
             </div>
@@ -170,11 +184,13 @@ const Controls: React.FC<ControlsProps> = ({
       {/* Preset Mode: Species Selection (if concentrations present via frontend main view) */}
       {Array.isArray(availableSpecies) && (availableSpecies as string[]).length > 0 && (
         <div className="control-group">
-          <label>Select Species (Preset Mode)</label>
+          <label htmlFor="species-select">Select Species (Preset Mode)</label>
           <select
+            id="species-select"
             className="w-full text-sm"
             value={selectedSubstance || ''}
             onChange={(e) => onSubstanceChange?.(e.target.value || null)}
+            aria-label="Species selection for preset mode"
           >
             <option value="">All</option>
             {(availableSpecies as string[]).map((s: string) => (
@@ -229,8 +245,8 @@ const Controls: React.FC<ControlsProps> = ({
         <div className="control-group">
           <h3 className="text-md font-semibold text-white mb-2">Recent Discoveries</h3>
           <div className="substance-list">
-            {novelSubstances.slice(0, 3).map((substance) => (
-              <div key={substance.id} className="substance-item">
+            {novelSubstances.slice(0, 3).map((substance, index) => (
+              <div key={`${substance.id}_${index}`} className="substance-item">
                 <div className="substance-id">{substance.id.slice(-8)}</div>
                 <div className="substance-props">
                   Size: {substance.size} | Complexity: {(substance.complexity || 0).toFixed(1)}
@@ -249,7 +265,10 @@ const Controls: React.FC<ControlsProps> = ({
         </h3>
         
         <div className="flex flex-col gap-2">
+          <label htmlFor="snapshot-filename" className="text-sm text-gray-300">Snapshot filename:</label>
           <input
+            id="snapshot-filename"
+            name="snapshot-filename"
             type="text"
             placeholder="Snapshot filename"
             value={snapshotFilename}
@@ -297,18 +316,18 @@ const Controls: React.FC<ControlsProps> = ({
           
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm">Auto-save snapshots</label>
-              <input type="checkbox" className="w-4 h-4" />
+              <label htmlFor="auto-save-checkbox" className="text-sm">Auto-save snapshots</label>
+              <input id="auto-save-checkbox" name="auto-save-checkbox" type="checkbox" className="w-4 h-4" />
             </div>
             
             <div className="flex items-center justify-between">
-              <label className="text-sm">Show particle IDs</label>
-              <input type="checkbox" className="w-4 h-4" />
+              <label htmlFor="show-ids-checkbox" className="text-sm">Show particle IDs</label>
+              <input id="show-ids-checkbox" name="show-ids-checkbox" type="checkbox" className="w-4 h-4" />
             </div>
             
             <div className="flex items-center justify-between">
-              <label className="text-sm">High contrast mode</label>
-              <input type="checkbox" className="w-4 h-4" />
+              <label htmlFor="high-contrast-checkbox" className="text-sm">High contrast mode</label>
+              <input id="high-contrast-checkbox" name="high-contrast-checkbox" type="checkbox" className="w-4 h-4" />
             </div>
           </div>
         </div>

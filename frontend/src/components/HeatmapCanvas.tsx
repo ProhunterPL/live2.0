@@ -339,9 +339,9 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
 
       ctx.fillStyle = '#ffffff'
       ctx.font = '12px monospace'
-      ctx.fillText(`Mass: ${mass.toFixed(2)}`, mousePos.x + 15, mousePos.y - 40)
-      ctx.fillText(`Charge: (${chargeX.toFixed(2)}, ${chargeY.toFixed(2)}, ${chargeZ.toFixed(2)})`, mousePos.x + 15, mousePos.y - 25)
-      ctx.fillText(`Pos: (${p.pos[0].toFixed(1)}, ${p.pos[1].toFixed(1)})`, mousePos.x + 15, mousePos.y - 10)
+      ctx.fillText(`Mass: ${mass?.toFixed(2) || 'N/A'}`, mousePos.x + 15, mousePos.y - 40)
+      ctx.fillText(`Charge: (${chargeX?.toFixed(2) || 'N/A'}, ${chargeY?.toFixed(2) || 'N/A'}, ${chargeZ?.toFixed(2) || 'N/A'})`, mousePos.x + 15, mousePos.y - 25)
+      ctx.fillText(`Pos: (${p.pos[0]?.toFixed(1) || 'N/A'}, ${p.pos[1]?.toFixed(1) || 'N/A'})`, mousePos.x + 15, mousePos.y - 10)
     }
   }
 
@@ -383,6 +383,8 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
         <div className="flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
             <input
+              id="show-particles"
+              name="show-particles"
               type="checkbox"
               checked={showParticles}
               onChange={(e) => setShowParticles(e.target.checked)}
@@ -391,6 +393,8 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
           </label>
           <label className="flex items-center gap-2">
             <input
+              id="show-energy"
+              name="show-energy"
               type="checkbox"
               checked={showEnergy}
               onChange={(e) => setShowEnergy(e.target.checked)}
@@ -399,6 +403,8 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
           </label>
           <label className="flex items-center gap-2">
             <input
+              id="show-bonds"
+              name="show-bonds"
               type="checkbox"
               checked={showBonds}
               onChange={(e) => setShowBonds(e.target.checked)}
@@ -406,19 +412,24 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
             Bonds
           </label>
           <div className="flex items-center gap-2">
-            <label>Particle Size:</label>
+            <label htmlFor="particle-size-slider">Particle Size:</label>
             <input
+              id="particle-size-slider"
+              name="particle-size-slider"
               type="range"
               min="1"
               max="5"
               value={particleSize}
               onChange={(e) => setParticleSize(Number(e.target.value))}
               className="w-16"
+              aria-label="Particle size slider"
             />
           </div>
           <div className="flex items-center gap-2">
-            <label>Energy Opacity:</label>
+            <label htmlFor="energy-opacity-slider">Energy Opacity:</label>
             <input
+              id="energy-opacity-slider"
+              name="energy-opacity-slider"
               type="range"
               min="0"
               max="1"
@@ -426,6 +437,7 @@ const HeatmapCanvas: React.FC<HeatmapCanvasProps> = ({
               value={energyOpacity}
               onChange={(e) => setEnergyOpacity(Number(e.target.value))}
               className="w-16"
+              aria-label="Energy opacity slider"
             />
           </div>
         </div>
