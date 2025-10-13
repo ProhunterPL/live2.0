@@ -390,7 +390,7 @@ class PhysicsDatabase:
         """Export as CSV for supplementary materials"""
         import csv
         
-        with open(output_path, 'w', newline='') as f:
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             
             # Header

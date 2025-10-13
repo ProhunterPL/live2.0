@@ -1,0 +1,142 @@
+# Phase 2 - Hydrothermal Vent Scenario Configuration
+# ===================================================
+# 
+# Simulates alkaline hydrothermal vent conditions:
+# - Alkaline pH (9-11)
+# - Elevated temperature (50-150°C)
+# - H2, H2S, CO2, Fe2+ present
+# - Mineral surfaces (catalytic)
+# 
+# Expected outcomes:
+# - Iron-sulfur clusters
+# - Small peptides
+# - Organic acids
+# - Possible autocatalytic cycles
+
+simulation:
+  name: "hydrothermal_vent"
+  scenario: "phase2_prebiotic"
+  description: "Alkaline hydrothermal vent with H2, H2S chemistry"
+  
+  # Simulation parameters
+  n_particles: 2000
+  max_steps: 10000000  # 10M steps
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature (hot springs)
+  target_temperature: 373.0  # 100°C (can vary 50-150°C)
+  temperature_control: true
+  thermostat_strength: 0.1
+  temperature_fluctuations: true
+  temperature_range: [323.0, 423.0]  # 50-150°C
+
+# Initial composition (hydrothermal vent fluids)
+initial_molecules:
+  # Reducing gases
+  - name: "hydrogen"
+    formula: "H2"
+    count: 600
+    
+  - name: "hydrogen_sulfide"
+    formula: "H2S"
+    count: 300
+    
+  - name: "carbon_dioxide"
+    formula: "CO2"
+    count: 400
+    
+  - name: "water"
+    formula: "H2O"
+    count: 600
+    
+  # Nitrogen source
+  - name: "ammonia"
+    formula: "NH3"
+    count: 100
+
+# Mineral surface catalysis (simulated)
+catalysis:
+  enabled: true
+  type: "surface_catalysis"
+  
+  # Iron-sulfur minerals
+  catalysts:
+    - name: "FeS"
+      concentration: 0.01  # 1% of particles
+      effect: "bond_formation_boost"
+      boost_factor: 2.0
+      
+    - name: "FeS2"
+      concentration: 0.005
+      effect: "electron_transfer"
+      boost_factor: 1.5
+
+# Alkaline conditions (pH 9-11)
+chemistry:
+  pH: 10.0
+  ionic_strength: 0.1
+  
+  # Enhanced reactivity in alkaline conditions
+  reaction_rate_modifier: 1.5
+  
+  # Metal ions present
+  metal_ions:
+    - "Fe2+"  # Iron(II)
+    - "Ni2+"  # Nickel (trace)
+
+# Physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  # Enhanced bond dynamics at high T
+  bond_check_interval: 150
+  bond_formation_threshold: 2.5
+  bond_breaking_energy_threshold: 0.7  # Lower for hot conditions
+  
+  cluster_check_interval: 300
+  cluster_distance_threshold: 3.0
+
+# Validation
+validation:
+  enabled: true
+  thermodynamic_check_interval: 10000
+  energy_tolerance: 0.001
+  momentum_tolerance: 0.0001
+
+# Diagnostics & Output
+diagnostics:
+  enabled: true
+  output_interval: 500
+  save_snapshots: true
+  snapshot_interval: 50000
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+    - "bond_count"
+    - "novelty_score"
+    - "iron_sulfur_clusters"
+
+# Benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "formic_acid"  # HCOOH
+    - "acetic_acid"  # CH3COOH
+    - "pyruvic_acid"  # CH3COCOOH
+    - "iron_sulfur_clusters"  # [FeS]n
+    - "thiols"  # R-SH
+
+# Output paths
+output:
+  base_dir: "results/phase2/hydrothermal"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+

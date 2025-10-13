@@ -1,0 +1,163 @@
+# Phase 2 - Formamide-Rich Scenario Configuration
+# ================================================
+# 
+# Simulates formamide-rich prebiotic chemistry:
+# - HCONH2 as solvent/reactant
+# - UV radiation (energy input)
+# - Mineral catalysts (TiO2, ZnS, clays)
+# - Moderate temperature
+# 
+# Expected outcomes:
+# - Nucleobases (adenine, guanine, cytosine)
+# - Amino acids
+# - Sugars
+# - Carboxylic acids
+
+simulation:
+  name: "formamide_rich"
+  scenario: "phase2_prebiotic"
+  description: "Formamide chemistry with UV radiation and mineral catalysts"
+  
+  # Simulation parameters
+  n_particles: 2000
+  max_steps: 10000000  # 10M steps
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature (warm but not hot)
+  target_temperature: 323.0  # 50°C
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Initial composition (formamide-rich)
+initial_molecules:
+  # Formamide as main component
+  - name: "formamide"
+    formula: "HCONH2"
+    count: 1200
+    
+  # Water (less than formamide)
+  - name: "water"
+    formula: "H2O"
+    count: 400
+    
+  # Nitrogen/carbon sources
+  - name: "ammonia"
+    formula: "NH3"
+    count: 200
+    
+  - name: "hydrogen_cyanide"
+    formula: "HCN"
+    count: 200
+
+# UV radiation (energy input)
+energy_injection:
+  enabled: true
+  type: "uv_radiation"
+  
+  # Continuous UV exposure
+  pulse_interval: 500  # More frequent than electrical discharge
+  pulse_energy: 20.0   # Lower energy per pulse
+  pulse_duration: 20   # Longer duration
+  
+  # Broad exposure
+  pulse_radius: 15.0
+  pulse_shape: "spherical"
+  
+  # Wavelength specificity
+  wavelength_range: [200, 300]  # nm (UV-C to UV-B)
+
+# Mineral catalysts
+catalysis:
+  enabled: true
+  type: "heterogeneous_catalysis"
+  
+  catalysts:
+    # Titanium dioxide (photocatalyst)
+    - name: "TiO2"
+      concentration: 0.02
+      effect: "uv_enhancement"
+      boost_factor: 3.0
+      
+    # Zinc sulfide (UV-active)
+    - name: "ZnS"
+      concentration: 0.01
+      effect: "bond_formation_boost"
+      boost_factor: 2.0
+      
+    # Clay minerals (surface chemistry)
+    - name: "montmorillonite"
+      concentration: 0.01
+      effect: "polymerization_catalyst"
+      boost_factor: 1.5
+
+# Chemistry
+chemistry:
+  pH: 7.0  # Neutral
+  ionic_strength: 0.05
+  
+  # Formamide-specific reactions
+  enable_formamide_chemistry: true
+  formamide_reactivity: 1.5
+
+# Physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  bond_check_interval: 150
+  bond_formation_threshold: 2.5
+  bond_breaking_energy_threshold: 0.75
+  
+  cluster_check_interval: 300
+  cluster_distance_threshold: 3.0
+  
+  # Enhanced polymerization
+  enable_polymerization: true
+  polymerization_boost: 2.0
+
+# Validation
+validation:
+  enabled: true
+  thermodynamic_check_interval: 10000
+  energy_tolerance: 0.001
+  momentum_tolerance: 0.0001
+
+# Diagnostics & Output
+diagnostics:
+  enabled: true
+  output_interval: 500
+  save_snapshots: true
+  snapshot_interval: 50000
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+    - "bond_count"
+    - "novelty_score"
+    - "nucleobase_detection"
+    - "polymer_length"
+
+# Benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "adenine"  # C5H5N5
+    - "guanine"  # C5H5N5O
+    - "cytosine"  # C4H5N3O
+    - "uracil"  # C4H4N2O2
+    - "glycine"  # NH2CH2COOH
+    - "glycolaldehyde"  # C2H4O2
+    - "carbodiimide"  # HN=C=NH
+
+# Output paths
+output:
+  base_dir: "results/phase2/formamide"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+

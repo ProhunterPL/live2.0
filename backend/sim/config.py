@@ -65,6 +65,17 @@ class SimulationConfig(BaseModel):
     diagnostics_dir: str = Field(default="diagnostics")
     diagnostics_frequency: int = Field(default=10, gt=0, description="Log diagnostics every N steps")
     
+    # Physics Database (PHASE 1 WEEK 2: Literature-based parameters)
+    use_physics_db: bool = Field(default=True, description="Use literature parameters from physics database")
+    physics_db_path: str = Field(default="data/physics_parameters.json", description="Path to physics parameters database")
+    
+    # Fallback parameters (when DB not available or parameter not found)
+    default_epsilon: float = Field(default=0.439, gt=0, description="Default LJ epsilon (kJ/mol) - Carbon UFF value")
+    default_sigma: float = Field(default=3.431, gt=0, description="Default LJ sigma (Angstrom) - Carbon UFF value")
+    default_bond_D_e: float = Field(default=348.0, gt=0, description="Default bond dissociation energy (kJ/mol) - C-C single")
+    default_bond_r_e: float = Field(default=1.54, gt=0, description="Default bond equilibrium length (Angstrom) - C-C single")
+    default_bond_a: float = Field(default=1.8, gt=0, description="Default Morse width parameter (1/Angstrom) - C-C single")
+    
     # Random seed
     seed: Optional[int] = Field(default=42)
 

@@ -6,7 +6,11 @@ Handles particle-particle interactions and binding potentials
 import taichi as ti
 import numpy as np
 from typing import Tuple, Dict, Optional
+from pathlib import Path
+import logging
 from ..config import SimulationConfig
+
+logger = logging.getLogger(__name__)
 
 # Compile-time constants
 MAX_PARTICLES_COMPILE = 10000
@@ -227,8 +231,76 @@ class PotentialSystem:
         self.binding_threshold[None] = config.binding_threshold
         self.unbinding_threshold[None] = config.unbinding_threshold
         
+        # Load Physics Database (PHASE 1 WEEK 2: Literature parameters)
+        self.physics_db = None
+        self.use_physics_db = config.use_physics_db
+        
+        if self.use_physics_db:
+            try:
+                from .physics_db import PhysicsDatabase
+                db_path = Path(config.physics_db_path)
+                
+                if db_path.exists():
+                    self.physics_db = PhysicsDatabase(str(db_path))
+                    logger.info(f"✓ Loaded PhysicsDatabase from {db_path}")
+                    
+                    stats = self.physics_db.get_statistics()
+                    logger.info(f"  Bond parameters: {stats['total_bonds']}")
+                    logger.info(f"  VDW parameters: {stats['total_vdw']}")
+                    logger.info(f"  Citations: {stats['unique_citations']}")
+                else:
+                    logger.warning(f"PhysicsDatabase not found at {db_path}, using fallback parameters")
+                    self.use_physics_db = False
+                    
+            except Exception as e:
+                logger.error(f"Failed to load PhysicsDatabase: {e}")
+                logger.info("Using fallback parameters from config")
+                self.use_physics_db = False
+        
+        # Store fallback parameters for easy access
+        self.default_epsilon = config.default_epsilon
+        self.default_sigma = config.default_sigma
+        self.default_bond_D_e = config.default_bond_D_e
+        self.default_bond_r_e = config.default_bond_r_e
+        self.default_bond_a = config.default_bond_a
+        
         # Initialize
         self.reset()
+    
+    def get_vdw_parameters(self, atom_a: str = 'C', atom_b: str = 'C') -> Tuple[float, float]:
+        """
+        Get Van der Waals parameters (epsilon, sigma) for atom pair.
+        
+        Returns:
+            (epsilon, sigma) in (kJ/mol, Angstrom)
+        """
+        if self.use_physics_db and self.physics_db is not None:
+            try:
+                epsilon, sigma = self.physics_db.get_vdw_parameters(atom_a, atom_b)
+                return (epsilon, sigma)
+            except Exception as e:
+                logger.warning(f"Failed to get VDW parameters for {atom_a}-{atom_b}: {e}")
+        
+        # Fallback
+        return (self.default_epsilon, self.default_sigma)
+    
+    def get_bond_parameters(self, atom_a: str = 'C', atom_b: str = 'C', order: int = 1) -> Tuple[float, float, float]:
+        """
+        Get bond parameters (D_e, r_e, a) for atom pair.
+        
+        Returns:
+            (D_e, r_e, a) in (kJ/mol, Angstrom, 1/Angstrom)
+        """
+        if self.use_physics_db and self.physics_db is not None:
+            try:
+                params = self.physics_db.get_bond_parameters(atom_a, atom_b, order)
+                if params is not None:
+                    return (params.D_e, params.r_e, params.a)
+            except Exception as e:
+                logger.warning(f"Failed to get bond parameters for {atom_a}-{atom_b} order {order}: {e}")
+        
+        # Fallback
+        return (self.default_bond_D_e, self.default_bond_r_e, self.default_bond_a)
     
     def reset(self):
         """Reset potential system"""
@@ -270,6 +342,38 @@ class PotentialSystem:
             r = 0.1
         
         return k * q1 * q2 / (r * r)
+    
+    @ti.func
+    def morse_potential(self, r: ti.f32, D_e: ti.f32, r_e: ti.f32, a: ti.f32) -> ti.f32:
+        """
+        Morse potential: V(r) = D_e * (1 - exp(-a*(r - r_e)))²
+        
+        Used for chemical bonds with literature parameters.
+        
+        Args:
+            r: Distance (Angstrom)
+            D_e: Dissociation energy (kJ/mol)
+            r_e: Equilibrium distance (Angstrom)
+            a: Width parameter (1/Angstrom)
+        """
+        if r < 0.1:
+            r = 0.1
+        
+        exp_term = ti.exp(-a * (r - r_e))
+        return D_e * (1.0 - exp_term) ** 2
+    
+    @ti.func
+    def morse_force(self, r: ti.f32, D_e: ti.f32, r_e: ti.f32, a: ti.f32) -> ti.f32:
+        """
+        Force magnitude from Morse potential: F = -dV/dr
+        
+        F = 2*a*D_e*(1 - exp(-a*(r-r_e)))*exp(-a*(r-r_e))
+        """
+        if r < 0.1:
+            r = 0.1
+        
+        exp_term = ti.exp(-a * (r - r_e))
+        return 2.0 * a * D_e * (1.0 - exp_term) * exp_term
     
     @ti.func
     def harmonic_potential(self, r: ti.f32, k: ti.f32, r0: ti.f32) -> ti.f32:

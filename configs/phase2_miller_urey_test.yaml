@@ -1,0 +1,72 @@
+# Phase 2: Miller-Urey Test Configuration (Small Scale)
+# ========================================================
+# Reduced particle count for testing
+# Based on Miller & Urey (1953) reducing atmosphere
+
+simulation:
+  name: "miller_urey_test"
+  description: "Miller-Urey reducing atmosphere with electrical discharge (TEST - small scale)"
+  
+  # Smaller particle count for testing
+  n_particles: 500  # Much smaller
+  target_temperature: 298.0  # Room temperature
+  temperature_control: true
+  max_steps: 10000
+  dt: 0.005
+  box_size: 100.0
+
+# Initial gas composition (REDUCED FOR TESTING)
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 50  # Reduced from 500
+  - name: "ammonia"
+    formula: "NH3"
+    count: 40  # Reduced from 400
+  - name: "water"
+    formula: "H2O"
+    count: 60  # Reduced from 800
+  - name: "hydrogen"
+    formula: "H2"
+    count: 30  # Reduced from 300
+
+# Energy injection (electrical discharge)
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 1000  # Every 1000 steps
+  pulse_energy: 50.0  # kJ/mol
+  pulse_duration: 10  # steps
+  pulse_radius: 10.0  # Angstrom
+  pulse_shape: "spherical"
+
+# Chemistry
+chemistry:
+  pH: 7.0  # Neutral
+  allow_bond_formation: true
+  allow_bond_breaking: true
+
+# Benchmark / Expected products
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "glycine"
+    - "alanine"
+    - "formaldehyde"
+    - "HCN"
+    - "formic_acid"
+    - "urea"
+
+# Output
+output:
+  base_dir: "results/phase2/miller_urey_test"
+  save_snapshots: true
+  snapshot_interval: 500
+  save_molecules: true
+  molecule_detection_frequency: 100
+
+# Literature reference
+reference:
+  paper: "Miller & Urey (1953) Science 117:528"
+  doi: "10.1126/science.117.3046.528"
+

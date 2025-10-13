@@ -88,6 +88,7 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
   const [totalNovel, setTotalNovel] = useState(0)
   const [totalDiscovered, setTotalDiscovered] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [isMatching, setIsMatching] = useState(false)
 
   const api = useRef(new SimulationAPI()).current
 
@@ -154,6 +155,32 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
     const interval = setInterval(updateNovelty, 15000)
     return () => clearInterval(interval)
   }, [simulationId, api])
+
+  const handleMatchAllClusters = async () => {
+    if (!simulationId || novelSubstances.length === 0) return
+    
+    setIsMatching(true)
+    try {
+      console.log(`🔍 Matching ${novelSubstances.length} clusters with PubChem...`)
+      
+      let successCount = 0
+      for (const substance of novelSubstances) {
+        try {
+          await api.matchSubstanceToPubchem(simulationId, substance.id)
+          successCount++
+        } catch (error) {
+          console.error(`Failed to match cluster ${substance.id}:`, error)
+        }
+      }
+      
+      alert(`✅ Matched ${successCount}/${novelSubstances.length} clusters with PubChem!\n\nCheck the matches/ directory for results.`)
+    } catch (error) {
+      console.error('Failed to match clusters:', error)
+      alert('❌ Failed to match clusters with PubChem')
+    } finally {
+      setIsMatching(false)
+    }
+  }
 
   const handleSaveCluster = async (substanceId: string) => {
     if (!simulationId) return
@@ -246,10 +273,34 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
 
       {/* Recent Discoveries */}
       <div>
-        <h4 className="text-md font-semibold text-white mb-3 flex items-center gap-2">
-          <TestTube className="w-4 h-4 text-green-400" />
-          Recent Discoveries
-        </h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-md font-semibold text-white flex items-center gap-2">
+            <TestTube className="w-4 h-4 text-green-400" />
+            Recent Discoveries
+          </h4>
+          
+          {/* Main PubChem Matcher Button */}
+          {novelSubstances.length > 0 && (
+            <button
+              onClick={handleMatchAllClusters}
+              disabled={isMatching}
+              className="px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs font-semibold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              title={`Match all ${novelSubstances.length} clusters with PubChem database`}
+            >
+              {isMatching ? (
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  <span>Matching...</span>
+                </>
+              ) : (
+                <>
+                  <Microscope className="w-3 h-3" />
+                  <span>Match All ({novelSubstances.length})</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
         
         {loading ? (
           <div className="flex items-center justify-center py-8">
