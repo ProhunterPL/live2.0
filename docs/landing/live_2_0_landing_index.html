@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live 2.0 — Open Prebiotic Simulator</title>
+  <meta name="description" content="Live 2.0 to otwarta, GPU‑akcelerowana symulacja prebiotyczna. Nauka + wizualizacja + walidacja.">
+  <meta property="og:title" content="Live 2.0 — Open Prebiotic Simulator" />
+  <meta property="og:description" content="GPU‑akcelerowana symulacja prebiotyczna. Nowe substancje, reakcje i walidacja naukowa." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/images/live2logo.jpg" />
+  <meta name="theme-color" content="#0ea5e9">
+
+  <!-- Tailwind CSS CDN (szybki start) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Subtelne tło z motywami chemii */
+    .chem-bg {
+      background-image:
+        radial-gradient(closest-side, rgba(14,165,233,.08), transparent 70%),
+        radial-gradient(closest-side, rgba(59,130,246,.08), transparent 70%);
+      background-size: 400px 400px, 300px 300px;
+      background-position: 10% 20%, 90% 70%;
+    }
+    /* Prosty grid elementów pseudo‑chemicznych */
+    .bond-pattern::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px),
+                        linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px);
+      background-size: 24px 24px;
+      mask-image: radial-gradient(circle at 50% 50%, black 50%, transparent 70%);
+      pointer-events:none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased">
+  <!-- NAV -->
+  <header class="sticky top-0 z-50 backdrop-blur bg-slate-950/70 border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="#home" class="flex items-center gap-3">
+        <img src="/images/live2logo.jpg" alt="Live 2.0" class="h-9 w-9 rounded" />
+        <span class="font-semibold tracking-wide">Live 2.0</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm">
+        <a href="#about" class="hover:text-sky-300">O projekcie</a>
+        <a href="#videos" class="hover:text-sky-300">Wideo</a>
+        <a href="#contact" class="hover:text-sky-300">Kontakt</a>
+      </nav>
+      <a href="#contact" class="ml-4 inline-flex items-center rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold px-4 py-2 text-sm">Współpraca</a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section id="home" class="chem-bg relative overflow-hidden">
+    <div class="bond-pattern absolute inset-0"></div>
+    <div class="max-w-7xl mx-auto px-4 py-20 lg:py-28 grid lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-sky-300/80">
+          GPU • Walidacja • Open Science
+        </p>
+        <h1 class="mt-3 text-4xl/tight md:text-5xl/tight font-extrabold">
+          Open Prebiotic Simulator
+          <span class="block text-sky-400">Nauka, wizualizacja, odkrycia.</span>
+        </h1>
+        <p class="mt-5 text-slate-300 max-w-xl">
+          Live 2.0 to otwarta symulacja 2D/3D akcelerowana na GPU, badająca emergencję struktur i reakcji chemicznych prowadzących do życia. Zbudowana na solidnych podstawach termodynamiki i weryfikacji naukowej.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3">
+          <a href="#videos" class="inline-flex justify-center items-center rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold px-5 py-3">Zobacz demo</a>
+          <a href="#about" class="inline-flex justify-center items-center rounded-xl border border-white/10 hover:border-white/20 px-5 py-3">Dowiedz się więcej</a>
+        </div>
+      </div>
+      <div class="relative">
+        <div class="aspect-video rounded-2xl ring-1 ring-white/10 overflow-hidden shadow-xl shadow-sky-900/40">
+          <!-- Podmień na własny kadr z demo -->
+          <img src="/images/preview.png" alt="Simulation preview" class="w-full h-full object-cover" />
+        </div>
+        <p class="mt-3 text-xs text-slate-400">Kadr poglądowy — wstaw własny zrzut z demo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="border-t border-white/5 bg-slate-950">
+    <div class="max-w-7xl mx-auto px-4 py-16 grid md:grid-cols-3 gap-8">
+      <div class="md:col-span-1">
+        <h2 class="text-2xl font-bold">Dlaczego Live 2.0?</h2>
+        <p class="mt-2 text-slate-300">Krótko: naukowo solidne, wizualnie angażujące, gotowe na publikację.</p>
+      </div>
+      <div class="md:col-span-2 grid sm:grid-cols-2 gap-6">
+        <div class="p-5 rounded-2xl bg-white/5 ring-1 ring-white/10">
+          <h3 class="font-semibold">Walidacja termodynamiczna</h3>
+          <p class="mt-1 text-sm text-slate-300">Zachowanie energii i pędu, rozkład Maxwella‑Boltzmanna, kontrola entropii — weryfikowane cyklicznie.</p>
+        </div>
+        <div class="p-5 rounded-2xl bg-white/5 ring-1 ring-white/10">
+          <h3 class="font-semibold">Katalog nowych substancji</h3>
+          <p class="mt-1 text-sm text-slate-300">Hashowanie grafów, metryka novelty, dopasowanie do PubChem (matcher v2, multi‑metric similarity).</p>
+        </div>
+        <div class="p-5 rounded-2xl bg-white/5 ring-1 ring-white/10">
+          <h3 class="font-semibold">GPU‑first</h3>
+          <p class="mt-1 text-sm text-slate-300">Taichi/CUDA, streaming do przeglądarki, snapshoty, stabilne długie biegi.</p>
+        </div>
+        <div class="p-5 rounded-2xl bg-white/5 ring-1 ring-white/10">
+          <h3 class="font-semibold">Open Science</h3>
+          <p class="mt-1 text-sm text-slate-300">Przygotowane pod preprint/paper, scenariusze Miller‑Urey, hydrothermal vents i formamide‑rich.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIDEOS -->
+  <section id="videos" class="border-t border-white/5 bg-slate-950">
+    <div class="max-w-7xl mx-auto px-4 py-16">
+      <h2 class="text-2xl font-bold">Wideo</h2>
+      <p class="mt-2 text-slate-300">Krótka prezentacja projektu i demo działania.</p>
+      <div class="mt-6 grid lg:grid-cols-2 gap-8">
+        <!-- WIDEO #1: Trailer / Explainer -->
+        <article class="space-y-3">
+          <div class="aspect-video overflow-hidden rounded-2xl ring-1 ring-white/10">
+            <!-- Podmień ID po "embed/" -->
+            <iframe class="w-full h-full" src="https://www.youtube.com/embed/56-V7HbIdj8" title="Live 2.0 — Trailer" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
+          <h3 class="font-semibold">Trailer (2–4 sek. intro + overview)</h3>
+          <p class="text-sm text-slate-300">Szybkie wprowadzenie: założenia, wizja, stack technologiczny.</p>
+        </article>
+        <!-- WIDEO #2: Demo -->
+        <article class="space-y-3">
+          <div class="aspect-video overflow-hidden rounded-2xl ring-1 ring-white/10">
+            <iframe class="w-full h-full" src="https://www.youtube.com/embed/AjNGFZPG3wM" title="Live 2.0 — Prezentacja" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
+          <h3 class="font-semibold">Prezentacja projektu</h3>
+          <p class="text-sm text-slate-300">Czym dokładnie jest Live 2.0 i jak działa?</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="border-t border-white/5 bg-slate-950">
+    <div class="max-w-7xl mx-auto px-4 py-16 grid lg:grid-cols-2 gap-10 items-start">
+      <div>
+        <h2 class="text-2xl font-bold">Kontakt & Współpraca</h2>
+        <p class="mt-2 text-slate-300">Szukasz współpracy naukowej, partnerstwa technologicznego lub chcesz zobaczyć pełne demo?</p>
+        <ul class="mt-6 space-y-3 text-slate-300">
+          <li>📧 E‑mail: <a class="text-sky-400 hover:underline" href="mailto:klawikowski@klawikowski.pl">klawikowski@klawikowski.pl</a></li>
+          <li>🔬 Partner naukowy: chemia fizyczna / obliczeniowa</li>
+          <li>💼 Media & inwestorzy: pitch deck na życzenie</li>
+        </ul>
+      </div>
+      <form action="https://formspree.io/f/xldpoyjl" method="POST" class="p-6 rounded-2xl bg-white/5 ring-1 ring-white/10 space-y-4">
+        <div>
+          <label class="block text-sm mb-1">Imię i nazwisko</label>
+          <input required name="name" class="w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="Jan Kowalski" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">E‑mail</label>
+          <input required type="email" name="email" class="w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="jan@example.com" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Wiadomość</label>
+          <textarea required name="message" rows="4" class="w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="Napisz kilka zdań…"></textarea>
+        </div>
+        <button class="w-full rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold px-4 py-3">Wyślij</button>
+        <p class="text-xs text-slate-400">Przesyłając formularz wyrażasz zgodę na kontakt w sprawie Live 2.0.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/5 bg-slate-950">
+    <div class="max-w-7xl mx-auto px-4 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+      <div class="flex items-center gap-2">
+        <img src="/images/live2logo.jpg" alt="Live 2.0" class="h-6 w-6 rounded" />
+        <span>© <span id="y"></span> Live 2.0</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="#about" class="hover:text-sky-300">O projekcie</a>
+        <a href="#videos" class="hover:text-sky-300">Wideo</a>
+        <a href="#contact" class="hover:text-sky-300">Kontakt</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('y').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
