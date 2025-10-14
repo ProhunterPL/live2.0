@@ -75,6 +75,20 @@ class Phase2Config(BaseModel):
     output_base_dir: str = Field(default="results/phase2")
     save_snapshots: bool = Field(default=True)
     snapshot_interval: int = Field(default=50000, description="Steps between snapshots")
+    
+    # Simulation parameters (from YAML simulation section)
+    n_particles: Optional[int] = Field(default=None, description="Max particles override")
+    dt: Optional[float] = Field(default=None, description="Timestep override")
+    box_size: Optional[float] = Field(default=None, description="Box size override")
+    max_steps: Optional[int] = Field(default=None, description="Max steps override")
+    
+    # Performance parameters
+    enable_thermodynamic_validation: Optional[bool] = Field(default=None)
+    validate_every_n_steps: Optional[int] = Field(default=None)
+    energy_update_interval: Optional[int] = Field(default=None)
+    metrics_update_interval: Optional[int] = Field(default=None)
+    enable_diagnostics: Optional[bool] = Field(default=None)
+    diagnostics_frequency: Optional[int] = Field(default=None)
 
 
 def load_phase2_config_from_yaml(yaml_path: str) -> Phase2Config:
@@ -150,7 +164,21 @@ def load_phase2_config_from_yaml(yaml_path: str) -> Phase2Config:
         # Output
         output_base_dir=output.get('base_dir', 'results/phase2'),
         save_snapshots=output.get('save_snapshots', True),
-        snapshot_interval=output.get('snapshot_interval', 50000)
+        snapshot_interval=output.get('snapshot_interval', 50000),
+        
+        # Simulation parameters from YAML
+        n_particles=sim_config.get('n_particles'),
+        dt=sim_config.get('dt'),
+        box_size=sim_config.get('box_size'),
+        max_steps=sim_config.get('max_steps'),
+        
+        # Performance parameters from YAML
+        enable_thermodynamic_validation=sim_config.get('enable_thermodynamic_validation'),
+        validate_every_n_steps=sim_config.get('validate_every_n_steps'),
+        energy_update_interval=sim_config.get('energy_update_interval'),
+        metrics_update_interval=sim_config.get('metrics_update_interval'),
+        enable_diagnostics=sim_config.get('enable_diagnostics'),
+        diagnostics_frequency=sim_config.get('diagnostics_frequency')
     )
     
     return phase2_config

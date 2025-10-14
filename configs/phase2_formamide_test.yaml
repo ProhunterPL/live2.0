@@ -1,0 +1,85 @@
+# Phase 2: Formamide-rich Test Configuration
+# =============================================
+# Based on formamide as prebiotic solvent
+# Saladino et al. (2012), Schoffstall et al. (1982)
+
+scenario_name: "formamide_rich"
+
+simulation:
+  name: "formamide_test"
+  description: "Formamide-rich environment with UV radiation and mineral catalysis"
+  
+  # Particle capacity
+  n_particles: 1000
+  target_temperature: 323.0  # 50°C (mild heating)
+  temperature_control: true
+  max_steps: 10000
+  dt: 0.005
+  box_size: 100.0
+  
+  # Performance optimizations
+  enable_thermodynamic_validation: false
+  validate_every_n_steps: 10000
+  energy_update_interval: 200
+  metrics_update_interval: 2000
+  diagnostics_frequency: 5000
+
+# Initial composition (formamide-dominated)
+initial_molecules:
+  - name: "formamide"
+    formula: "CH3NO"  # HCONH2
+    count: 50  # Dominant solvent/reactant
+  - name: "water"
+    formula: "H2O"
+    count: 20  # Minor component
+  - name: "ammonia"
+    formula: "NH3"
+    count: 10
+  - name: "formic_acid"
+    formula: "CH2O2"  # HCOOH
+    count: 5
+  - name: "hydrogen_cyanide"
+    formula: "CHN"  # HCN
+    count: 5
+
+# Energy injection (UV radiation)
+energy_injection:
+  enabled: true
+  type: "uv"
+  pulse_interval: 800  # Intermittent UV exposure
+  pulse_energy: 60.0  # Higher energy photons
+  pulse_duration: 5  # Short pulses
+  pulse_radius: 20.0  # Wide area illumination
+  pulse_shape: "spherical"
+
+# Chemistry (slightly acidic from formamide hydrolysis)
+chemistry:
+  pH: 6.0  # Slightly acidic
+  allow_bond_formation: true
+  allow_bond_breaking: true
+
+# Benchmark / Expected products
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "nucleobases"  # adenine, guanine, cytosine, uracil
+    - "amino_acids"
+    - "sugars"
+    - "carboxylic_acids"
+    - "purines"
+    - "pyrimidines"
+
+# Output
+output:
+  base_dir: "results/phase2/formamide_test"
+  save_snapshots: true
+  snapshot_interval: 500
+  save_molecules: true
+  molecule_detection_frequency: 100
+
+# Literature reference
+reference:
+  paper: "Saladino et al. (2012) Chem. Soc. Rev. 41:5526; Schoffstall et al. (1982) Origins Life 12:143"
+  notes: "Formamide as a versatile prebiotic precursor with UV catalysis"
+
+

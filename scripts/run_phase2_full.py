@@ -19,6 +19,7 @@ import logging
 import json
 from pathlib import Path
 from datetime import datetime
+from typing import List, Dict
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -82,6 +83,17 @@ class Phase2FullRunner:
         logger.info(f"Seed: {self.seed}")
         logger.info("=" * 70)
     
+    @staticmethod
+    def _json_serializer(obj):
+        """Custom JSON serializer for NumPy types"""
+        if isinstance(obj, (np.integer, np.int32, np.int64)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
     def load_configs(self) -> tuple:
         """
         Load Phase 2 and Simulation configurations
@@ -121,23 +133,32 @@ class Phase2FullRunner:
         logger.info(f"  Max particles: {max_particles}")
         
         # Create simulation config
+        # Use n_particles from phase2_config if available, otherwise use calculated max_particles
+        config_n_particles = getattr(phase2_config, 'n_particles', max_particles)
+        if config_n_particles > 0:
+            max_particles = max(config_n_particles, max_particles)
+        
         sim_config = SimulationConfig(
             mode='open_chemistry',
-            grid_width=256,
-            grid_height=256,
+            grid_width=getattr(phase2_config, 'box_size', 256),
+            grid_height=getattr(phase2_config, 'box_size', 256),
             max_particles=max_particles,
-            dt=0.005,
-            max_time=float(self.max_steps) * 0.005,
+            dt=getattr(phase2_config, 'dt', 0.005),
+            max_time=float(self.max_steps) * getattr(phase2_config, 'dt', 0.005),
             temperature=phase2_config.temperature,
             seed=self.seed,
             
-            # Enable thermodynamic validation
-            enable_thermodynamic_validation=True,
-            validate_every_n_steps=150,
+            # Use validation settings from phase2_config or defaults
+            enable_thermodynamic_validation=phase2_config.enable_thermodynamic_validation if phase2_config.enable_thermodynamic_validation is not None else False,
+            validate_every_n_steps=phase2_config.validate_every_n_steps if phase2_config.validate_every_n_steps is not None else 10000,
+            
+            # Performance settings from phase2_config
+            energy_update_interval=phase2_config.energy_update_interval if phase2_config.energy_update_interval is not None else 5,
+            metrics_update_interval=phase2_config.metrics_update_interval if phase2_config.metrics_update_interval is not None else 1,
             
             # Enable diagnostics
-            enable_diagnostics=True,
-            diagnostics_frequency=100,
+            enable_diagnostics=phase2_config.enable_diagnostics if phase2_config.enable_diagnostics is not None else True,
+            diagnostics_frequency=phase2_config.diagnostics_frequency if phase2_config.diagnostics_frequency is not None else 100,
             
             # Use physics database
             use_physics_db=True,
@@ -213,6 +234,11 @@ class Phase2FullRunner:
         logger.info(f"STARTING SIMULATION - {self.max_steps:,} STEPS")
         logger.info("=" * 70)
         
+        # CRITICAL: Start the simulation
+        logger.info("Starting simulation stepper...")
+        stepper.start()
+        logger.info(f"Stepper started - is_running={stepper.is_running}")
+        
         save_interval = max(self.max_steps // 20, 50000)  # Save 20 snapshots
         checkpoint_interval = max(self.max_steps // 10, 100000)  # 10 checkpoints
         
@@ -281,7 +307,7 @@ class Phase2FullRunner:
         }
         
         with open(snapshot_file, 'w') as f:
-            json.dump(snapshot, f, indent=2)
+            json.dump(snapshot, f, indent=2, default=self._json_serializer)
         
         logger.debug(f"  Snapshot saved: {snapshot_file.name}")
     
@@ -301,7 +327,7 @@ class Phase2FullRunner:
         }
         
         with open(checkpoint_file, 'w') as f:
-            json.dump(checkpoint, f, indent=2)
+            json.dump(checkpoint, f, indent=2, default=self._json_serializer)
         
         logger.info(f"  [CHECKPOINT] Step {step:,} saved")
     
@@ -333,10 +359,10 @@ class Phase2FullRunner:
                 'n_particles': n_particles
             },
             
-            # Placeholders - would extract from catalog/metrics
-            'molecules_detected': [],
-            'reactions_observed': [],
-            'novel_molecules': [],
+            # Extract molecules from stepper catalog
+            'molecules_detected': self._extract_molecules_from_catalog(stepper),
+            'reactions_observed': [],  # TODO: Extract from reaction detector
+            'novel_molecules': self._extract_novel_molecules_from_catalog(stepper),
             
             'metadata': {
                 'timestamp': datetime.now().isoformat(),
@@ -347,19 +373,79 @@ class Phase2FullRunner:
         
         return results
     
+    def _extract_molecules_from_catalog(self, stepper) -> List[Dict]:
+        """Extract all detected molecules from stepper catalog"""
+        molecules = []
+        try:
+            # Get all substances from catalog (use most common as proxy for all)
+            catalog_substances = stepper.catalog.get_most_common_substances(count=1000)  # Get up to 1000 most common
+            
+            for substance_record in catalog_substances:
+                # Extract basic info from graph and properties
+                formula = substance_record.graph.get_canonical_form()  # Use canonical form as formula
+                mass = substance_record.properties.get('avg_mass', 0.0)  # Get mass from properties
+                complexity = substance_record.graph.get_complexity()
+                
+                molecule_info = {
+                    'id': substance_record.id,
+                    'formula': formula,
+                    'mass': mass,
+                    'complexity': complexity,
+                    'first_detected': substance_record.first_seen,
+                    'last_seen': substance_record.last_seen,
+                    'count': substance_record.occurrence_count,
+                    'properties': substance_record.properties
+                }
+                molecules.append(molecule_info)
+                
+        except Exception as e:
+            logger.warning(f"Failed to extract molecules from catalog: {e}")
+            
+        logger.info(f"Extracted {len(molecules)} molecules from catalog")
+        return molecules
+    
+    def _extract_novel_molecules_from_catalog(self, stepper) -> List[Dict]:
+        """Extract only novel (newly discovered) molecules"""
+        novel_molecules = []
+        try:
+            # Get novel substances (those discovered during this run)
+            catalog_substances = stepper.catalog.get_novel_substances(count=1000)  # Get up to 1000 novel
+            
+            for substance_record in catalog_substances:
+                # Extract basic info from graph and properties
+                formula = substance_record.graph.get_canonical_form()  # Use canonical form as formula
+                mass = substance_record.properties.get('avg_mass', 0.0)  # Get mass from properties
+                complexity = substance_record.graph.get_complexity()
+                
+                molecule_info = {
+                    'id': substance_record.id,
+                    'formula': formula,
+                    'mass': mass,
+                    'complexity': complexity,
+                    'discovery_time': substance_record.first_seen,
+                    'properties': substance_record.properties
+                }
+                novel_molecules.append(molecule_info)
+                    
+        except Exception as e:
+            logger.warning(f"Failed to extract novel molecules from catalog: {e}")
+            
+        logger.info(f"Extracted {len(novel_molecules)} novel molecules from catalog")
+        return novel_molecules
+    
     def _save_results(self, results: dict):
         """Save final results"""
         # Main results file
         results_file = self.output_dir / "results.json"
         with open(results_file, 'w') as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, default=self._json_serializer)
         
         logger.info(f"Results saved to {results_file}")
         
         # Molecules file (for MatcherV2 analysis)
         molecules_file = self.output_dir / "molecules.json"
         with open(molecules_file, 'w') as f:
-            json.dump(results.get('molecules_detected', []), f, indent=2)
+            json.dump(results.get('molecules_detected', []), f, indent=2, default=self._json_serializer)
         
         # Summary file
         summary_file = self.output_dir / "summary.txt"

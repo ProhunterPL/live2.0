@@ -3,32 +3,41 @@
 # Reduced particle count for testing
 # Based on Miller & Urey (1953) reducing atmosphere
 
+scenario_name: "miller_urey"
+
 simulation:
   name: "miller_urey_test"
   description: "Miller-Urey reducing atmosphere with electrical discharge (TEST - small scale)"
   
-  # Smaller particle count for testing
-  n_particles: 500  # Much smaller
+  # Increased for 650 atoms + margin
+  n_particles: 1000  # Increased from 500 to handle 650 atoms
   target_temperature: 298.0  # Room temperature
   temperature_control: true
   max_steps: 10000
   dt: 0.005
   box_size: 100.0
+  
+  # Performance optimizations for overnight test
+  enable_thermodynamic_validation: false  # Disable for better performance
+  validate_every_n_steps: 10000  # Less frequent validation
+  energy_update_interval: 200  # Update energy less frequently  
+  metrics_update_interval: 2000  # Update metrics much less frequently
+  diagnostics_frequency: 5000  # Update diagnostics much less frequently
 
-# Initial gas composition (REDUCED FOR TESTING)
+# Initial gas composition (REDUCED FOR OVERNIGHT TEST)
 initial_molecules:
   - name: "methane"
     formula: "CH4"
-    count: 50  # Reduced from 500
+    count: 25  # Further reduced for speed (50% of original test)
   - name: "ammonia"
     formula: "NH3"
-    count: 40  # Reduced from 400
+    count: 20  # Further reduced for speed  
   - name: "water"
     formula: "H2O"
-    count: 60  # Reduced from 800
+    count: 30  # Further reduced for speed
   - name: "hydrogen"
     formula: "H2"
-    count: 30  # Reduced from 300
+    count: 15  # Further reduced for speed
 
 # Energy injection (electrical discharge)
 energy_injection:

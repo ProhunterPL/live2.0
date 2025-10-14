@@ -1,0 +1,17 @@
+======================================================================
+AUTOCATALYTIC CYCLE ANALYSIS
+======================================================================
+
+Analysis time: 2025-10-14 12:39:02.708309
+Network file: analysis\reaction_network\reaction_network.json
+
+Summary:
+----------------------------------------------------------------------
+  Direct autocatalysis: 0
+  Indirect cycles: 0
+  Hypercycles: 0
+  RAF sets: 0
+  Total: 0
+
+
+======================================================================

@@ -1,0 +1,85 @@
+# Phase 2: Hydrothermal Vent Test Configuration
+# ==============================================
+# Based on alkaline hydrothermal vent conditions
+# Russell & Hall (1997), Martin et al. (2008)
+
+scenario_name: "hydrothermal_vent"
+
+simulation:
+  name: "hydrothermal_vent_test"
+  description: "Alkaline hydrothermal vent conditions (pH 9-11, 50-150C)"
+  
+  # Particle capacity
+  n_particles: 1000
+  target_temperature: 373.0  # 100°C (323K-423K range)
+  temperature_control: true
+  max_steps: 10000
+  dt: 0.005
+  box_size: 100.0
+  
+  # Performance optimizations
+  enable_thermodynamic_validation: false
+  validate_every_n_steps: 10000
+  energy_update_interval: 200
+  metrics_update_interval: 2000
+  diagnostics_frequency: 5000
+
+# Initial gas composition (alkaline vent gases)
+initial_molecules:
+  - name: "hydrogen"
+    formula: "H2"
+    count: 40  # High H2 concentration in vent fluids
+  - name: "hydrogen_sulfide"
+    formula: "H2S"
+    count: 15  # Present in vent fluids
+  - name: "water"
+    formula: "H2O"
+    count: 30  # Aqueous environment
+  - name: "carbon_dioxide"
+    formula: "CO2"
+    count: 10  # Dissolved CO2
+  - name: "ammonia"
+    formula: "NH3"
+    count: 5  # Minor component
+
+# Energy injection (continuous thermal + mineral surface catalysis)
+energy_injection:
+  enabled: true
+  type: "thermal"
+  pulse_interval: 500  # More frequent than electrical (continuous heat)
+  pulse_energy: 30.0  # Lower energy than electrical discharge
+  pulse_duration: 20  # Longer duration (sustained heat)
+  pulse_radius: 15.0  # Larger affected area
+  pulse_shape: "spherical"
+
+# Chemistry (alkaline conditions)
+chemistry:
+  pH: 10.0  # Alkaline (9-11 range)
+  allow_bond_formation: true
+  allow_bond_breaking: true
+
+# Benchmark / Expected products
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "formate"
+    - "acetate"
+    - "methanol"
+    - "formaldehyde"
+    - "pyruvate"
+    - "amino_acids"
+
+# Output
+output:
+  base_dir: "results/phase2/hydrothermal_test"
+  save_snapshots: true
+  snapshot_interval: 500
+  save_molecules: true
+  molecule_detection_frequency: 100
+
+# Literature reference
+reference:
+  paper: "Russell & Hall (1997) J. Geol. Soc. London 154:377; Martin et al. (2008) Nature Rev. Micro. 6:805"
+  notes: "Alkaline hydrothermal vents with H2-rich fluids and mineral surfaces"
+
+

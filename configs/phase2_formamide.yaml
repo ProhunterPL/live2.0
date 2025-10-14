@@ -13,6 +13,8 @@
 # - Sugars
 # - Carboxylic acids
 
+scenario_name: "formamide_rich"
+
 simulation:
   name: "formamide_rich"
   scenario: "phase2_prebiotic"
@@ -53,7 +55,7 @@ initial_molecules:
 # UV radiation (energy input)
 energy_injection:
   enabled: true
-  type: "uv_radiation"
+  type: "uv"
   
   # Continuous UV exposure
   pulse_interval: 500  # More frequent than electrical discharge

@@ -11,6 +11,8 @@
 # - Small organic molecules
 # - HCN, formaldehyde intermediates
 
+scenario_name: "miller_urey"
+
 simulation:
   name: "miller_urey"
   scenario: "phase2_prebiotic"

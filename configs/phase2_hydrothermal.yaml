@@ -13,6 +13,8 @@
 # - Organic acids
 # - Possible autocatalytic cycles
 
+scenario_name: "hydrothermal_vent"
+
 simulation:
   name: "hydrothermal_vent"
   scenario: "phase2_prebiotic"
@@ -55,10 +57,20 @@ initial_molecules:
     formula: "NH3"
     count: 100
 
+# Energy injection (thermal gradient from vent)
+energy_injection:
+  enabled: true
+  type: "thermal"
+  pulse_interval: 500
+  pulse_energy: 30.0
+  pulse_duration: 20
+  pulse_radius: 15.0
+  pulse_shape: "spherical"
+
 # Mineral surface catalysis (simulated)
 catalysis:
   enabled: true
-  type: "surface_catalysis"
+  type: "thermal"
   
   # Iron-sulfur minerals
   catalysts:

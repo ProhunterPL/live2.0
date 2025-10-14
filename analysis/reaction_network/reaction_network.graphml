@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="formula" for="node" attr.name="formula" attr.type="string"/>
+  <key id="name" for="node" attr.name="name" attr.type="string"/>
+  <key id="reaction" for="edge" attr.name="reaction" attr.type="string"/>
+  <graph id="G" edgedefault="directed">
+  </graph>
+</graphml>

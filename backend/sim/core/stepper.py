@@ -376,42 +376,29 @@ class SimulationStepper:
     def _perform_step(self, dt: float):
         """Perform the actual simulation step"""
         
+        if self.step_count < 5:
+            logger.info(f"[STEP {self.step_count}] _perform_step ENTRY")
+        
         # Start performance timing
         self.performance_monitor.start_step_timing()
 
         if not self.is_running or self.is_paused:
+            if self.step_count < 5:
+                logger.info(f"[STEP {self.step_count}] Skipping - is_running={self.is_running}, is_paused={self.is_paused}")
             return
         
-        # Log every step for first 5 steps, then every 10 steps
-        if self.step_count < 5 or self.step_count % 10 == 0:
-            # Debug print removed for performance
-            pass
-
-        # logger.info(f"DEBUG: _perform_step executing, step_count={self.step_count}")
-
-        # logger.info(f"DEBUG: About to enter try block")
+        if self.step_count < 5:
+            logger.info(f"[STEP {self.step_count}] Entering try block")
 
         try:
-            # logger.info(f"DEBUG: Inside try block, about to update energy")
-            # Update energy system
-            if self.step_count < 5:
-                # Debug print removed for performance
-                pass
             self.energy_manager.update(dt)
-            
-            # Add energy diffusion and thermostat
-            if self.step_count < 5:
-                # Debug print removed for performance
-                pass
             self._energy_diffuse(dt)
             self._energy_thermostat()
             
             # Add energy pulses periodically
             pulse_every = getattr(self.config, 'pulse_every', 48)
             if pulse_every and self.step_count % pulse_every == 0:
-                if self.step_count < 5:
-                    # Debug print removed for performance
-                    pass
+                logger.info(f"[STEP {self.step_count}] Adding energy pulse")
                 self._add_energy_pulse()
 
             if self.config.mode == "preset_prebiotic":
@@ -425,9 +412,6 @@ class SimulationStepper:
                 self.update_metrics()
             else:
                 # Open chemistry branch
-                if self.step_count < 5:
-                    # Debug print removed for performance
-                    pass
                 if False:  # Temporarily disable symplectic integrator
                     # Use symplectic integrator for better energy conservation
                     particle_count = self.particles.particle_count[None]
@@ -452,19 +436,13 @@ class SimulationStepper:
                 else:
                     # Original Euler method (fallback)
                     self.particles.update_positions(dt)
-                    
-                    # Update spatial hash
                     self.grid.update_spatial_hash()
-                    
-                    # Compute forces
                     self.potentials.compute_forces(
                         self.particles.positions,
                         self.particles.attributes,
                         self.particles.active,
                         self.particles.particle_count[None]
                     )
-                    
-                    # Apply forces
                     self.particles.apply_forces(self.potentials.forces, dt)
                 
                 # Add thermal kick based on local energy
@@ -472,20 +450,31 @@ class SimulationStepper:
                 self.particles.thermal_kick(vmax, 0.6, self.energy_manager.energy_system.energy_field)
                 
                 # PERFORMANCE FIX: These O(n²) operations are killing performance at high particle counts
-                # Only run clustering assistance every 50 steps to prevent freeze
-                if self.step_count % 50 == 0:
-                    # Add clustering assistance - particles move towards high energy regions
-                    self._assist_clustering()
-                    
-                    # Add strong clustering force - particles move towards center
-                    self._force_clustering_to_center()
+                # DISABLED for overnight test - too expensive
+                # if self.step_count % 50 == 0:
+                #     # Add clustering assistance - particles move towards high energy regions
+                #     self._assist_clustering()
+                #     
+                #     # Add strong clustering force - particles move towards center
+                #     self._force_clustering_to_center()
                 
                 # DISABLED: This O(n²) operation is too expensive - causes freeze after 1500 steps
                 # if self.step_count % 100 == 0:
                 #     self._attract_particles_for_bonding()
                 
-                # Update metrics for open chemistry mode
-                self.update_metrics()
+                # Update metrics for open chemistry mode - HEAVILY THROTTLED
+                # DISABLED for overnight test - too expensive with to_numpy() operations
+                # Only update at key checkpoints
+                # metrics_update_interval = getattr(self.config, 'metrics_update_interval', 300)
+                # if self.step_count < 3 or (self.step_count % metrics_update_interval) == 0:
+                #     logger.info(f"[STEP {self.step_count}] Calling update_metrics (first call)")
+                #     try:
+                #         self.update_metrics()
+                #         logger.info(f"[STEP {self.step_count}] update_metrics completed")
+                #     except Exception as e:
+                #         logger.error(f"[STEP {self.step_count}] ERROR in update_metrics: {e}")
+                #         import traceback
+                #         traceback.print_exc()
                 
                 # Apply bond spring forces (if enabled)
                 enable_spring_forces = getattr(self.open_chemistry_config, 'enable_spring_forces', True)
@@ -499,8 +488,8 @@ class SimulationStepper:
                     )
                 
                 # Update binding system (heavily throttled for performance)
-                # OPTIMIZATION: Update bonds every 150 steps (was 100) for better performance
-                if self.step_count % 150 == 0:
+                # OPTIMIZATION: Update bonds every 500 steps (was 150) for overnight test
+                if self.step_count % 500 == 0:
                     self.binding.update_bonds(
                         self.particles.positions,
                         self.particles.attributes,
@@ -509,8 +498,8 @@ class SimulationStepper:
                         dt
                     )
                 
-                # OPTIMIZATION: Update clusters every 300 steps (was 200)
-                if self.step_count % 300 == 0:
+                # OPTIMIZATION: Update clusters every 1000 steps (was 300) for overnight test
+                if self.step_count % 1000 == 0:
                     self.binding.update_clusters(
                         self.particles.positions,
                         self.particles.active,
@@ -541,13 +530,13 @@ class SimulationStepper:
                 
                 # Re-enable operations one by one for performance testing
                 
-                # Update metrics (heavily throttled for performance)
-                # OPTIMIZATION: Changed to 300 steps (was 200) for better performance
-                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 300)
+                # Update metrics (HEAVILY throttled for overnight test)
+                # Only update every 5000 steps - to_numpy() is very expensive
+                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 5000)
                 if metrics_update_interval is None or metrics_update_interval < 1:
-                    metrics_update_interval = 300
-                # Always update metrics for first 3 steps, then every 300 steps
-                if self.step_count < 3 or (self.step_count % metrics_update_interval) == 0:
+                    metrics_update_interval = 5000
+                # Skip metrics for first 3 steps, then very infrequently
+                if self.step_count > 3 and (self.step_count % metrics_update_interval) == 0:
                     logger.info(f"UPDATING METRICS at step {self.step_count}")
                     try:
                         self.update_metrics()
@@ -564,33 +553,33 @@ class SimulationStepper:
                     self._log_diagnostics()
                 
                 # Enable novelty detection and mutations for proper simulation (heavily throttled for performance)
+                # DISABLED for overnight test - focus on speed
                 # OPTIMIZATION: Apply mutations every 300 steps (was 200)
-                if self.step_count % 300 == 0:
+                if self.step_count % 1000 == 0:  # Much less frequent
                     self.apply_mutations(dt)
                 
-                # OPTIMIZATION: Update graph representation every 200 steps (was 100)
-                if self.step_count % 200 == 0:
-                    self.update_graph_representation()
+                # DISABLED: Graph updates are expensive
+                # if self.step_count % 200 == 0:
+                #     self.update_graph_representation()
                 
-                # OPTIMIZATION: Detect novel substances every 100 steps for faster discovery
-                # Reduced from 500 to 100 for better UX - substances appear faster in UI
-                if self.step_count % 100 == 0:
+                # OPTIMIZATION: Detect novel substances every 500 steps (was 100) for overnight test
+                if self.step_count % 500 == 0:
                     self.detect_novel_substances()
             
-            # logger.info(f"DEBUG: try block completed successfully")
+            if self.step_count < 5:
+                logger.info(f"[STEP {self.step_count}] Try block completed successfully")
             
         except Exception as e:
-            logger.error(f"Step execution failed: {e}")
+            logger.error(f"[STEP {self.step_count}] Step execution failed: {e}")
             import traceback
             traceback.print_exc()
             raise  # Re-raise to see the full error
         
         # Update time and step count
         self.current_time += dt
-        # logger.info(f"DEBUG: Updated current_time to {self.current_time}")
-        # print(f"DEBUG: About to increment step_count from {self.step_count}")
         self.step_count += 1
-        # print(f"DEBUG: step_count incremented to {self.step_count}")
+        if self.step_count <= 5:
+            logger.info(f"[STEP {self.step_count}] Step count incremented to {self.step_count}")
         
         # End performance timing
         step_time = self.performance_monitor.end_step_timing()
