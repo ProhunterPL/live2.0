@@ -1,0 +1,93 @@
+# Quick Performance Test - MINIMAL SIZE
+# ======================================
+# Ultra-mały test dla szybkiej weryfikacji
+# Tylko 200 cząstek, 1000 kroków
+
+scenario_name: "quick_test"
+
+simulation:
+  name: "quick_test"
+  scenario: "phase2_prebiotic"
+  description: "Minimal quick test"
+  
+  # MINIMAL scale
+  n_particles: 200
+  max_steps: 1000  # Just 1000 steps
+  dt: 0.001
+  box_size: 64.0  # Minimum allowed size
+  
+  # Temperature
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Minimal composition (10x less)
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 50
+  - name: "ammonia"
+    formula: "NH3"
+    count: 40
+  - name: "water"
+    formula: "H2O"
+    count: 80
+  - name: "hydrogen"
+    formula: "H2"
+    count: 30
+
+# Energy injection
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 500  # More frequent for short test
+  pulse_energy: 50.0
+  pulse_duration: 10
+  pulse_radius: 5.0
+  pulse_shape: "spherical"
+
+# Physics
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  bond_check_interval: 2000
+  bond_formation_threshold: 2.5
+  bond_breaking_energy_threshold: 0.8
+  cluster_check_interval: 5000
+  cluster_distance_threshold: 3.0
+
+# Performance (MAXIMUM)
+performance:
+  metrics_update_interval: 1000  # Only at end
+  diagnostics_frequency: 999999  # Disabled
+  novelty_check_interval: 999999  # Disabled
+  mutation_interval: 999999  # Disabled
+  graph_update_interval: 999999  # Disabled
+  energy_update_interval: 999999  # Disabled
+  memory_check_interval: 999999  # Disabled
+  gc_interval: 999999  # Disabled
+  performance_log_interval: 100  # Every 100 steps
+
+# Validation (DISABLED)
+validation:
+  enable_thermodynamic_validation: false
+
+# Diagnostics (DISABLED)
+diagnostics:
+  enabled: false
+
+# Output (NONE)
+output:
+  base_dir: "results/quick_test"
+  save_final_state: false
+  export_molecules: false
+  export_reactions: false
+
+# Logging (MINIMAL)
+logging:
+  level: "WARNING"
+  performance_log_interval: 100
+
+

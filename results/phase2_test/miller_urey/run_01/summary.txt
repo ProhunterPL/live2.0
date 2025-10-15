@@ -1,0 +1,20 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: miller_urey_test
+Description: Miller-Urey reducing atmosphere with electrical discharge (TEST - small scale)
+
+Configuration:
+  Steps: 10,000
+  Temperature: 298.0K
+  Seed: 43
+
+Initial Molecules:
+  - methane (CH4): 25
+  - ammonia (NH3): 20
+  - water (H2O): 30
+  - hydrogen (H2): 15
+
+Final State:
+  Particles: 825
+  Time: 48.50

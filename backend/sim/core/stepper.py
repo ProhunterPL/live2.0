@@ -127,12 +127,9 @@ class SimulationStepper:
     
     def initialize_simulation(self):
         """Initialize simulation with initial conditions"""
-        logger.info(f"DEBUG: initialize_simulation called, mode={self.config.mode}")
         if self.config.mode == "preset_prebiotic":
-            logger.info("DEBUG: Initializing preset_prebiotic mode")
             self.initialize_preset_mode()
         else:
-            logger.info("DEBUG: Initializing open_chemistry mode")
             self.initialize_open_chemistry_mode()
         
         # Initialize metrics
@@ -166,11 +163,9 @@ class SimulationStepper:
     def initialize_open_chemistry_mode(self):
         """Initialize open chemistry mode"""
         # Add initial particles with random properties
-        num_initial_particles = min(500, self.config.max_particles)  # NAPRAWIONE: Zwiększone z 100 dla większej aktywności
-        logger.info(f"DEBUG: initialize_open_chemistry_mode called, adding {num_initial_particles} particles")
+        num_initial_particles = min(500, self.config.max_particles)
         
         for i in range(num_initial_particles):
-            logger.info(f"DEBUG: Adding particle {i+1}/{num_initial_particles}")
             # Random position
             px, py = self.rng.py_next_vector2(0, float(self.config.grid_width))
             pos = ti.Vector([px, py])
@@ -194,9 +189,6 @@ class SimulationStepper:
             )
             
             # Add particle
-            logger.info(f"DEBUG: Calling add_particle_py for particle {i+1}")
-            logger.info(f"DEBUG: self.particles type: {type(self.particles)}")
-            logger.info(f"DEBUG: self.particles has add_particle_py: {hasattr(self.particles, 'add_particle_py')}")
             self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
         
         # Debug print removed for performance
@@ -214,22 +206,22 @@ class SimulationStepper:
     
     def step(self, dt: float = None):
         """Perform one simulation step with adaptive timestep control"""
-        # MEMORY MONITORING: Check memory usage every 100 steps
-        if self.step_count % 100 == 0:
+        # MEMORY MONITORING: Check memory usage every 1000 steps (reduced frequency)
+        memory_check_interval = getattr(self.config, 'memory_check_interval', 1000)
+        if memory_check_interval > 0 and self.step_count % memory_check_interval == 0:
             memory_stats = get_memory_stats()
-            if memory_stats['current_memory_mb'] > 500:  # Warn if over 500MB
+            if memory_stats['current_memory_mb'] > 5000:  # Warn only if over 5GB
                 logger.warning(f"High memory usage at step {self.step_count}: {memory_stats['current_memory_mb']:.1f} MB")
             
-            # Perform memory cleanup if needed
+            # Perform memory cleanup only if really needed
             if should_cleanup_memory():
-                logger.info(f"Performing memory cleanup at step {self.step_count}")
                 optimize_memory()
         
-        # AGGRESSIVE MEMORY CLEANUP: Every 500 steps, force garbage collection
-        if self.step_count % 500 == 0:
+        # Garbage collection every 5000 steps (less frequent)
+        gc_interval = getattr(self.config, 'gc_interval', 5000)
+        if gc_interval > 0 and self.step_count % gc_interval == 0:
             import gc
             gc.collect()
-            logger.info(f"Forced garbage collection at step {self.step_count}")
         
         # print("STEP FUNCTION CALLED")  # Disabled to prevent infinite loop
         # Debug prints disabled to prevent infinite loop
@@ -376,19 +368,11 @@ class SimulationStepper:
     def _perform_step(self, dt: float):
         """Perform the actual simulation step"""
         
-        if self.step_count < 5:
-            logger.info(f"[STEP {self.step_count}] _perform_step ENTRY")
-        
         # Start performance timing
         self.performance_monitor.start_step_timing()
 
         if not self.is_running or self.is_paused:
-            if self.step_count < 5:
-                logger.info(f"[STEP {self.step_count}] Skipping - is_running={self.is_running}, is_paused={self.is_paused}")
             return
-        
-        if self.step_count < 5:
-            logger.info(f"[STEP {self.step_count}] Entering try block")
 
         try:
             self.energy_manager.update(dt)
@@ -398,7 +382,6 @@ class SimulationStepper:
             # Add energy pulses periodically
             pulse_every = getattr(self.config, 'pulse_every', 48)
             if pulse_every and self.step_count % pulse_every == 0:
-                logger.info(f"[STEP {self.step_count}] Adding energy pulse")
                 self._add_energy_pulse()
 
             if self.config.mode == "preset_prebiotic":
@@ -530,44 +513,33 @@ class SimulationStepper:
                 
                 # Re-enable operations one by one for performance testing
                 
-                # Update metrics (HEAVILY throttled for overnight test)
-                # Only update every 5000 steps - to_numpy() is very expensive
-                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 5000)
+                # Update metrics (OPTIMIZED: configurable interval, default 10000)
+                # to_numpy() is very expensive, so minimize calls
+                metrics_update_interval = getattr(self.config, 'metrics_update_interval', 10000)
                 if metrics_update_interval is None or metrics_update_interval < 1:
-                    metrics_update_interval = 5000
-                # Skip metrics for first 3 steps, then very infrequently
+                    metrics_update_interval = 10000
+                # Skip metrics for first 3 steps, then at specified interval
                 if self.step_count > 3 and (self.step_count % metrics_update_interval) == 0:
-                    logger.info(f"UPDATING METRICS at step {self.step_count}")
                     try:
                         self.update_metrics()
-                        logger.info(f"METRICS UPDATED successfully")
                     except Exception as e:
                         logger.error(f"ERROR in update_metrics: {e}")
-                        import traceback
-                        traceback.print_exc()
                 
-                # Log diagnostics (HEAVILY THROTTLED to prevent memory issues)
-                # PERFORMANCE FIX: Changed from every 10 steps to every 500 steps
-                diag_freq = getattr(self.config, 'diagnostics_frequency', 500)
-                if self.step_count % diag_freq == 0:
+                # Log diagnostics (OPTIMIZED: configurable)
+                diag_freq = getattr(self.config, 'diagnostics_frequency', 5000)
+                if diag_freq > 0 and self.step_count % diag_freq == 0:
                     self._log_diagnostics()
                 
-                # Enable novelty detection and mutations for proper simulation (heavily throttled for performance)
-                # DISABLED for overnight test - focus on speed
-                # OPTIMIZATION: Apply mutations every 300 steps (was 200)
-                if self.step_count % 1000 == 0:  # Much less frequent
+                # Mutations (OPTIMIZED: configurable interval)
+                mutation_interval = getattr(self.config, 'mutation_interval', 2000)
+                if mutation_interval > 0 and self.step_count % mutation_interval == 0:
                     self.apply_mutations(dt)
                 
-                # DISABLED: Graph updates are expensive
-                # if self.step_count % 200 == 0:
-                #     self.update_graph_representation()
-                
-                # OPTIMIZATION: Detect novel substances every 500 steps (was 100) for overnight test
-                if self.step_count % 500 == 0:
+                # Novelty detection (OPTIMIZED: configurable interval)
+                novelty_interval = getattr(self.config, 'novelty_check_interval', 1000)
+                if novelty_interval > 0 and self.step_count % novelty_interval == 0:
                     self.detect_novel_substances()
             
-            if self.step_count < 5:
-                logger.info(f"[STEP {self.step_count}] Try block completed successfully")
             
         except Exception as e:
             logger.error(f"[STEP {self.step_count}] Step execution failed: {e}")
@@ -578,38 +550,20 @@ class SimulationStepper:
         # Update time and step count
         self.current_time += dt
         self.step_count += 1
-        if self.step_count <= 5:
-            logger.info(f"[STEP {self.step_count}] Step count incremented to {self.step_count}")
         
         # End performance timing
         step_time = self.performance_monitor.end_step_timing()
-        if self.step_count % 500 == 0:  # Log every 500 steps for better performance
+        perf_log_interval = getattr(self.config, 'performance_log_interval', 1000)
+        if perf_log_interval > 0 and self.step_count % perf_log_interval == 0:
             logger.info(f"Step {self.step_count} completed in {step_time*1000:.1f}ms")
 
-        # Update metrics after updating current_time (every 200 steps for performance)
-        if self.step_count % 200 == 0:
-        # logger.info(f"DEBUG: Updating metrics at step {self.step_count} with current_time={self.current_time}")
-            try:
-                self.update_metrics()
-                # logger.info(f"DEBUG: Metrics updated successfully at step {self.step_count}")
-            except Exception as e:
-                logger.error(f"ERROR in update_metrics at step {self.step_count}: {e}")
-                import traceback
-                traceback.print_exc()
-
-        # Debug: Log step completion (disabled to prevent infinite loop)
-        # if self.step_count <= 5:
-        #     print(f"STEP {self.step_count}: COMPLETED - time={self.current_time:.6f}, dt={dt:.6f}")
-        
         # Update energy conservation monitoring
         self._update_energy_conservation()
         
-        # Log completion for first 5 steps or every 500 steps
-        if self.step_count <= 5 or self.step_count % 500 == 0:
+        # Log completion only at specified interval
+        if perf_log_interval > 0 and self.step_count % perf_log_interval == 0:
             energy_drift = self._get_energy_drift()
-            print(f"STEP {self.step_count}: COMPLETED - sim_time={self.current_time:.6f}, step_count={self.step_count}, energy_drift={energy_drift:.4f}%")
-        
-        # logger.info(f"DEBUG: _perform_step completed successfully, step_count={self.step_count}, current_time={self.current_time}")
+            print(f"Step {self.step_count}: sim_time={self.current_time:.2f}s, energy_drift={energy_drift:.4f}%")
     
     def _create_state_snapshot(self):
         """Create a lightweight snapshot of current simulation state for validation"""
@@ -1466,8 +1420,6 @@ class SimulationStepper:
             intensity=pulse_amplitude,
             radius=pulse_radius
         )
-        
-        logger.info(f"Energy pulse added at ({x:.1f}, {y:.1f}) with intensity {pulse_amplitude}, radius {pulse_radius}")
     
     @ti.kernel
     def _energy_thermostat(self):

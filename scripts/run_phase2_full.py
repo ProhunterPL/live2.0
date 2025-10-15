@@ -192,14 +192,15 @@ class Phase2FullRunner:
         return count
     
     def initialize_taichi(self):
-        """Initialize Taichi (GPU or CPU)"""
+        """Initialize Taichi (CPU ONLY for safety after GPU crash)"""
         logger.info("Initializing Taichi...")
         
-        # Force CPU for now - GPU has memory issues with SimulationStepper
-        # In production, would optimize GPU memory usage
-        ti.init(arch=ti.cpu, cpu_max_num_threads=8)
-        logger.info("  Using CPU (forced for stability)")
-        logger.info("  Note: GPU has OOM issues with current field sizes")
+        # FORCE CPU ONLY - GPU caused system crash!
+        import multiprocessing
+        max_threads = multiprocessing.cpu_count()
+        logger.info(f"  Using CPU with {max_threads} threads (SAFE MODE)")
+        logger.info("  GPU disabled after system crash")
+        ti.init(arch=ti.cpu, cpu_max_num_threads=max_threads)
     
     def run(self) -> dict:
         """

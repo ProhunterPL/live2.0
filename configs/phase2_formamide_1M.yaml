@@ -1,0 +1,112 @@
+# Phase 2 - Formamide-rich 1M Steps (Optimized)
+# ===============================================
+
+scenario_name: "formamide_1M"
+
+simulation:
+  name: "formamide_1M"
+  scenario: "phase2_prebiotic"
+  description: "Formamide-rich - optimized 1M steps"
+  
+  n_particles: 2000
+  max_steps: 1000000  # 1M steps
+  dt: 0.001
+  box_size: 100.0
+  
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Formamide-rich composition
+initial_molecules:
+  - name: "formamide"
+    formula: "HCONH2"
+    count: 500
+    
+  - name: "water"
+    formula: "H2O"
+    count: 400
+    
+  - name: "ammonia"
+    formula: "NH3"
+    count: 300
+    
+  - name: "formic_acid"
+    formula: "HCOOH"
+    count: 200
+    
+  - name: "hydrogen_cyanide"
+    formula: "HCN"
+    count: 200
+    
+  - name: "formaldehyde"
+    formula: "CH2O"
+    count: 400
+
+# Energy injection (UV radiation simulation)
+energy_injection:
+  enabled: true
+  type: "uv_radiation"
+  pulse_interval: 800  # More frequent UV
+  pulse_energy: 60.0  # Higher energy (UV)
+  pulse_duration: 5  # Short bursts
+  pulse_radius: 8.0
+  pulse_shape: "spherical"
+
+# Physics (OPTIMIZED)
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  bond_check_interval: 1000
+  bond_formation_threshold: 2.5
+  bond_breaking_energy_threshold: 0.8
+  cluster_check_interval: 2000
+  cluster_distance_threshold: 3.0
+
+# Performance (MAXIMUM SPEED)
+performance:
+  metrics_update_interval: 10000
+  diagnostics_frequency: 10000
+  novelty_check_interval: 2000
+  mutation_interval: 3000
+  graph_update_interval: 999999
+  energy_update_interval: 2000
+  memory_check_interval: 5000
+  gc_interval: 10000
+  performance_log_interval: 5000
+
+# Validation (DISABLED)
+validation:
+  enable_thermodynamic_validation: false
+
+# Diagnostics (MINIMAL)
+diagnostics:
+  enabled: true
+  output_interval: 10000
+  save_snapshots: true
+  snapshot_interval: 100000
+
+# Benchmark
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "nucleobases"
+    - "amino_acids"
+    - "sugars"
+    - "purines"
+    - "pyrimidines"
+
+# Output
+output:
+  base_dir: "results/phase2_1M/formamide"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+
+logging:
+  level: "INFO"
+  performance_log_interval: 5000
+
+

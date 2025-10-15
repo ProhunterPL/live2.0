@@ -1,0 +1,72 @@
+# BARE MINIMUM TEST - NO PHYSICS AT ALL
+# =======================================
+# Test only Taichi initialization and basic stepping
+# NO force computation, NO reactions, NO physics
+
+scenario_name: "bare_minimum"
+
+simulation:
+  name: "bare_minimum"
+  scenario: "phase2_prebiotic"
+  description: "Bare minimum - NO physics"
+  
+  n_particles: 50
+  max_steps: 1000  # 1000 steps
+  dt: 0.001
+  box_size: 64.0
+  
+  target_temperature: 0.0  # NO thermostat
+  temperature_control: false  # DISABLED
+  thermostat_strength: 0.0
+
+# Minimal molecules
+initial_molecules:
+  - name: "hydrogen"
+    formula: "H2"
+    count: 50
+
+# NO energy injection
+energy_injection:
+  enabled: false
+
+# ALL PHYSICS DISABLED
+physics:
+  use_physics_db: false
+  enable_bonding: false
+  enable_breaking: false
+  enable_reactions: false
+  enable_forces: false  # CRITICAL: disable forces!
+  bond_check_interval: 999999999
+  cluster_check_interval: 999999999
+
+# ALL optimizations DISABLED
+performance:
+  metrics_update_interval: 999999999
+  diagnostics_frequency: 999999999
+  novelty_check_interval: 999999999
+  mutation_interval: 999999999
+  graph_update_interval: 999999999
+  energy_update_interval: 999999999
+  memory_check_interval: 999999999
+  gc_interval: 999999999
+  performance_log_interval: 100
+
+# NO validation
+validation:
+  enable_thermodynamic_validation: false
+
+# NO diagnostics
+diagnostics:
+  enabled: false
+
+# NO output
+output:
+  base_dir: "results/bare_minimum"
+  save_final_state: false
+  export_molecules: false
+  export_reactions: false
+
+logging:
+  level: "ERROR"  # Only errors
+
+

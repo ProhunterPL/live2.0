@@ -273,12 +273,7 @@ class ParticleSystem:
     def add_energy(self, energy_amount):
         """Add energy to particles"""
         # Debug energy addition
-        total_energy_added = 0.0
-        for i in range(min(10, self.particle_count[None])):  # Check first 10 particles
-            if self.active[i] == 1:
-                total_energy_added += energy_amount[i]
-        logger.info(f"DEBUG: add_energy called, total energy to add={total_energy_added:.4f}")
-        
+        # Add energy to particles
         add_energy_kernel(energy_amount)
     
     def decay_energy(self, decay_rate: float):

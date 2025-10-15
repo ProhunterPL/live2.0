@@ -65,7 +65,7 @@ def quick_analyze(result_dir: Path, output_dir: Path = None, use_matcher: bool =
         
         # Save molecule list
         mol_file = output_dir / "molecules.txt"
-        with open(mol_file, 'w') as f:
+        with open(mol_file, 'w', encoding='utf-8') as f:
             f.write(f"Molecules found: {len(molecules)}\n")
             f.write(f"Analysis time: {datetime.now()}\n")
             f.write("=" * 70 + "\n\n")
@@ -113,7 +113,7 @@ def quick_analyze(result_dir: Path, output_dir: Path = None, use_matcher: bool =
             
             # Save matches
             match_file = output_dir / "pubchem_matches.txt"
-            with open(match_file, 'w') as f:
+            with open(match_file, 'w', encoding='utf-8') as f:
                 f.write(f"PubChem matches: {len(matches)}\n")
                 f.write("=" * 70 + "\n\n")
                 
@@ -129,7 +129,7 @@ def quick_analyze(result_dir: Path, output_dir: Path = None, use_matcher: bool =
     # Summary
     logger.info("\n[3/3] Generating summary...")
     summary_file = output_dir / "summary.txt"
-    with open(summary_file, 'w') as f:
+    with open(summary_file, 'w', encoding='utf-8') as f:
         f.write("=" * 70 + "\n")
         f.write("QUICK ANALYSIS SUMMARY\n")
         f.write("=" * 70 + "\n\n")

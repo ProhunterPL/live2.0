@@ -1,0 +1,71 @@
+# SAFE TEST - Will NOT crash system
+# ===================================
+# ULTRA conservative settings
+# CPU only, minimal particles, short test
+
+scenario_name: "safe_test"
+
+simulation:
+  name: "safe_test"
+  scenario: "phase2_prebiotic"
+  description: "Safe test - CPU only, 50 particles"
+  
+  n_particles: 50  # MINIMAL
+  max_steps: 100   # Very short
+  dt: 0.001
+  box_size: 64.0
+  
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Minimal composition
+initial_molecules:
+  - name: "hydrogen"
+    formula: "H2"
+    count: 50  # Only H2, simplest molecule
+
+# NO energy injection
+energy_injection:
+  enabled: false
+
+# ALL PHYSICS DISABLED
+physics:
+  use_physics_db: false
+  enable_bonding: false
+  enable_breaking: false
+  enable_reactions: false
+  bond_check_interval: 999999999
+  cluster_check_interval: 999999999
+
+# ALL features DISABLED
+performance:
+  metrics_update_interval: 999999999
+  diagnostics_frequency: 999999999
+  novelty_check_interval: 999999999
+  mutation_interval: 999999999
+  graph_update_interval: 999999999
+  energy_update_interval: 999999999
+  memory_check_interval: 999999999
+  gc_interval: 999999999
+  performance_log_interval: 10
+
+# NO validation
+validation:
+  enable_thermodynamic_validation: false
+
+# NO diagnostics
+diagnostics:
+  enabled: false
+
+# Minimal output
+output:
+  base_dir: "results/safe_test"
+  save_final_state: false
+  export_molecules: false
+  export_reactions: false
+
+logging:
+  level: "ERROR"
+
+

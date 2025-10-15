@@ -201,7 +201,6 @@ class MetricsCollector:
         
         if additional_metrics:
             metrics.update(additional_metrics)
-            logger.info(f"DEBUG: record_metrics added additional_metrics: {additional_metrics}")
         
         self.metrics_history.append(metrics)
     

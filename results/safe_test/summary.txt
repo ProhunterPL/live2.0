@@ -1,0 +1,17 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: safe_test
+Description: Safe test - CPU only, 50 particles
+
+Configuration:
+  Steps: 100
+  Temperature: 298.0K
+  Seed: 42
+
+Initial Molecules:
+  - hydrogen (H2): 50
+
+Final State:
+  Particles: 600
+  Time: 0.10

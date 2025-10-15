@@ -1,0 +1,89 @@
+# Phase 2 Quick Fix Test
+# ======================
+# FIX #1: Disable reactions (prevent particle multiplication)
+# FIX #2: Reduce particles to 500
+# Expected: 50-100 steps/second
+
+scenario_name: "quick_fix_test"
+
+simulation:
+  name: "quick_fix_test"
+  scenario: "phase2_prebiotic"
+  description: "Quick fix test - no reactions, 500 particles"
+  
+  n_particles: 500  # Reduced from 2000
+  max_steps: 10000  # 10k steps for test
+  dt: 0.001
+  box_size: 100.0
+  
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Miller-Urey composition (scaled down)
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 125  # 500/4 = 125 each
+  - name: "ammonia"
+    formula: "NH3"
+    count: 100
+  - name: "water"
+    formula: "H2O"
+    count: 200
+  - name: "hydrogen"
+    formula: "H2"
+    count: 75
+
+# Energy injection (reduced)
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 1000
+  pulse_energy: 50.0
+  pulse_duration: 10
+  pulse_radius: 10.0
+  pulse_shape: "spherical"
+
+# Physics - REACTIONS DISABLED (FIX #1)
+physics:
+  use_physics_db: true
+  enable_bonding: false  # DISABLED
+  enable_breaking: false  # DISABLED
+  enable_reactions: false  # DISABLED - prevent particle multiplication!
+  bond_check_interval: 999999  # Effectively disabled
+  cluster_check_interval: 999999  # Effectively disabled
+
+# Performance - optimized
+performance:
+  metrics_update_interval: 10000
+  diagnostics_frequency: 10000
+  novelty_check_interval: 10000
+  mutation_interval: 999999  # Disabled
+  graph_update_interval: 999999  # Disabled
+  energy_update_interval: 1000
+  memory_check_interval: 5000
+  gc_interval: 10000
+  performance_log_interval: 1000  # Log every 1000 steps
+
+# Validation - disabled for speed
+validation:
+  enable_thermodynamic_validation: false
+
+# Diagnostics - minimal
+diagnostics:
+  enabled: true
+  output_interval: 10000
+  save_snapshots: false
+
+# Output
+output:
+  base_dir: "results/quick_fix_test"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: false
+
+logging:
+  level: "INFO"
+
+

@@ -1,0 +1,100 @@
+# Phase 2 - Performance Test V2 - GPU OPTIMIZED
+# =================================================
+#
+# Ultra-optimized version for maximum speed with GPU
+# Target: >100 steps/second
+# Expected duration: <100 seconds for 10k steps
+
+scenario_name: "performance_test_v2"
+
+simulation:
+  name: "performance_test_v2"
+  scenario: "phase2_prebiotic"
+  description: "GPU-optimized performance test"
+  
+  # Parameters
+  n_particles: 2000
+  max_steps: 10000  # 10k steps for test
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Initial composition
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 500
+  - name: "ammonia"
+    formula: "NH3"
+    count: 400
+  - name: "water"
+    formula: "H2O"
+    count: 800
+  - name: "hydrogen"
+    formula: "H2"
+    count: 300
+
+# Energy injection
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 1000
+  pulse_energy: 50.0
+  pulse_duration: 10
+  pulse_radius: 10.0
+  pulse_shape: "spherical"
+
+# Physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  bond_check_interval: 1000  # Less frequent
+  bond_formation_threshold: 2.5
+  bond_breaking_energy_threshold: 0.8
+  cluster_check_interval: 2000  # Less frequent
+  cluster_distance_threshold: 3.0
+
+# Performance optimization (MAXIMUM SPEED)
+performance:
+  metrics_update_interval: 10000  # Only at end
+  diagnostics_frequency: 10000  # Only at end
+  novelty_check_interval: 5000  # Very rare
+  mutation_interval: 5000  # Very rare
+  graph_update_interval: 999999  # Disabled
+  energy_update_interval: 2000
+  memory_check_interval: 5000  # Less frequent memory checks
+  gc_interval: 10000  # Garbage collection only every 10k steps
+  performance_log_interval: 1000
+
+# Validation (DISABLED)
+validation:
+  enable_thermodynamic_validation: false
+  thermodynamic_check_interval: 999999
+  validate_every_n_steps: 999999
+
+# Diagnostics (MINIMAL)
+diagnostics:
+  enabled: false  # Completely disabled for speed
+  output_interval: 999999
+  save_snapshots: false
+  snapshot_interval: 999999
+
+# Output (MINIMAL)
+output:
+  base_dir: "results/performance_test_v2"
+  save_final_state: false
+  export_molecules: false
+  export_reactions: false
+
+# Logging (MINIMAL)
+logging:
+  level: "WARNING"
+  performance_log_interval: 1000
+
+

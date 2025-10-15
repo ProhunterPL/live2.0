@@ -294,7 +294,7 @@ class MoleculeExtractor:
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(matcher_input, f, indent=2)
         
         logger.info(f"Exported to: {output_path}")
@@ -364,7 +364,7 @@ class MoleculeExtractor:
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(report_text)
         
         logger.info(f"Report saved to: {output_path}")

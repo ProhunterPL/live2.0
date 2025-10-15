@@ -1,0 +1,107 @@
+# Phase 2 - Performance Test Configuration  
+# ===========================================
+#
+# Quick performance test: 10,000 steps to validate optimization
+# Target: >100 steps/second
+# Expected duration: <100 seconds
+
+scenario_name: "performance_test"
+
+simulation:
+  name: "performance_test"
+  scenario: "phase2_prebiotic"
+  description: "Performance validation test"
+  
+  # Small scale for quick testing
+  n_particles: 2000
+  max_steps: 10000  # 10k steps for performance test
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Initial composition (reduced for test)
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 500
+    
+  - name: "ammonia"
+    formula: "NH3"
+    count: 400
+    
+  - name: "water"
+    formula: "H2O"
+    count: 800
+    
+  - name: "hydrogen"
+    formula: "H2"
+    count: 300
+
+# Energy injection
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 1000
+  pulse_energy: 50.0
+  pulse_duration: 10
+  pulse_radius: 10.0
+  pulse_shape: "spherical"
+
+# Physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  bond_check_interval: 500
+  bond_formation_threshold: 2.5
+  bond_breaking_energy_threshold: 0.8
+  cluster_check_interval: 1000
+  cluster_distance_threshold: 3.0
+
+# Performance optimization (MAXIMAL)
+performance:
+  metrics_update_interval: 10000  # Only at end
+  diagnostics_frequency: 10000  # Only at end
+  novelty_check_interval: 2000
+  mutation_interval: 2000
+  graph_update_interval: 999999  # Disabled
+  energy_update_interval: 1000
+
+# Validation (DISABLED for speed)
+validation:
+  enable_thermodynamic_validation: false
+  thermodynamic_check_interval: 999999
+  validate_every_n_steps: 999999
+  energy_tolerance: 0.001
+  momentum_tolerance: 0.0001
+
+# Diagnostics (MINIMAL)
+diagnostics:
+  enabled: true
+  output_interval: 10000
+  save_snapshots: false  # Disabled for speed
+  snapshot_interval: 999999
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "particle_count"
+
+# Output
+output:
+  base_dir: "results/performance_test"
+  save_final_state: false
+  export_molecules: false
+  export_reactions: false
+
+# Logging (MINIMAL)
+logging:
+  level: "WARNING"
+  performance_log_interval: 1000
+
+

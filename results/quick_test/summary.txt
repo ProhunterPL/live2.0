@@ -1,0 +1,20 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: quick_test
+Description: Minimal quick test
+
+Configuration:
+  Steps: 1,000
+  Temperature: 298.0K
+  Seed: 42
+
+Initial Molecules:
+  - methane (CH4): 50
+  - ammonia (NH3): 40
+  - water (H2O): 80
+  - hydrogen (H2): 30
+
+Final State:
+  Particles: 1210
+  Time: 1.00
