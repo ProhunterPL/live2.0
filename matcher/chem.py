@@ -12,17 +12,21 @@ def choose_symbol(deg: int, given_label: Optional[str] = None, mass: float = 1.0
     """
     Heuristic mapping from node degree, mass, and charge to atomic symbol.
     
+    CRITICAL: Hydrogen can ONLY have degree 1 (one bond). Any atom with degree > 1
+    cannot be hydrogen, regardless of mass.
+    
     If given_label is a valid element symbol, use it.
-    Otherwise, use mass and degree:
-    - mass ≈ 1 (0.5-2) → H (hydrogen)
+    Otherwise, use degree as PRIMARY criterion:
+    - degree 1 → could be H (if terminal) or terminal C
+    - degree 2 → O, N, or C in chain (NEVER H)
+    - degree 3 → N or C (NEVER H)
+    - degree ≥4 → C (NEVER H)
+    
+    Mass is used as secondary criterion:
     - mass ≈ 12 (10-14) → C (carbon)
     - mass ≈ 14 (13-15) → N (nitrogen)
     - mass ≈ 16 (15-17) → O (oxygen)
-    
-    Fallback based on degree:
-    - degree 1 → C (carbon - most versatile)
-    - degree 2 → O or N (oxygen/nitrogen)
-    - degree ≥3 → C (carbon)
+    - mass ≈ 1 (0.5-2) → H only if degree == 1
     
     This is a proxy mapping for clusters without real chemical symbols.
     """
@@ -31,26 +35,44 @@ def choose_symbol(deg: int, given_label: Optional[str] = None, mass: float = 1.0
     if given_label and given_label in valid_elements:
         return given_label
     
-    # Use mass to choose element if available
+    # CRITICAL: Hydrogen can ONLY have degree 1
+    # Any atom with degree > 1 CANNOT be hydrogen
+    if deg > 1:
+        # Use mass to choose between C, N, O for multi-bonded atoms
+        if 10.0 <= mass <= 14.0:
+            return "C"
+        elif 13.0 <= mass <= 15.0:
+            return "N"
+        elif 15.0 <= mass <= 17.0:
+            return "O"
+        
+        # Fallback based on degree for multi-bonded atoms
+        if deg == 2:
+            # In organic chemistry, degree 2 is often O in chains (e.g., ethers, carbonyls)
+            # But could also be C in chains or N in rings
+            return "O" if charge_magnitude < 0.3 else "N"
+        elif deg == 3:
+            # Degree 3 is typically N (amines) or C (sp2/sp3)
+            return "N" if charge_magnitude > 0.3 else "C"
+        else:  # deg >= 4
+            # Only carbon can have 4 or more bonds in organic chemistry
+            return "C"
+    
+    # Degree == 1: could be H (terminal hydrogen) or terminal C
+    # Use mass to decide
     if 0.5 <= mass <= 2.0:
+        # Low mass, degree 1 → likely hydrogen
         return "H"
     elif 10.0 <= mass <= 14.0:
+        # Carbon mass, degree 1 → terminal carbon (e.g., methyl group)
         return "C"
-    elif 13.0 <= mass <= 15.0:
-        return "N"
     elif 15.0 <= mass <= 17.0:
+        # Oxygen mass, degree 1 → hydroxyl or similar
         return "O"
     
-    # Fallback to degree-based heuristic
-    # Changed: degree 1 atoms are now C instead of H (more realistic for organic molecules)
-    if deg == 1:
-        return "C"
-    if deg == 2:
-        # Choose N or O based on charge
-        return "N" if charge_magnitude > 0.5 else "O"
-    if deg == 3:
-        return "N"
-    return "C"  # deg >= 4
+    # Default fallback for degree 1
+    # In organic molecules, terminal atoms are usually C or O
+    return "C"
 
 
 def json_to_mol(cluster_json: dict) -> Chem.Mol:
@@ -105,15 +127,37 @@ def json_to_mol(cluster_json: dict) -> Chem.Mol:
         print(f"Warning: Sanitization failed: {e}")
         # Continue anyway - some molecules might not be perfect
     
+    # CRITICAL: Add implicit hydrogens to satisfy valence requirements
+    # Without this, N3 becomes N3 instead of N3H3, C2 becomes C2 instead of C2H6, etc.
+    try:
+        mol = Chem.AddHs(mol)
+    except Exception as e:
+        print(f"Warning: Adding hydrogens failed: {e}")
+    
     return mol
 
 
 def mol_to_smiles(mol: Chem.Mol) -> str:
-    """Convert RDKit Mol to canonical SMILES string."""
-    return Chem.MolToSmiles(mol, canonical=True)
+    """
+    Convert RDKit Mol to canonical SMILES string.
+    
+    CRITICAL: Remove explicit hydrogens before generating SMILES for PubChem search.
+    PubChem uses implicit hydrogens:
+    - [H]N([H])[H] → N (ammonia)
+    - [H][H] → [HH] or just don't search
+    - [H]N1N([H])N1[H] → N1NN1
+    """
+    try:
+        # Remove explicit hydrogens for PubChem-compatible SMILES
+        mol_no_h = Chem.RemoveHs(mol)
+        return Chem.MolToSmiles(mol_no_h, canonical=True)
+    except Exception as e:
+        print(f"Warning: SMILES generation failed: {e}")
+        # Fallback: try with explicit H
+        return Chem.MolToSmiles(mol, canonical=True)
 
 
-def pubchem_similar_top(smiles: str, threshold: int = 90) -> Optional[Dict]:
+def pubchem_similar_top(smiles: str, threshold: int = 75) -> Optional[Dict]:
     """
     Search PubChem for the most similar compound to the given SMILES.
     
