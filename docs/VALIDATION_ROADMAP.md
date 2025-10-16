@@ -1862,13 +1862,15 @@ All NO-GO triggers → Major revision needed
 
 ---
 
-**Last updated**: 13 października 2025 (19:30 CET)  
+**Last updated**: 16 października 2025 (16:00 CET)  
 **Current Status**: 
 - 🎉 **PHASE 1: 100% COMPLETE** - All validation infrastructure ready
 - 🎉 **PHASE 2: INFRASTRUCTURE 100% COMPLETE** - All tools and configs ready
-- 🏃 **PHASE 2A: IN PROGRESS** - Miller-Urey overnight test running
+- 🏃 **PHASE 2A: IN PROGRESS** - AWS tests running (24-72 simulations)
 - 🎉 **PHASE 3: TOOLS 100% COMPLETE** - Analysis pipeline ready
+- 🎉 **AWS PIPELINE: 100% COMPLETE** - Automated download & analysis (NEW!)
+- 🎉 **PAPER STRUCTURE: 40% COMPLETE** - Introduction + Methods ready (NEW!)
 
-**Estimated Timeline to Submission**: ~7 weeks (Nov 30, 2025)
+**Estimated Timeline to Submission**: ~6 weeks (Nov 30, 2025)
 **Estimated Publication**: Q1 2026 (Feb-March)
 
