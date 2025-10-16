@@ -1,0 +1,19 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: spatial_hash_test
+Description: Spatial hash test - O(n) forces
+
+Configuration:
+  Steps: 1,000
+  Temperature: 298.0K
+  Seed: 42
+
+Initial Molecules:
+  - methane (CH4): 50
+  - water (H2O): 100
+  - hydrogen (H2): 50
+
+Final State:
+  Particles: 1150
+  Time: 1.00
