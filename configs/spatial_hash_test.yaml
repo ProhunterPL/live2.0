@@ -1,0 +1,80 @@
+# Spatial Hash Performance Test
+# ==============================
+# Test new O(n) spatial hashing implementation
+# Expected: 50-100x speedup vs O(n²)
+
+scenario_name: "spatial_hash_test"
+
+simulation:
+  name: "spatial_hash_test"
+  scenario: "phase2_prebiotic"
+  description: "Spatial hash test - O(n) forces"
+  
+  n_particles: 200  # Test with 200 particles
+  max_steps: 1000   # 1000 steps
+  dt: 0.001
+  box_size: 100.0
+  
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+  
+  # Spatial hash parameters
+  spatial_hash_cell_size: 10.0  # Cell size in Angstroms
+
+# Simple composition
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 50
+  - name: "water"
+    formula: "H2O"
+    count: 100
+  - name: "hydrogen"
+    formula: "H2"
+    count: 50
+
+# NO energy injection for pure performance test
+energy_injection:
+  enabled: false
+
+# Physics - reactions DISABLED
+physics:
+  use_physics_db: false
+  enable_bonding: false
+  enable_breaking: false
+  enable_reactions: false
+  bond_check_interval: 999999
+  cluster_check_interval: 999999
+
+# Performance settings
+performance:
+  metrics_update_interval: 10000
+  diagnostics_frequency: 10000
+  novelty_check_interval: 999999
+  mutation_interval: 999999
+  graph_update_interval: 999999
+  energy_update_interval: 1000
+  memory_check_interval: 5000
+  gc_interval: 10000
+  performance_log_interval: 100  # Log every 100 steps
+
+# NO validation
+validation:
+  enable_thermodynamic_validation: false
+
+# Minimal diagnostics
+diagnostics:
+  enabled: false
+
+# Output
+output:
+  base_dir: "results/spatial_hash_test"
+  save_final_state: true
+  export_molecules: false
+  export_reactions: false
+
+logging:
+  level: "INFO"
+
+

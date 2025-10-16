@@ -1,0 +1,89 @@
+# Phase 2 Final Test - 500 Particles
+# ====================================
+# Final validation before full Phase 2 launch
+# Target: 10,000 steps to measure real performance
+
+scenario_name: "phase2_final_test"
+
+simulation:
+  name: "phase2_final_test"
+  scenario: "phase2_prebiotic"
+  description: "Final test - 500 particles, 10k steps"
+  
+  n_particles: 500
+  max_steps: 10000
+  dt: 0.001
+  box_size: 100.0
+  
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+  
+  # Spatial hashing
+  spatial_hash_cell_size: 10.0
+
+# Miller-Urey composition (scaled)
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 125
+  - name: "ammonia"
+    formula: "NH3"
+    count: 100
+  - name: "water"
+    formula: "H2O"
+    count: 200
+  - name: "hydrogen"
+    formula: "H2"
+    count: 75
+
+# Energy injection
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 1000
+  pulse_energy: 50.0
+  pulse_duration: 10
+  pulse_radius: 10.0
+  pulse_shape: "spherical"
+
+# Physics - REACTIONS DISABLED for performance
+physics:
+  use_physics_db: false
+  enable_bonding: false
+  enable_breaking: false
+  enable_reactions: false
+
+# Performance
+performance:
+  metrics_update_interval: 10000
+  diagnostics_frequency: 10000
+  novelty_check_interval: 999999
+  mutation_interval: 999999
+  graph_update_interval: 999999
+  energy_update_interval: 1000
+  memory_check_interval: 5000
+  gc_interval: 10000
+  performance_log_interval: 1000
+
+# Validation disabled
+validation:
+  enable_thermodynamic_validation: false
+
+# Diagnostics minimal
+diagnostics:
+  enabled: true
+  output_interval: 10000
+  save_snapshots: false
+
+# Output
+output:
+  base_dir: "results/phase2_final_test"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: false
+
+logging:
+  level: "INFO"
+
+

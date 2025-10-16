@@ -1,6 +1,8 @@
 """
 Potential functions for Live 2.0 simulation
 Handles particle-particle interactions and binding potentials
+
+PERFORMANCE: Now uses spatial hashing for O(n) force computation!
 """
 
 import taichi as ti
@@ -11,6 +13,20 @@ import logging
 from ..config import SimulationConfig
 
 logger = logging.getLogger(__name__)
+
+# Import spatial hashing
+try:
+    from .spatial_hash import (
+        init_spatial_hash_fields, 
+        build_spatial_hash, 
+        compute_forces_spatial_simple,
+        get_stats as get_spatial_stats
+    )
+    SPATIAL_HASH_AVAILABLE = True
+    logger.info("Spatial hashing enabled - O(n) force computation!")
+except ImportError as e:
+    logger.warning(f"Spatial hashing not available: {e}")
+    SPATIAL_HASH_AVAILABLE = False
 
 # Compile-time constants
 MAX_PARTICLES_COMPILE = 10000
@@ -231,6 +247,23 @@ class PotentialSystem:
         self.binding_threshold[None] = config.binding_threshold
         self.unbinding_threshold[None] = config.unbinding_threshold
         
+        # Initialize spatial hashing (O(n) performance!)
+        self.use_spatial_hash = SPATIAL_HASH_AVAILABLE
+        self.spatial_cell_size = 10.0  # Default
+        if self.use_spatial_hash:
+            try:
+                # Check config for cell size
+                if hasattr(config, 'spatial_hash_cell_size'):
+                    self.spatial_cell_size = config.spatial_hash_cell_size
+                elif hasattr(config, 'spatial_cell_size'):
+                    self.spatial_cell_size = config.spatial_cell_size
+                
+                init_spatial_hash_fields(cell_size=self.spatial_cell_size)
+                logger.info(f"Spatial hashing initialized (cell_size={self.spatial_cell_size})")
+            except Exception as e:
+                logger.error(f"Failed to initialize spatial hashing: {e}")
+                self.use_spatial_hash = False
+        
         # Load Physics Database (PHASE 1 WEEK 2: Literature parameters)
         self.physics_db = None
         self.use_physics_db = config.use_physics_db
@@ -408,8 +441,28 @@ class PotentialSystem:
         return binding_strength * (2.0 * dr - 1.5 * dr * dr / equilibrium_distance)
     
     def compute_forces(self, positions, attributes, active, particle_count: int):
-        """Compute forces between all particle pairs"""
-        compute_forces_kernel(positions, attributes, active, particle_count)
+        """
+        Compute forces between particles.
+        
+        Now uses spatial hashing for O(n) performance!
+        Falls back to O(n²) if spatial hash not available.
+        """
+        if self.use_spatial_hash:
+            # O(n) spatial hashing approach!
+            try:
+                # Build spatial hash grid
+                box_width = self.config.grid_width
+                box_height = self.config.grid_height
+                build_spatial_hash(positions, active, particle_count, box_width, box_height)
+                
+                # Compute forces using spatial hash
+                compute_forces_spatial_simple(positions, attributes, active, particle_count, self.forces)
+            except Exception as e:
+                logger.error(f"Spatial hash failed: {e}, falling back to O(n²)")
+                compute_forces_kernel(positions, attributes, active, particle_count)
+        else:
+            # O(n²) fallback
+            compute_forces_kernel(positions, attributes, active, particle_count)
     
     def update_binding_matrix(self, positions, attributes, active, particle_count: int):
         """Update binding matrix based on particle distances and properties"""
