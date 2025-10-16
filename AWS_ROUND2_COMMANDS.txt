@@ -1,0 +1,53 @@
+# ========================================
+# AWS RUNDA 2 - KOLEJNE 24 SYMULACJE
+# ========================================
+# Uruchom to gdy runda 1 się zakończy (za ~10 godzin)
+
+# 1. SPRAWDŹ CZY RUNDA 1 ZAKOŃCZONA:
+ps aux | grep run_phase2_full | grep -v grep | wc -l
+# Powinno pokazać: 0
+
+find results -name "summary.txt" | wc -l
+# Powinno pokazać: 24
+
+# 2. SPRAWDŹ PAMIĘĆ:
+free -h
+
+# 3. URUCHOM RUNDĘ 2 (kolejne 24 symulacje):
+
+for i in {9..16}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_miller_urey.yaml --output results/miller_urey/run_$i --steps 200000 --seed $((42 + i)) > logs/miller2_$i.log 2>&1 & done
+
+for i in {9..16}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_hydrothermal.yaml --output results/hydrothermal/run_$i --steps 200000 --seed $((50 + i)) > logs/hydro2_$i.log 2>&1 & done
+
+for i in {9..16}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_formamide.yaml --output results/formamide/run_$i --steps 200000 --seed $((60 + i)) > logs/form2_$i.log 2>&1 & done
+
+# 4. SPRAWDŹ ŻE URUCHOMIONE:
+ps aux | grep run_phase2_full | grep -v grep | wc -l
+# Powinno pokazać: 24
+
+free -h
+# Powinno zostać ~18-20 GB wolne
+
+# 5. MONITORUJ:
+tail -f logs/miller2_9.log
+
+# ========================================
+# RUNDA 3 (opcjonalnie, za kolejne 10h)
+# ========================================
+
+for i in {17..24}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_miller_urey.yaml --output results/miller_urey/run_$i --steps 200000 --seed $((42 + i)) > logs/miller3_$i.log 2>&1 & done
+
+for i in {17..24}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_hydrothermal.yaml --output results/hydrothermal/run_$i --steps 200000 --seed $((50 + i)) > logs/hydro3_$i.log 2>&1 & done
+
+for i in {17..24}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_formamide.yaml --output results/formamide/run_$i --steps 200000 --seed $((60 + i)) > logs/form3_$i.log 2>&1 & done
+
+# ========================================
+# RUNDA 4 (72 total symulacji)
+# ========================================
+
+for i in {25..32}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_miller_urey.yaml --output results/miller_urey/run_$i --steps 200000 --seed $((42 + i)) > logs/miller4_$i.log 2>&1 & done
+
+for i in {25..32}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_hydrothermal.yaml --output results/hydrothermal/run_$i --steps 200000 --seed $((50 + i)) > logs/hydro4_$i.log 2>&1 & done
+
+for i in {25..32}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_formamide.yaml --output results/formamide/run_$i --steps 200000 --seed $((60 + i)) > logs/form4_$i.log 2>&1 & done
+

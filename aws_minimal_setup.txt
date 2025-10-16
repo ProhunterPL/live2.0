@@ -1,0 +1,38 @@
+# ============================================
+# MINIMALNA INSTALACJA AWS - Kopiuj linijka po linijce
+# ============================================
+
+# Krok 1: Zaktualizuj system (już zrobione ✓)
+sudo apt update && sudo apt upgrade -y
+
+# Krok 2: Zainstaluj podstawowe narzędzia
+sudo apt install -y python3.11 python3-pip git htop
+
+# Krok 3: Sklonuj repozytorium
+git clone https://github.com/ProhunterPL/live2.0.git
+
+# Krok 4: Wejdź do katalogu
+cd live2.0
+
+# Krok 5: Zainstaluj zależności Python
+pip3 install --upgrade pip
+pip3 install -r requirements.txt
+
+# Krok 6: Sprawdź czy działa
+python3 -c "import taichi as ti; print('Taichi OK:', ti.__version__)"
+
+# Krok 7: Test wydajności (1000 kroków, ~2-3 minuty)
+python3 scripts/run_phase2_full.py --config configs/phase2_quick_test.yaml --output results/test1 --steps 1000 --seed 42
+
+# Krok 8: Sprawdź wynik testu
+cat results/test1/summary.txt
+
+# Krok 9: Jeśli test OK, uruchom produkcję (16 równoległych zadań dla c6i.16xlarge)
+nohup python3 scripts/phase2_master_1M.py --mode full --scenarios all --max-parallel 16 --output-dir results/production > production.log 2>&1 &
+
+# Krok 10: Monitoruj postęp
+tail -f production.log
+
+# Krok 11: W drugim terminalu możesz uruchomić:
+htop
+
