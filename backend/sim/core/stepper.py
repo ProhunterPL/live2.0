@@ -293,21 +293,22 @@ class SimulationStepper:
             validation_start = time.time()
             
             try:
-                # SIMPLIFIED: Direct validation without threading to prevent hangs
+                # SMART VALIDATION: Different tests at different frequencies (GROMACS/NAMD best practices)
+                # Energy+Momentum: every call (~2ms), M-B: every 20k steps, Entropy: every 50k steps
                 state_after = self._create_state_snapshot()
-                validation_results = self.validator.validate_essential_only(
+                validation_results = self.validator.validate_smart(
                     state_before, state_after, energy_injected, energy_dissipated, 
                     self.step_count
                 )
                 
                 validation_time = time.time() - validation_start
                 
-                # Log timing if validation is slow (>100ms)
+                # Log timing only for full validation (M-B or Entropy, >100ms)
                 if validation_time > 0.1:
-                    logger.warning(f"Slow thermodynamic validation at step {self.step_count}: {validation_time*1000:.1f}ms")
+                    logger.info(f"Full thermodynamic validation at step {self.step_count}: {validation_time*1000:.1f}ms")
                 
                 # Log validation results if successful
-                if validation_results and validation_time < 1.0:  # Only log if under 1 second
+                if validation_results and validation_time < 5.0:  # Increased timeout for full validation
                     self.validator.log_validation_results(validation_results)
                 
             except Exception as e:

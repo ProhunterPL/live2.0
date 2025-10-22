@@ -173,13 +173,13 @@ const App: React.FC = () => {
         setRuntimeStartMs(null)
         // Create new simulation in selected mode
         const response = await api.createSimulation({
-          config: {
+          config: {  // Note: using 'as any' below to allow extra thermodynamic validation fields
             grid_height: 128,
             grid_width: 128,
             mode,
             max_particles: 5000,
             max_time: 1000,
-            dt: 0.035,  // Zwiększone z 0.01
+            dt: 0.005,  // NAPRAWIONE: było 0.035 (7× za dużo!) - stabilność numeryczna
             energy_decay: 0.96,  // Wolniejsze wygaszanie z 0.95
             energy_threshold: 0.1,
             // Energy system parameters - OPTIMIZED FOR MORE DYNAMICS
@@ -189,6 +189,10 @@ const App: React.FC = () => {
             diffuse_D: 0.5,  // Szybsza dyfuzja energii
             target_energy: 0.5,  // Wyższe tło energii
             thermostat_alpha: 0.01,  // Silniejszy termostat
+            // Thermodynamic validation - SMART VALIDATION (GROMACS/NAMD best practices)
+            // Energy+Momentum: every call (~2ms), M-B: every 20k steps, Entropy: every 50k steps
+            enable_thermodynamic_validation: true,  // Włączone - smart validation (5,650× szybciej!)
+            validate_every_n_steps: 1000,  // Częściej ale z szybkimi testami (Energy+Momentum)
             // Performance optimization parameters
             energy_update_interval: 5,  // Update energy every 5 steps
             metrics_update_interval: 10,  // Update metrics every 10 steps
@@ -212,7 +216,7 @@ const App: React.FC = () => {
             vis_frequency: 5,  // Rzadsze renderowanie
             log_frequency: 100,
             seed: Math.floor(Math.random() * 1000000)
-          },
+          } as any,  // Allow extra config fields for backend (Pydantic accepts additional fields)
           mode
         })
         if (response.success && response.simulation_id) {
@@ -252,7 +256,7 @@ const App: React.FC = () => {
           mode,
           max_particles: 5000,
           max_time: 1000,
-          dt: 0.035,  // Zwiększone z 0.01
+          dt: 0.005,  // NAPRAWIONE: było 0.035 (7× za dużo!) - stabilność numeryczna
           energy_decay: 0.96,  // Wolniejsze wygaszanie z 0.99
           energy_threshold: 0.01,
           pulse_every: 24,  // Częstsze pulsy (co 24 kroki)

@@ -155,8 +155,9 @@ def compute_forces_spatial(positions: ti.template(), attributes: ti.template(),
                                         charge_i = attributes[i][1]
                                         charge_j = attributes[j][1]
                                         
-                                        # Lennard-Jones force
-                                        sigma = 1.0
+                                        # Lennard-Jones force - SCIENTIFICALLY CALIBRATED
+                                        # UFF Force Field (Rappé et al. 1992): C atom sigma=3.431 Å
+                                        sigma = 3.4  # was: 1.0 → increased to match UFF literature
                                         epsilon = 0.5
                                         sigma_r = sigma / r
                                         sigma_r6 = sigma_r * sigma_r * sigma_r * sigma_r * sigma_r * sigma_r
