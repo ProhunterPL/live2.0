@@ -17,6 +17,14 @@ import sys
 from pathlib import Path
 import traceback
 
+# Fix encoding for Windows console
+if sys.platform == 'win32':
+    import io
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    if sys.stderr.encoding != 'utf-8':
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from chem import (
     json_to_mol, mol_to_smiles, pubchem_similar_top, 
     render_mol_png, render_pubchem_png, export_all_formats

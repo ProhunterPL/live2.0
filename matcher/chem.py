@@ -5,6 +5,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 import requests
 import urllib.parse
+import time
 from typing import Optional, Dict, List
 
 
@@ -157,9 +158,74 @@ def mol_to_smiles(mol: Chem.Mol) -> str:
         return Chem.MolToSmiles(mol, canonical=True)
 
 
+def pubchem_exact_match(smiles: str) -> Optional[Dict]:
+    """
+    Search PubChem for an exact match by SMILES.
+    
+    This is faster and more reliable for simple molecules.
+    
+    Returns a dict with:
+    - cid: PubChem Compound ID
+    - name: IUPAC name
+    - formula: Molecular formula
+    - mw: Molecular weight
+    - smiles: Canonical SMILES from PubChem
+    - inchikey: InChIKey
+    
+    Returns None if no exact match found.
+    """
+    try:
+        q = urllib.parse.quote(smiles)
+        # Try exact match first
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/{q}/JSON"
+        
+        r = requests.get(url, timeout=10)
+        
+        # If exact match fails, return None (we'll try similarity search)
+        if r.status_code != 200:
+            return None
+        
+        data = r.json()
+        cids = data.get("PC_Compounds", [])
+        
+        if not cids:
+            return None
+        
+        cid = cids[0].get("id", {}).get("id", {}).get("cid")
+        
+        if not cid:
+            return None
+        
+        # Get properties
+        props_url = (
+            f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/"
+            f"property/IUPACName,MolecularFormula,MolecularWeight,CanonicalSMILES,InChIKey/JSON"
+        )
+        p_response = requests.get(props_url, timeout=10)
+        p_response.raise_for_status()
+        
+        props = p_response.json()["PropertyTable"]["Properties"][0]
+        
+        return {
+            "cid": cid,
+            "name": props.get("IUPACName", "unknown"),
+            "formula": props.get("MolecularFormula", ""),
+            "mw": props.get("MolecularWeight", 0),
+            "smiles": props.get("CanonicalSMILES", ""),
+            "inchikey": props.get("InChIKey", "")
+        }
+    
+    except Exception as e:
+        # Silently fail - we'll try similarity search instead
+        return None
+
+
 def pubchem_similar_top(smiles: str, threshold: int = 75) -> Optional[Dict]:
     """
     Search PubChem for the most similar compound to the given SMILES.
+    
+    This function now handles PubChem's asynchronous similarity API correctly
+    by polling the ListKey when status 202 is returned.
     
     Returns a dict with:
     - cid: PubChem Compound ID
@@ -172,14 +238,56 @@ def pubchem_similar_top(smiles: str, threshold: int = 75) -> Optional[Dict]:
     Returns None if no match found.
     """
     try:
+        # First try exact match (faster and more reliable for simple molecules)
+        exact = pubchem_exact_match(smiles)
+        if exact:
+            print(f"  [+] Found exact PubChem match (CID: {exact['cid']})")
+            return exact
+        
+        # Fall back to similarity search
         q = urllib.parse.quote(smiles)
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/similarity/smiles/{q}/JSON?Threshold={threshold}"
         
         r = requests.get(url, timeout=25)
-        r.raise_for_status()
         
-        data = r.json()
-        cids = data.get("IdentifierList", {}).get("CID", [])
+        # Handle asynchronous response (status 202)
+        if r.status_code == 202:
+            data = r.json()
+            list_key = data.get("Waiting", {}).get("ListKey")
+            
+            if not list_key:
+                print("  PubChem similarity search returned 202 but no ListKey")
+                return None
+            
+            print(f"  Polling PubChem for results (ListKey: {list_key})...")
+            
+            # Poll for results (max 10 attempts, 2 seconds each)
+            for attempt in range(10):
+                time.sleep(2)
+                
+                poll_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/listkey/{list_key}/cids/JSON"
+                poll_r = requests.get(poll_url, timeout=10)
+                
+                if poll_r.status_code == 200:
+                    poll_data = poll_r.json()
+                    cids = poll_data.get("IdentifierList", {}).get("CID", [])
+                    
+                    if cids:
+                        print(f"  [+] Got {len(cids)} similar compounds after {(attempt+1)*2}s")
+                        break
+                elif poll_r.status_code == 202:
+                    # Still processing
+                    continue
+                else:
+                    print(f"  PubChem poll failed with status {poll_r.status_code}")
+                    return None
+            else:
+                print("  PubChem similarity search timed out after 20s")
+                return None
+        else:
+            r.raise_for_status()
+            data = r.json()
+            cids = data.get("IdentifierList", {}).get("CID", [])
         
         if not cids:
             return None
