@@ -5,7 +5,7 @@ Spatial Hashing System for O(n) Force Computation
 Replaces O(n²) all-pairs force computation with grid-based neighbor search.
 
 Key improvements:
-- O(n²) → O(n) complexity
+- O(n²) -> O(n) complexity
 - 100-1000x speedup for large systems
 - Cutoff distance for interactions
 """
@@ -157,7 +157,7 @@ def compute_forces_spatial(positions: ti.template(), attributes: ti.template(),
                                         
                                         # Lennard-Jones force - SCIENTIFICALLY CALIBRATED
                                         # UFF Force Field (Rappé et al. 1992): C atom sigma=3.431 Å
-                                        sigma = 3.4  # was: 1.0 → increased to match UFF literature
+                                        sigma = 3.4  # was: 1.0 -> increased to match UFF literature
                                         epsilon = 0.5
                                         sigma_r = sigma / r
                                         sigma_r6 = sigma_r * sigma_r * sigma_r * sigma_r * sigma_r * sigma_r

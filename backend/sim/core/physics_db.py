@@ -210,7 +210,7 @@ class PhysicsDatabase:
         if self.db_path.exists():
             self.load()
         else:
-            logger.warning(f"Database file not found: {db_path}")
+            logger.error(f"Database file not found: {db_path}")
             logger.info("Starting with empty database. Use add_* methods to populate.")
     
     def add_bond_parameters(self, params: BondParameters):

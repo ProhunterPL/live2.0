@@ -276,21 +276,23 @@ def calculate_binding_probability(i: ti.i32, j: ti.i32, positions: ti.template()
     charge_sum = ti.abs(charge_i + charge_j)
     
     # Base probability from distance (closer = higher probability)
-    distance_factor = ti.exp(-r / 2.0)  # Exponential decay with distance
+    distance_factor = ti.exp(-r / 3.0)  # LESS steep decay - more permissive
     
-    # Compatibility factor based on particle properties
+    # Compatibility factor based on particle properties - MUCH MORE PERMISSIVE
     compatibility_factor = 0.0
-    if mass_ratio > 0.7:  # Similar masses
-        compatibility_factor = 0.8
-    elif charge_product < -0.5:  # Opposite charges
-        compatibility_factor = 0.6
-    elif charge_sum > 0.5:  # Similar charges
-        compatibility_factor = 0.4
-    elif mass_ratio > 0.3:  # Some mass compatibility
-        compatibility_factor = 0.2
+    if mass_ratio > 0.5:  # REDUCED from 0.7 - more permissive
+        compatibility_factor = 1.0  # INCREASED from 0.8 - maximum compatibility
+    elif charge_product < -0.3:  # REDUCED from -0.5 - easier ionic bonds
+        compatibility_factor = 0.8  # INCREASED from 0.6
+    elif charge_sum > 0.3:  # REDUCED from 0.5 - easier metallic bonds
+        compatibility_factor = 0.6  # INCREASED from 0.4
+    elif mass_ratio > 0.1:  # REDUCED from 0.3 - very permissive vdW
+        compatibility_factor = 0.4  # INCREASED from 0.2
     
-    # Final probability
+    # Final probability - ensure minimum for close particles
     probability = distance_factor * compatibility_factor
+    if r <= PARTICLE_RADIUS_COMPILE * 4.0:  # Very close particles get minimum probability
+        probability = ti.max(probability, 0.15)  # Minimum 15% for very close particles
     return ti.min(probability, 1.0)  # Cap at 1.0
 
 @ti.func
@@ -313,7 +315,7 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         binding_probability = calculate_binding_probability(i, j, positions, attributes)
         
         # SCIENTIFICALLY CALIBRATED: More permissive for larger structures (Miller-Urey experiments)
-        if binding_probability > 0.12:  # REDUCED from 0.20 - easier bond formation for larger clusters
+        if binding_probability > 0.005:  # FURTHER REDUCED from 0.01 - extremely easy bond formation
             # Get particle properties
             mass_i = attributes[i][0]
             mass_j = attributes[j][0]
@@ -359,7 +361,7 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     
     # Condition 1: Overload - too much stretch/compression
     strain = ti.abs(r - rest_len) / ti.max(rest_len, 0.1)
-    if strain > 2.0:  # 200% strain threshold (much more stable bonds)
+    if strain > 3.0:  # 300% strain threshold (MUCH more stable bonds - was 2.0)
         result = 1
     
     # Condition 2: Distance too large (safety check)
@@ -367,21 +369,21 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
         result = 1
     
     # Condition 3: Aging - probabilistic breaking for old bonds
-    # Different bond types have different max ages (MUCH INCREASED for stability)
-    max_age = 2000.0  # default (much increased from 500.0)
-    if bond_type == 0:  # vdW - short lived
-        max_age = 1000.0  # increased from 200.0
-    elif bond_type == 1:  # covalent - long lived
+    # MUCH MORE STABLE: Bonds should last much longer for cluster growth
+    max_age = 10000.0  # default (MUCH increased from 2000.0)
+    if bond_type == 0:  # vdW - short lived but still stable
         max_age = 5000.0  # increased from 1000.0
-    elif bond_type == 2:  # H-bond - medium
-        max_age = 2000.0  # increased from 400.0
+    elif bond_type == 1:  # covalent - very long lived
+        max_age = 20000.0  # increased from 5000.0
+    elif bond_type == 2:  # H-bond - medium but stable
+        max_age = 8000.0  # increased from 2000.0
     else:  # metallic
-        max_age = 3000.0  # increased from 600.0
+        max_age = 12000.0  # increased from 3000.0
     
     if age > max_age:
         # Probabilistic: higher age = higher chance to break
-        # Simple deterministic approximation: break if age > 1.5*max_age
-        if age > max_age * 1.5:
+        # MUCH MORE CONSERVATIVE: break only if age > 2.0*max_age (was 1.5)
+        if age > max_age * 2.0:
             result = 1
     
     return result
@@ -519,9 +521,9 @@ class BindingSystem:
         # 3 = metallic (medium-strong)
         self.bond_type_params = {
             0: {'k_spring': 2.0, 'rest_len': 1.0, 'damping': 0.1, 'strength': 5.0},     # vdW - unchanged
-            1: {'k_spring': 500.0, 'rest_len': 0.8, 'damping': 0.2, 'strength': 100.0}, # covalent - was: 10, 20 → 50×, 5× stronger (Luo 2007: 2255, 348)
-            2: {'k_spring': 50.0, 'rest_len': 1.2, 'damping': 0.15, 'strength': 30.0},  # H-bond - was: 5, 10 → 10×, 3× stronger
-            3: {'k_spring': 100.0, 'rest_len': 0.9, 'damping': 0.25, 'strength': 50.0}  # metallic - was: 7, 15 → 14×, 3.3× stronger
+            1: {'k_spring': 500.0, 'rest_len': 0.8, 'damping': 0.2, 'strength': 100.0}, # covalent - was: 10, 20 -> 50x, 5x stronger (Luo 2007: 2255, 348)
+            2: {'k_spring': 50.0, 'rest_len': 1.2, 'damping': 0.15, 'strength': 30.0},  # H-bond - was: 5, 10 -> 10x, 3x stronger
+            3: {'k_spring': 100.0, 'rest_len': 0.9, 'damping': 0.25, 'strength': 50.0}  # metallic - was: 7, 15 -> 14x, 3.3x stronger
         }
         
         # Initialize

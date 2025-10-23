@@ -73,7 +73,7 @@ class SimulationStepper:
         self.aggregator = MetricsAggregator()
         self.aggregator.set_components(self.metrics, self.novelty_tracker, self.catalog)
         
-        # Energy field cache for visualization (reduces GPU→CPU transfers)
+        # Energy field cache for visualization (reduces GPU->CPU transfers)
         self._energy_field_cache = None
         self._energy_field_cache_step = -999
         self._energy_field_cache_interval = 10
@@ -531,7 +531,8 @@ class SimulationStepper:
                     if self.step_count < 5:
                         # Debug print removed for performance
                         pass
-                    self.add_energy_to_particles()
+                    # Controlled energy transfer - move energy from field to particles (no duplication)
+                    self._transfer_energy_to_particles()
                 
                 # Re-enable operations one by one for performance testing
                 
@@ -800,20 +801,28 @@ class SimulationStepper:
         drift = abs(current_energy - self.initial_energy) / self.initial_energy * 100.0
         return drift
     
-    def add_energy_to_particles(self):
-        """Add energy from field to particles - OPTIMIZED VERSION"""
-        # logger.info(f"DEBUG: add_energy_to_particles called at step {self.step_count}")
-        # Use vectorized kernel instead of Python loops
-        self._add_energy_to_particles_kernel()
-        
-        # Log debug info from kernel
-        total_energy_available = self.debug_energy_total[None]
-        particles_with_energy = self.debug_particles_with_energy[None]
-        # logger.info(f"DEBUG: Energy field has {total_energy_available:.4f} total energy for {particles_with_energy} particles")
-        
-        # Apply energy to particles (outside kernel to avoid nested kernels)
-        self.particles.add_energy(self.energy_amounts)
-        # logger.info(f"DEBUG: add_energy_to_particles completed at step {self.step_count}")
+    def _transfer_energy_to_particles(self):
+        """Transfer energy from field to particles without duplication"""
+        self._transfer_energy_kernel()
+    
+    @ti.kernel
+    def _transfer_energy_kernel(self):
+        """Transfer energy from field to particles (no duplication)"""
+        for i in range(self.config.max_particles):
+            if self.particles.active[i] == 1:
+                pos = self.particles.positions[i]
+                x = int(pos[0]) % self.energy_manager.energy_system.width
+                y = int(pos[1]) % self.energy_manager.energy_system.height
+                
+                # Get energy from field
+                field_energy = self.energy_manager.energy_system.energy_field[x, y]
+                
+                # Transfer small amount to particle (for bonding)
+                transfer_amount = field_energy * 0.05  # Increased from 1% to 5% for better bonding
+                
+                # Remove from field and add to particle
+                self.energy_manager.energy_system.energy_field[x, y] -= transfer_amount
+                self.particles.energy[i] += transfer_amount
     
     @ti.kernel
     def _add_energy_to_particles_kernel(self):
@@ -1252,7 +1261,7 @@ class SimulationStepper:
         
         # Time energy field extraction - OPTIMIZED with caching
         t_energy_start = time.time()
-        # Cache energy field to reduce expensive GPU→CPU transfers
+        # Cache energy field to reduce expensive GPU->CPU transfers
         if self.step_count - self._energy_field_cache_step >= self._energy_field_cache_interval:
             self._energy_field_cache = self.energy_manager.energy_system.energy_field.to_numpy()
             self._energy_field_cache_step = self.step_count
@@ -1456,15 +1465,38 @@ class SimulationStepper:
     
     @ti.kernel
     def _energy_thermostat(self):
-        """Energy thermostat kernel"""
+        """Energy thermostat kernel - controls both field and particle kinetic energy"""
         target = self.config.target_energy
         alpha = self.config.thermostat_alpha
         H, W = self.energy_manager.energy_system.energy_field.shape
         
+        # Control energy field
         for i, j in ti.ndrange(H, W):
             e = self.energy_manager.energy_system.energy_field[i, j]
             # Noisy pull to target
             self.energy_manager.energy_system.energy_field[i, j] = e + alpha * (target - e) + (ti.random(ti.f32) - 0.5) * 0.005
+        
+        # Control particle kinetic energy - CRITICAL FIX for high energy
+        kinetic_target = target * 0.02  # Kinetic energy should be ~2% of field energy (FURTHER REDUCED from 5%)
+        for i in range(self.config.max_particles):
+            if self.particles.active[i] == 1:
+                # Calculate current kinetic energy
+                mass = self.particles.attributes[i][0]
+                vx = self.particles.velocities[i][0]
+                vy = self.particles.velocities[i][1]
+                current_kinetic = 0.5 * mass * (vx*vx + vy*vy)
+                
+                # Apply thermostat to kinetic energy - MORE AGGRESSIVE
+                if current_kinetic > kinetic_target:
+                    # Scale down velocity to match target kinetic energy
+                    scale_factor = ti.sqrt(kinetic_target / ti.max(current_kinetic, 1e-6))
+                    self.particles.velocities[i][0] *= scale_factor
+                    self.particles.velocities[i][1] *= scale_factor
+                
+                # Additional velocity damping for bond formation - MODERATE
+                damping_factor = 0.98  # Reduce velocity by 2% each step (was 15% - too aggressive)
+                self.particles.velocities[i][0] *= damping_factor
+                self.particles.velocities[i][1] *= damping_factor
     
     def load_snapshot(self, filename: str):
         """Load simulation snapshot using serializer"""

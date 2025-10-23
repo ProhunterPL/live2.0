@@ -238,9 +238,9 @@ class StabilityTester:
             
             if overall_success:
                 print("Phase 1 Stability Requirements Satisfied!")
-                print("✓ Energy conservation: Excellent")
-                print("✓ Numerical stability: Stable timestep")
-                print("✓ Extended operation: Successful")
+                print("[OK] Energy conservation: Excellent")
+                print("[OK] Numerical stability: Stable timestep")
+                print("[OK] Extended operation: Successful")
                 
                 # Save stability report
                 report = {
@@ -256,7 +256,7 @@ class StabilityTester:
                 with open('phase1_stability_report.json', 'w') as f:
                     json.dump(report, f, indent=2)
                 
-                print("✓ Stability report saved to phase1_stability_report.json")
+                print("[OK] Stability report saved to phase1_stability_report.json")
             else:
                 print("Phase 1 Requirements Not Met")
                 print("Issues identified:")

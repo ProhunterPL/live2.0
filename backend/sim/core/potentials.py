@@ -275,14 +275,14 @@ class PotentialSystem:
                 
                 if db_path.exists():
                     self.physics_db = PhysicsDatabase(str(db_path))
-                    logger.info(f"✓ Loaded PhysicsDatabase from {db_path}")
+                    logger.info(f"Loaded PhysicsDatabase from {db_path}")
                     
                     stats = self.physics_db.get_statistics()
                     logger.info(f"  Bond parameters: {stats['total_bonds']}")
                     logger.info(f"  VDW parameters: {stats['total_vdw']}")
                     logger.info(f"  Citations: {stats['unique_citations']}")
                 else:
-                    logger.warning(f"PhysicsDatabase not found at {db_path}, using fallback parameters")
+                    logger.error(f"PhysicsDatabase not found at {db_path}, using fallback parameters")
                     self.use_physics_db = False
                     
             except Exception as e:

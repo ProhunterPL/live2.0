@@ -411,9 +411,9 @@ class EnergyManager:
         
         # Update energy system
         self.energy_system.update_energy_field(dt)
-        # Diffuse energy and apply gentle thermostat toward target (use energy_threshold as target)
+        # Diffuse energy - DISABLED conflicting thermostat
         self.energy_system.apply_diffusion(dt)
-        self.energy_system.apply_thermostat(float(self.config.energy_threshold), 0.01)
+        # self.energy_system.apply_thermostat(float(self.config.energy_threshold), 0.01)  # DISABLED - conflicts with main thermostat
     
     def get_energy_at_position(self, position: Tuple[float, float]) -> float:
         """Get energy at a specific position"""
