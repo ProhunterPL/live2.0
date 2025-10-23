@@ -293,8 +293,8 @@ class ParticleSystem:
     
     def get_active_particles(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Get data for all active particles - OPTIMIZED with limited array size"""
-        # MEMORY LEAK FIX: Limit to reasonable number of particles (200 max) before to_numpy()
-        max_check = min(200, self.max_particles)  # Reduced from 500 to 200
+        # PERFORMANCE FIX: Limit to reasonable number of particles (500 max) before to_numpy()
+        max_check = min(500, self.max_particles)  # INCREASED from 200 to 500 for visualization
         
         # Use single kernel to copy data to Taichi fields more efficiently
         self._copy_particles_to_taichi()

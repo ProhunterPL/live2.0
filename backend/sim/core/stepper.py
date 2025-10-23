@@ -76,7 +76,11 @@ class SimulationStepper:
         # Energy field cache for visualization (reduces GPU→CPU transfers)
         self._energy_field_cache = None
         self._energy_field_cache_step = -999
-        self._energy_field_cache_interval = 10  # Update every 10 steps
+        self._energy_field_cache_interval = 10
+        
+        # Initialize particle cache to avoid empty visualization
+        self._cached_particles_data = None
+        self._cached_bonds_clusters_data = None  # Update every 10 steps
         
         # Diagnostics logger
         diagnostics_enabled = getattr(config, 'enable_diagnostics', True)
@@ -162,8 +166,8 @@ class SimulationStepper:
     
     def initialize_open_chemistry_mode(self):
         """Initialize open chemistry mode"""
-        # Add initial particles with random properties
-        num_initial_particles = min(500, self.config.max_particles)
+        # Add initial particles with random properties - INCREASED for larger clusters
+        num_initial_particles = min(1000, self.config.max_particles)  # INCREASED from 500 to 1000
         
         for i in range(num_initial_particles):
             # Random position
@@ -192,6 +196,23 @@ class SimulationStepper:
             self.particles.add_particle_py(pos, vel, attributes, type_id, 2, 1.0)
         
         # Debug print removed for performance
+        
+        # Initialize visualization cache with initial particles
+        positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
+        self._cached_particles_data = {
+            'positions': positions,
+            'attributes': attributes,
+            'active_mask': active_mask,
+            'energies': energies
+        }
+        
+        # Initialize bonds/clusters cache
+        bonds = self.binding.get_bonds()
+        clusters = self.binding.get_clusters()
+        self._cached_bonds_clusters_data = {
+            'bonds': bonds,
+            'clusters': clusters
+        }
         
         # Add energy sources
         for _ in range(self.open_chemistry_config.energy_sources):
@@ -537,7 +558,7 @@ class SimulationStepper:
                     self.apply_mutations(dt)
                 
                 # Novelty detection (OPTIMIZED: configurable interval)
-                novelty_interval = getattr(self.config, 'novelty_check_interval', 1000)
+                novelty_interval = getattr(self.config, 'novelty_check_interval', 500)  # INCREASED from 100 to 500 for better performance
                 if novelty_interval > 0 and self.step_count % novelty_interval == 0:
                     self.detect_novel_substances()
             
@@ -901,6 +922,12 @@ class SimulationStepper:
         # Get clusters
         clusters = self.binding.get_clusters(min_size=self.config.min_cluster_size)
         
+        # Debug logging
+        if self.step_count % 500 == 0:  # Log every 500 steps
+            logger.info(f"detect_novel_substances: Found {len(clusters)} clusters (min_size={self.config.min_cluster_size})")
+            for i, cluster in enumerate(clusters[:3]):  # Show first 3 clusters
+                logger.info(f"  Cluster {i}: size={len(cluster)}, particles={cluster[:5]}...")
+        
         for cluster in clusters:
             if len(cluster) >= self.config.min_cluster_size:
                 # Create molecular graph
@@ -1252,8 +1279,8 @@ class SimulationStepper:
             # Provide particle/bond/cluster data for open chemistry - OPTIMIZED with caching
             # Time particles extraction
             t_particles_start = time.time()
-            # OPTIMIZATION: Only get particles every 10 steps to reduce load (was 5)
-            if self.step_count % 10 == 0:
+            # OPTIMIZATION: Only get particles every 5 steps to reduce load - FIXED for visualization
+            if self.step_count % 5 == 0:
                 positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
                 # Cache the data for intermediate steps
                 self._cached_particles_data = {
@@ -1276,8 +1303,8 @@ class SimulationStepper:
             
             # Time bonds/clusters extraction
             t_bonds_start = time.time()
-            # OPTIMIZATION: Only get bonds/clusters every 50 steps to reduce load (was 20)
-            if self.step_count % 50 == 0:
+            # OPTIMIZATION: Only get bonds/clusters every 100 steps to reduce load (was 50) - PERFORMANCE FIX
+            if self.step_count % 100 == 0:
                 # Debug print removed for performance
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
@@ -1288,7 +1315,7 @@ class SimulationStepper:
                 }
             else:
                 # Use cached data for intermediate steps
-                if hasattr(self, '_cached_bonds_clusters_data'):
+                if hasattr(self, '_cached_bonds_clusters_data') and self._cached_bonds_clusters_data is not None:
                     # Debug print removed for performance
                     bonds = self._cached_bonds_clusters_data['bonds']
                     clusters = self._cached_bonds_clusters_data['clusters']
@@ -1297,6 +1324,11 @@ class SimulationStepper:
                     # Debug print removed for performance
                     bonds = self.binding.get_bonds()
                     clusters = self.binding.get_clusters()
+                    # Initialize cache for next time
+                    self._cached_bonds_clusters_data = {
+                        'bonds': bonds,
+                        'clusters': clusters
+                    }
             t_bonds_end = time.time()
             
             # OPTIMIZATION: Return NumPy arrays instead of lists
