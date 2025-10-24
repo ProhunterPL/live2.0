@@ -213,10 +213,25 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
         }
         
         // Fallback to largest cluster if no specific selection or invalid index
+        // SCIENTIFIC FIX: Only consider clusters with bonds (connected particles)
         if (!targetCluster) {
-          targetCluster = clusters.reduce((max, cluster) => 
-            cluster.particles.length > max.particles.length ? cluster : max
-          )
+          const clustersWithBonds = clusters.filter(cluster => {
+            const clusterParticles = cluster.particles
+            const bondsAny = data.bonds as any[]
+            const clusterBonds = bondsAny
+              .map((b: any) => Array.isArray(b) ? { particle_i: b[0], particle_j: b[1] } : b)
+              .filter((bond: any) => clusterParticles.includes(bond.particle_i) && clusterParticles.includes(bond.particle_j))
+            return clusterBonds.length > 0  // Only clusters with actual bonds
+          })
+          
+          if (clustersWithBonds.length > 0) {
+            targetCluster = clustersWithBonds.reduce((max, cluster) => 
+              cluster.particles.length > max.particles.length ? cluster : max
+            )
+          } else {
+            // No connected clusters found - don't show anything
+            return
+          }
         }
 
         if (targetCluster.particles.length > 1) {
@@ -404,6 +419,20 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
     
     const clusters = (data.clusters as any[]).map((c) => Array.isArray(c) ? { particles: c } : c)
     
+    // Check if there are any clusters with bonds
+    const clustersWithBonds = clusters.filter(cluster => {
+      const clusterParticles = cluster.particles
+      const bondsAny = data.bonds as any[]
+      const clusterBonds = bondsAny
+        .map((b: any) => Array.isArray(b) ? { particle_i: b[0], particle_j: b[1] } : b)
+        .filter((bond: any) => clusterParticles.includes(bond.particle_i) && clusterParticles.includes(bond.particle_j))
+      return clusterBonds.length > 0
+    })
+    
+    if (clustersWithBonds.length === 0) {
+      return 'No Connected Clusters'
+    }
+    
     if (selectedSubstance && selectedSubstance.startsWith('cluster_')) {
       const clusterIndex = parseInt(selectedSubstance.replace('cluster_', ''))
       if (clusterIndex >= 0 && clusterIndex < clusters.length) {
@@ -411,7 +440,7 @@ const GraphPreview: React.FC<GraphPreviewProps> = ({
       }
     }
     
-    return 'Largest Cluster'
+    return 'Largest Connected Cluster'
   }
 
   const currentClusterTitle = getCurrentClusterInfo()

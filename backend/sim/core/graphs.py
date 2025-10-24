@@ -197,8 +197,10 @@ class GraphCatalog:
         self.total_graphs_seen += 1
         return is_novel
     
-    def get_novelty_rate(self, window_size: int = 100) -> float:
+    def get_novelty_rate(self, window_size: int = None) -> float:
         """Get novelty rate over recent window"""
+        if window_size is None:
+            window_size = 500  # Default from config
         if self.total_graphs_seen < window_size:
             return self.novel_graphs_count / max(self.total_graphs_seen, 1)
         

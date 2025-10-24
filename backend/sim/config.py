@@ -1,5 +1,5 @@
 # Live 2.0 Configuration
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 from pydantic import BaseModel, Field
 import numpy as np
 
@@ -28,27 +28,29 @@ class SimulationConfig(BaseModel):
     pulse_radius: float = Field(default=15.0, gt=0)  # Larger pulse radius (was 12.0)
     pulse_amplitude: float = Field(default=1.8, gt=0)  # SCIENTIFIC: Based on Miller-Urey discharge energy (~1-10 eV per molecule)
     diffuse_D: float = Field(default=0.25, gt=0)  # Faster diffusion for more encounters
-    target_energy: float = Field(default=0.3, gt=0)  # Lower background energy (was 0.5) - more realistic
-    thermostat_alpha: float = Field(default=0.3, gt=0)  # REDUCED from 0.8 - too aggressive caused instability
+    target_energy: float = Field(default=0.5, gt=0)  # BALANCED: Increased from 0.3, but not as aggressive as 0.8 - prevents energy drift
+    # AGGRESSIVE OPTION: target_energy=0.8 for maximum cluster formation
+    thermostat_alpha: float = Field(default=0.2, gt=0)  # BALANCED: Increased from 0.1 - better energy control, prevents drift
+    # AGGRESSIVE OPTION: thermostat_alpha=0.1 for maximum cluster stability
     
-    # Particle settings
-    max_particles: int = Field(default=10000, gt=0, le=100000)
+    # Particle settings - REDUCED for performance
+    max_particles: int = Field(default=500, gt=0, le=100000)  # REDUCED from 10000 to 500 for stability
     particle_radius: float = Field(default=0.5, gt=0)
     
-    # Binding settings - SCIENTIFICALLY CALIBRATED based on bond energies
+    # Binding settings - MORE RESTRICTIVE for performance
     # Literature: vdW bonds 2-10 kJ/mol, H-bonds 10-40 kJ/mol, covalent 300-400 kJ/mol
-    # FIXED: More permissive thresholds for realistic cluster formation (Miller-Urey experiments)
-    binding_threshold: float = Field(default=0.45, gt=0, le=1)  # SCIENTIFIC: Based on Miller-Urey experiments (vdW: 2-10 kJ/mol, H-bond: 10-40 kJ/mol)
-    unbinding_threshold: float = Field(default=0.15, gt=0, le=1)  # REDUCED from 0.2 - more stable bonds  # Kept for compatibility
+    # FIXED: More restrictive thresholds to reduce bond count and improve performance
+    binding_threshold: float = Field(default=0.6, gt=0, le=1)  # INCREASED from 0.45 - more restrictive binding
+    unbinding_threshold: float = Field(default=0.2, gt=0, le=1)  # INCREASED from 0.15 - more stable bonds
     
-    # Novelty detection
-    novelty_window: int = Field(default=100, gt=0)
-    min_cluster_size: int = Field(default=3, ge=1)  # CHANGED from 2 to 3 - only detect meaningful clusters
+    # Novelty detection - BALANCED ANTI-BURNOUT settings
+    novelty_window: int = Field(default=500, gt=0)  # INCREASED from 100 - longer memory for novelty detection
+    min_cluster_size: int = Field(default=2, ge=1)  # BALANCED: Decreased from 3 - detect smaller clusters for better analysis
     novelty_check_interval: int = Field(default=500, gt=0)  # How often to check for novel substances (steps) - BALANCED for performance
     
-    # Visualization
-    vis_frequency: int = Field(default=5, gt=0)  # Zmniejszone z 3 dla stabilności
-    log_frequency: int = Field(default=100, gt=0)
+    # Visualization - OPTIMIZED for performance
+    vis_frequency: int = Field(default=10, gt=0)  # INCREASED from 5 - less frequent updates
+    log_frequency: int = Field(default=200, gt=0)  # INCREASED from 100 - less frequent logging
     
     # Thermodynamic validation (SCIENTIFIC RIGOR WITH SAFETY)
     validate_every_n_steps: int = Field(default=300, gt=0)  # REDUCED frequency for better performance (was 150)
@@ -56,14 +58,15 @@ class SimulationConfig(BaseModel):
     energy_tolerance: float = Field(default=2e-3, gt=0)  # Balanced tolerance for scientific accuracy
     momentum_tolerance: float = Field(default=2e-4, gt=0)  # Balanced tolerance for scientific accuracy
     
-    # Mutations - INCREASED for more diversity and novelty
-    p_mut_base: float = Field(default=1e-3, gt=0)  # Increased mutations (2x more)
+    # Mutations - BALANCED ANTI-BURNOUT settings for sustained novelty
+    p_mut_base: float = Field(default=3e-3, gt=0)  # BALANCED: Increased from 1e-3, but less aggressive than 5e-3
     p_mut_gain: float = Field(default=30.0, gt=0)  # Increased from 20.0
     attr_sigma: float = Field(default=0.15, gt=0)  # Stronger perturbation
+    mutation_interval: int = Field(default=500, gt=0)  # More frequent mutations (was 2000)
     
-    # Performance optimization parameters
-    energy_update_interval: int = Field(default=5, gt=0, description="Update energy every N steps")
-    metrics_update_interval: int = Field(default=1, gt=0, description="Update metrics every N steps")
+    # Performance optimization parameters - OPTIMIZED for stability
+    energy_update_interval: int = Field(default=10, gt=0, description="Update energy every N steps")  # INCREASED from 5
+    metrics_update_interval: int = Field(default=5, gt=0, description="Update metrics every N steps")  # INCREASED from 1
     
     # Diagnostics
     enable_diagnostics: bool = Field(default=True)
@@ -134,13 +137,13 @@ class OpenChemistryConfig(BaseModel):
     energy_sources: int = Field(default=3, ge=0)
     energy_intensity: float = Field(default=5.0, gt=0)
     
-    # Bond system configuration - SCIENTIFICALLY CALIBRATED
+    # Bond system configuration - MORE RESTRICTIVE for performance
     # Literature: Bond lifetimes 10^-9 s (vdW) to 10^6 s (covalent) at 298K
-    # FIXED: More permissive binding conditions for realistic cluster formation
+    # FIXED: More restrictive binding conditions to reduce computational load
     enable_spring_forces: bool = Field(default=True, description="Enable spring forces from bonds")
     enable_advanced_breaking: bool = Field(default=True, description="Enable overload/aging bond breaking")
-    theta_bind: float = Field(default=0.3, gt=0)  # REDUCED from 0.5 - easier bond formation (Miller-Urey)
-    theta_break: float = Field(default=1.5, gt=0)  # SCIENTIFIC: Based on bond dissociation energies (80-100 kJ/mol for peptides)
+    theta_bind: float = Field(default=0.4, gt=0)  # INCREASED from 0.3 - more restrictive bond formation
+    theta_break: float = Field(default=1.8, gt=0)  # INCREASED from 1.5 - stronger bonds required
     vmax: float = Field(default=6.0, gt=0)  # Lowered from 8.0 - less violent collisions
     neighbor_radius: float = Field(default=2.5, gt=0)  # Increased from 2.0 - detect more neighbors
     rebuild_neighbors_every: int = Field(default=15, gt=0)  # Less frequent updates (was 10)

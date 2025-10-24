@@ -57,7 +57,7 @@ class SimulationStepper:
         self.graphs = GraphProcessor(config.max_particles)
         self.catalog = SubstanceCatalog()
         self.metrics = MetricsCollector(config.max_particles)
-        self.novelty_tracker = NoveltyTracker()
+        self.novelty_tracker = NoveltyTracker(window_size=config.novelty_window)
         self.performance_monitor = PerformanceMonitor()
         self.energy_manager = EnergyManager(config)
         self.rng = RNG(config.seed)
@@ -1024,8 +1024,8 @@ class SimulationStepper:
         bond_count = 0
         try:
             bond_start = time.time()
-            # MEMORY FIX: Limit to 500 particles (was 1000) to reduce memory usage
-            max_check = min(particle_count, 500)
+            # MEMORY FIX: Limit to 1000 particles (was 500) to improve cluster detection
+            max_check = min(particle_count, 1000)
             if max_check > 0:
                 bond_matrix = self.binding.bond_matrix.to_numpy()[:max_check, :max_check]
                 bond_active = self.binding.bond_active.to_numpy()[:max_check, :max_check]
@@ -1047,8 +1047,8 @@ class SimulationStepper:
         cluster_count = 0
         try:
             cluster_start = time.time()
-            # MEMORY FIX: Limit to 500 particles (was 1000) to reduce memory usage
-            max_check = min(particle_count, 500)
+            # MEMORY FIX: Limit to 1000 particles (was 500) to improve cluster detection
+            max_check = min(particle_count, 1000)
             
             # Safe array access with bounds checking
             if max_check > 0:
@@ -1200,7 +1200,7 @@ class SimulationStepper:
         self.graphs.reset()
         self.catalog.clear()
         self.metrics.reset()
-        self.novelty_tracker = NoveltyTracker()
+        self.novelty_tracker = NoveltyTracker(window_size=self.config.novelty_window)
         self.energy_manager = EnergyManager(self.config)
         self.rng.reset(self.config.seed)
         

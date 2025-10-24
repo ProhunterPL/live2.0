@@ -279,8 +279,8 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
             Recent Discoveries
           </h4>
           
-          {/* Main PubChem Matcher Button */}
-          {novelSubstances.length > 0 && (
+          {/* Main PubChem Matcher Button - ALWAYS VISIBLE */}
+          <div className="flex gap-2">
             <button
               onClick={handleMatchAllClusters}
               disabled={isMatching}
@@ -299,7 +299,27 @@ const NoveltyPanel: React.FC<NoveltyPanelProps> = ({ simulationId, onSubstanceSe
                 </>
               )}
             </button>
-          )}
+            
+            {/* Download Button - ALWAYS VISIBLE */}
+            <button
+              onClick={() => {
+                // Export novel substances to JSON
+                const dataStr = JSON.stringify(novelSubstances, null, 2)
+                const dataBlob = new Blob([dataStr], {type: 'application/json'})
+                const url = URL.createObjectURL(dataBlob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = `novel_substances_${Date.now()}.json`
+                link.click()
+                URL.revokeObjectURL(url)
+              }}
+              className="px-2 py-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-xs font-semibold rounded-lg shadow-lg transition-all flex items-center gap-1"
+              title="Download novel substances as JSON"
+            >
+              <Download className="w-3 h-3" />
+              <span>🔽</span>
+            </button>
+          </div>
         </div>
         
         {loading ? (

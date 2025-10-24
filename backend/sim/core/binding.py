@@ -670,7 +670,19 @@ class BindingSystem:
         update_clusters_kernel(active, particle_count)
         
         # SPATIAL MERGING: Connect nearby clusters for larger structures
-        self._merge_nearby_clusters(positions, active, particle_count)
+        # DEBUG: Log spatial merging activity
+        if hasattr(self, '_merge_count'):
+            prev_merge_count = self._merge_count
+        else:
+            prev_merge_count = 0
+            self._merge_count = 0
+        
+        # Call spatial merging and get merge count
+        merge_count = self._merge_nearby_clusters(positions, active, particle_count)
+        
+        # DEBUG: Log if any merges occurred
+        if merge_count > 0:
+            print(f"SPATIAL MERGING: {merge_count} bonds created at step")
         
         # Compute cluster metrics
         compute_cluster_metrics_kernel(positions, particle_count)
@@ -702,8 +714,11 @@ class BindingSystem:
             self.cluster_id[root_j] = root_i
     
     @ti.kernel
-    def _merge_nearby_clusters(self, positions: ti.template(), active: ti.template(), particle_count: ti.i32):
+    def _merge_nearby_clusters(self, positions: ti.template(), active: ti.template(), particle_count: ti.i32) -> ti.i32:
         """Merge nearby clusters by creating bonds between close particles from different clusters"""
+        # DEBUG: Count merges
+        merge_count = 0
+        
         # Find particles from different clusters that are close enough to bond
         for i in range(particle_count):
             if active[i] == 1:
@@ -724,7 +739,7 @@ class BindingSystem:
                             dist = ti.sqrt(dx * dx + dy * dy)
                             
                             # If particles are close enough, create a bond to merge clusters
-                            merge_distance = PARTICLE_RADIUS_COMPILE * 8.0  # Larger than normal bonding
+                            merge_distance = PARTICLE_RADIUS_COMPILE * 12.0  # BALANCED: Increased from 8.0 for easier merging
                             if dist <= merge_distance and bond_active_field[i, j] == 0:
                                 # Check valence constraints
                                 valence_i = particle_bond_count_field[i]
@@ -740,30 +755,35 @@ class BindingSystem:
                                     bond_matrix_field[j, i] = 1.0
                                     bond_type_field[i, j] = 0  # vdW bond for merging
                                     bond_type_field[j, i] = 0
-                                    bond_k_spring_field[i, j] = 1.0  # Weak spring for merging
-                                    bond_k_spring_field[j, i] = 1.0
+                                    bond_k_spring_field[i, j] = 3.0  # BALANCED: Stronger spring for merging (was 1.0)
+                                    bond_k_spring_field[j, i] = 3.0
                                     bond_rest_len_field[i, j] = dist  # Use current distance
                                     bond_rest_len_field[j, i] = dist
-                                    bond_damping_field[i, j] = 0.05  # Low damping
-                                    bond_damping_field[j, i] = 0.05
-                                    bond_strength_field[i, j] = 2.0  # Low strength
-                                    bond_strength_field[j, i] = 2.0
-                                    bond_energy_field[i, j] = -0.5  # Weak binding energy
-                                    bond_energy_field[j, i] = -0.5
+                                    bond_damping_field[i, j] = 0.15  # BALANCED: Higher damping (was 0.05)
+                                    bond_damping_field[j, i] = 0.15
+                                    bond_strength_field[i, j] = 8.0  # BALANCED: Higher strength (was 2.0)
+                                    bond_strength_field[j, i] = 8.0
+                                    bond_energy_field[i, j] = -2.0  # BALANCED: Stronger binding energy (was -0.5)
+                                    bond_energy_field[j, i] = -2.0
                                     bond_age_field[i, j] = 0.0
                                     bond_age_field[j, i] = 0.0
                                     
                                     # Update valence counts
                                     ti.atomic_add(particle_bond_count_field[i], 1)
                                     ti.atomic_add(particle_bond_count_field[j], 1)
+                                    
+                                    # DEBUG: Count merges
+                                    merge_count += 1
+        
+        return merge_count
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
         """Get list of active bonds - OPTIMIZED to avoid LLVM errors"""
         # FIX: Use Taichi kernel instead of to_numpy() to avoid LLVM errors on Windows
         bonds = []
         
-        # PERFORMANCE FIX: Limit to smaller number of particles (100 max) to improve performance
-        max_check = min(100, self.max_particles)
+        # PERFORMANCE FIX: Limit to reasonable number of particles (1000 max) for full visualization
+        max_check = min(1000, self.max_particles)
         
         # Extract bonds directly using loop (safer than to_numpy on large matrices)
         for i in range(max_check):
@@ -776,8 +796,8 @@ class BindingSystem:
     
     def get_clusters(self, min_size: int = 2) -> List[List[int]]:
         """Get list of clusters with minimum size - OPTIMIZED to avoid LLVM errors"""
-        # PERFORMANCE FIX: Use smaller limit and safer extraction to improve performance
-        max_check = min(100, self.max_particles)
+        # PERFORMANCE FIX: Use reasonable limit for full cluster visualization
+        max_check = min(1000, self.max_particles)
         
         # Extract data directly using Python loops (safer than to_numpy)
         from collections import defaultdict

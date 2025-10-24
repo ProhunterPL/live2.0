@@ -155,8 +155,10 @@ class SubstanceCatalog:
         
         return is_novel, substance_id
     
-    def get_novelty_rate(self, window_size: int = 100) -> float:
+    def get_novelty_rate(self, window_size: int = None) -> float:
         """Get current novelty rate"""
+        if window_size is None:
+            window_size = 500  # Default from config
         if self.total_discoveries < window_size:
             return self.novel_discoveries / max(self.total_discoveries, 1)
         
