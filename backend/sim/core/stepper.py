@@ -555,12 +555,12 @@ class SimulationStepper:
                 
                 # Mutations (OPTIMIZED: configurable interval)
                 mutation_interval = getattr(self.config, 'mutation_interval', 2000)
-                if mutation_interval > 0 and self.step_count % mutation_interval == 0:
+                if mutation_interval > 0 and mutation_interval < 999999 and self.step_count % mutation_interval == 0:
                     self.apply_mutations(dt)
                 
                 # Novelty detection (OPTIMIZED: configurable interval)
                 novelty_interval = getattr(self.config, 'novelty_check_interval', 500)  # INCREASED from 100 to 500 for better performance
-                if novelty_interval > 0 and self.step_count % novelty_interval == 0:
+                if novelty_interval > 0 and novelty_interval < 999999 and self.step_count % novelty_interval == 0:
                     self.detect_novel_substances()
             
             
@@ -1288,8 +1288,8 @@ class SimulationStepper:
             # Provide particle/bond/cluster data for open chemistry - OPTIMIZED with caching
             # Time particles extraction
             t_particles_start = time.time()
-            # OPTIMIZATION: Only get particles every 5 steps to reduce load - FIXED for visualization
-            if self.step_count % 5 == 0:
+            # OPTIMIZATION: Only get particles every 10 steps to reduce load - PERFORMANCE FIX
+            if self.step_count % 10 == 0:
                 positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
                 # Cache the data for intermediate steps
                 self._cached_particles_data = {
@@ -1312,9 +1312,8 @@ class SimulationStepper:
             
             # Time bonds/clusters extraction
             t_bonds_start = time.time()
-            # OPTIMIZATION: Only get bonds/clusters every 100 steps to reduce load (was 50) - PERFORMANCE FIX
-            if self.step_count % 100 == 0:
-                # Debug print removed for performance
+            # OPTIMIZATION: Only get bonds/clusters every 200 steps to reduce load - PERFORMANCE FIX
+            if self.step_count % 200 == 0:
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
                 # Cache the data for intermediate steps
@@ -1325,12 +1324,10 @@ class SimulationStepper:
             else:
                 # Use cached data for intermediate steps
                 if hasattr(self, '_cached_bonds_clusters_data') and self._cached_bonds_clusters_data is not None:
-                    # Debug print removed for performance
                     bonds = self._cached_bonds_clusters_data['bonds']
                     clusters = self._cached_bonds_clusters_data['clusters']
                 else:
                     # Fallback: get fresh data if cache doesn't exist
-                    # Debug print removed for performance
                     bonds = self.binding.get_bonds()
                     clusters = self.binding.get_clusters()
                     # Initialize cache for next time

@@ -5,7 +5,7 @@ Handles particle binding, bond formation/breaking, and cluster detection
 
 import taichi as ti
 import numpy as np
-from typing import List, Tuple, Dict, Set
+from typing import List, Tuple, Dict, Set, Optional
 from ..config import SimulationConfig
 
 # Compile-time constants
@@ -778,14 +778,13 @@ class BindingSystem:
         return merge_count
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
-        """Get list of active bonds - OPTIMIZED to avoid LLVM errors"""
-        # FIX: Use Taichi kernel instead of to_numpy() to avoid LLVM errors on Windows
+        """Get list of active bonds - OPTIMIZED for performance"""
         bonds = []
         
-        # PERFORMANCE FIX: Limit to reasonable number of particles (1000 max) for full visualization
-        max_check = min(1000, self.max_particles)
+        # PERFORMANCE FIX: Use reasonable limit for visualization (max 200 particles)
+        max_check = min(200, self.max_particles)
         
-        # Extract bonds directly using loop (safer than to_numpy on large matrices)
+        # Only check bonds between particles in the limited range
         for i in range(max_check):
             for j in range(i + 1, max_check):
                 if self.bond_active[i, j] == 1:
@@ -794,15 +793,73 @@ class BindingSystem:
         
         return bonds
     
-    def get_clusters(self, min_size: int = 2) -> List[List[int]]:
-        """Get list of clusters with minimum size - OPTIMIZED to avoid LLVM errors"""
+    def get_largest_cluster(self, min_size: int = 2) -> Optional[List[int]]:
+        """Get only the largest cluster - OPTIMIZED for visualization"""
         # PERFORMANCE FIX: Use reasonable limit for full cluster visualization
         max_check = min(1000, self.max_particles)
         
-        # Extract data directly using Python loops (safer than to_numpy)
+        # Find largest cluster ID first
+        largest_cluster_id = -1
+        largest_size = 0
+        
+        for i in range(max_check):
+            cid = int(self.cluster_id[i])
+            if cid >= 0:
+                cluster_size = int(self.cluster_sizes[cid])
+                if cluster_size >= min_size and cluster_size > largest_size:
+                    largest_size = cluster_size
+                    largest_cluster_id = cid
+        
+        if largest_cluster_id == -1:
+            return None
+        
+        # Extract only the largest cluster
+        largest_cluster = []
+        for i in range(max_check):
+            cid = int(self.cluster_id[i])
+            if cid == largest_cluster_id:
+                largest_cluster.append(i)
+        
+        return largest_cluster
+    
+    def get_largest_cluster_fast(self, min_size: int = 2) -> Optional[List[int]]:
+        """Get only the largest cluster - FAST version without numpy (safer)"""
+        # PERFORMANCE FIX: Use reasonable limit for full cluster visualization
+        max_check = min(1000, self.max_particles)
+        
+        # Find largest cluster ID first
+        largest_cluster_id = -1
+        largest_size = 0
+        
+        for i in range(max_check):
+            cid = int(self.cluster_id[i])
+            if cid >= 0:
+                cluster_size = int(self.cluster_sizes[cid])
+                if cluster_size >= min_size and cluster_size > largest_size:
+                    largest_size = cluster_size
+                    largest_cluster_id = cid
+        
+        if largest_cluster_id == -1:
+            return None
+        
+        # Extract only the largest cluster
+        largest_cluster = []
+        for i in range(max_check):
+            cid = int(self.cluster_id[i])
+            if cid == largest_cluster_id:
+                largest_cluster.append(i)
+        
+        return largest_cluster
+    
+    def get_clusters(self, min_size: int = 2) -> List[List[int]]:
+        """Get list of clusters with minimum size - OPTIMIZED for performance"""
+        # PERFORMANCE FIX: Use reasonable limit for visualization (max 200 particles)
         from collections import defaultdict
         clusters_dict = defaultdict(list)
         
+        max_check = min(200, self.max_particles)
+        
+        # Extract cluster data only for particles in the limited range
         for i in range(max_check):
             cid = int(self.cluster_id[i])
             if cid >= 0:
