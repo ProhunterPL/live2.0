@@ -1,0 +1,154 @@
+# Phase 2B - Miller-Urey Extended Configuration
+# ==============================================
+# 
+# Extended Miller-Urey simulation for Phase 2B additional runs:
+# - Longer simulation time (500K steps)
+# - Enhanced logging and monitoring
+# - Optimized for molecular diversity
+# 
+# Expected outcomes:
+# - 30+ unique molecules
+# - Autocatalytic cycles
+# - Amino acid precursors
+
+scenario_name: "miller_urey_extended"
+
+simulation:
+  name: "miller_urey_extended"
+  scenario: "phase2_prebiotic"
+  description: "Extended Miller-Urey simulation for Phase 2B"
+  
+  # Extended simulation parameters
+  n_particles: 2000
+  max_steps: 500000  # 500K steps for extended evolution
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature
+  target_temperature: 298.0  # Room temperature (25°C)
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Initial composition (Miller-Urey atmosphere)
+initial_molecules:
+  # Reducing atmosphere
+  - name: "methane"
+    formula: "CH4"
+    count: 500
+    
+  - name: "ammonia"
+    formula: "NH3"
+    count: 400
+    
+  - name: "water"
+    formula: "H2O"
+    count: 800
+    
+  - name: "hydrogen"
+    formula: "H2"
+    count: 300
+
+# Enhanced energy input for extended simulation
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  
+  # More frequent pulses for extended simulation
+  pulse_interval: 800  # Every 800 steps (vs 1000)
+  pulse_energy: 60.0  # Slightly higher energy
+  pulse_duration: 15  # Longer duration
+  
+  # Random location in box
+  pulse_radius: 12.0  # Slightly larger radius
+  pulse_shape: "spherical"
+
+# Enhanced physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  # More frequent bond formation checks
+  bond_check_interval: 100  # Every 100 steps (vs 150)
+  bond_formation_threshold: 2.3  # Slightly tighter (vs 2.5)
+  
+  # Enhanced bond breaking
+  bond_breaking_energy_threshold: 0.7  # Lower threshold
+  
+  # More frequent clustering
+  cluster_check_interval: 200  # Every 200 steps (vs 300)
+  cluster_distance_threshold: 2.8  # Tighter clustering
+
+# Enhanced validation
+validation:
+  enabled: true
+  thermodynamic_check_interval: 5000  # More frequent checks
+  energy_tolerance: 0.0005  # Stricter tolerance
+  momentum_tolerance: 0.00005
+
+# Enhanced diagnostics & output
+diagnostics:
+  enabled: true
+  output_interval: 250  # More frequent output
+  save_snapshots: true
+  snapshot_interval: 25000  # Every 25k steps
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+    - "bond_count"
+    - "novelty_score"
+    - "reaction_rate"
+    - "molecular_complexity"
+
+# Enhanced benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "glycine"  # NH2CH2COOH
+    - "alanine"  # NH2CH(CH3)COOH
+    - "formaldehyde"  # CH2O
+    - "hydrogen_cyanide"  # HCN
+    - "formic_acid"  # HCOOH
+    - "urea"  # CO(NH2)2
+    - "acetamide"  # CH3CONH2
+    - "methylamine"  # CH3NH2
+
+# Enhanced output paths
+output:
+  base_dir: "results/phase2b_additional/miller_urey_extended"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+  export_performance: true  # New: performance metrics
+  export_debug: true  # New: debug information
+
+# Performance monitoring
+performance:
+  enabled: true
+  log_interval: 1000  # Log every 1000 steps
+  track_memory: true
+  track_cpu: true
+  track_gpu: true
+  
+  metrics:
+    - "steps_per_second"
+    - "memory_usage"
+    - "cpu_usage"
+    - "gpu_usage"
+    - "reaction_rate"
+    - "molecule_detection_rate"
+
+# Extended logging
+logging:
+  level: "INFO"
+  file: "logs/phase2b_miller_urey_extended.log"
+  
+  # Detailed reaction logging
+  log_reactions: true
+  log_molecules: true
+  log_performance: true
+  log_debug: false  # Set to true for debugging

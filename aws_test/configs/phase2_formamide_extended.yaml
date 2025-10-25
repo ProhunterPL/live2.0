@@ -1,0 +1,216 @@
+# Phase 2B - Formamide Extended Configuration
+# ===========================================
+# 
+# Extended formamide simulation for Phase 2B additional runs:
+# - Longer simulation time (500K steps)
+# - Enhanced catalysis and monitoring
+# - Optimized for nucleobase formation
+# 
+# Expected outcomes:
+# - 30+ unique molecules
+# - Nucleobases (adenine, guanine, etc.)
+# - Amino acids and sugars
+
+scenario_name: "formamide_extended"
+
+simulation:
+  name: "formamide_extended"
+  scenario: "phase2_prebiotic"
+  description: "Extended formamide simulation for Phase 2B"
+  
+  # Extended simulation parameters
+  n_particles: 2000
+  max_steps: 500000  # 500K steps for extended evolution
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature
+  target_temperature: 323.0  # 50°C
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Initial composition (formamide-rich)
+initial_molecules:
+  # Formamide as main component
+  - name: "formamide"
+    formula: "HCONH2"
+    count: 1200
+    
+  # Water
+  - name: "water"
+    formula: "H2O"
+    count: 400
+    
+  # Nitrogen/carbon sources
+  - name: "ammonia"
+    formula: "NH3"
+    count: 200
+    
+  - name: "hydrogen_cyanide"
+    formula: "HCN"
+    count: 200
+
+# Enhanced UV radiation for extended simulation
+energy_injection:
+  enabled: true
+  type: "uv"
+  
+  # Optimized pulses for extended simulation
+  pulse_interval: 300  # Every 300 steps
+  pulse_energy: 25.0   # Moderate energy
+  pulse_duration: 25   # Moderate duration
+  pulse_radius: 18.0   # Moderate radius
+  pulse_shape: "spherical"
+  
+  # Wavelength specificity
+  wavelength_range: [200, 300]  # nm
+
+# Enhanced mineral catalysts for extended simulation
+catalysis:
+  enabled: true
+  type: "heterogeneous_catalysis"
+  
+  catalysts:
+    # Optimized TiO2
+    - name: "TiO2"
+      concentration: 0.03  # 3% of particles
+      effect: "uv_enhancement"
+      boost_factor: 4.0  # High boost
+      
+    # Optimized ZnS
+    - name: "ZnS"
+      concentration: 0.02  # 2%
+      effect: "bond_formation_boost"
+      boost_factor: 2.5  # High boost
+      
+    # Optimized clay
+    - name: "montmorillonite"
+      concentration: 0.02  # 2%
+      effect: "polymerization_catalyst"
+      boost_factor: 2.0  # High boost
+      
+    # New: Iron oxide (photocatalyst)
+    - name: "Fe2O3"
+      concentration: 0.01  # 1%
+      effect: "electron_transfer"
+      boost_factor: 1.8
+
+# Enhanced chemistry
+chemistry:
+  pH: 7.5  # Slightly alkaline
+  ionic_strength: 0.08  # Moderate ionic strength
+  
+  # Enhanced formamide chemistry
+  enable_formamide_chemistry: true
+  formamide_reactivity: 2.5  # High reactivity
+  
+  # Additional settings
+  enable_nucleobase_formation: true
+  nucleobase_formation_boost: 2.0
+
+# Enhanced physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  # Optimized bond dynamics
+  bond_check_interval: 100  # Every 100 steps
+  bond_formation_threshold: 2.2  # Tighter threshold
+  bond_breaking_energy_threshold: 0.6  # Lower threshold
+  
+  # Optimized clustering
+  cluster_check_interval: 200  # Every 200 steps
+  cluster_distance_threshold: 2.7  # Tighter clustering
+  
+  # Enhanced polymerization
+  enable_polymerization: true
+  polymerization_boost: 3.0  # High boost
+  
+  # Nucleobase-specific settings
+  enable_nucleobase_chemistry: true
+  nucleobase_formation_threshold: 2.5
+
+# Enhanced validation
+validation:
+  enabled: true
+  thermodynamic_check_interval: 5000  # More frequent checks
+  energy_tolerance: 0.0005  # Stricter tolerance
+  momentum_tolerance: 0.00005
+
+# Enhanced diagnostics & output
+diagnostics:
+  enabled: true
+  output_interval: 250  # More frequent output
+  save_snapshots: true
+  snapshot_interval: 25000  # Every 25k steps
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+    - "bond_count"
+    - "novelty_score"
+    - "nucleobase_detection"
+    - "polymer_length"
+    - "reaction_rate"
+    - "nucleobase_formation_rate"
+    - "amino_acid_formation_rate"
+
+# Enhanced benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "adenine"  # C5H5N5
+    - "guanine"  # C5H5N5O
+    - "cytosine"  # C4H5N3O
+    - "uracil"  # C4H4N2O2
+    - "glycine"  # NH2CH2COOH
+    - "glycolaldehyde"  # C2H4O2
+    - "carbodiimide"  # HN=C=NH
+    - "formamide_dimer"  # (HCONH2)2
+    - "formamide_trimer"  # (HCONH2)3
+    - "purine"  # C5H4N4
+    - "pyrimidine"  # C4H4N2
+
+# Enhanced output paths
+output:
+  base_dir: "results/phase2b_additional/formamide_extended"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+  export_performance: true
+  export_debug: true
+
+# Performance monitoring
+performance:
+  enabled: true
+  log_interval: 1000
+  track_memory: true
+  track_cpu: true
+  track_gpu: true
+  
+  metrics:
+    - "steps_per_second"
+    - "memory_usage"
+    - "cpu_usage"
+    - "gpu_usage"
+    - "reaction_rate"
+    - "nucleobase_formation_rate"
+    - "amino_acid_formation_rate"
+    - "catalytic_activity"
+
+# Extended logging
+logging:
+  level: "INFO"
+  file: "logs/phase2b_formamide_extended.log"
+  
+  # Detailed logging
+  log_reactions: true
+  log_molecules: true
+  log_performance: true
+  log_catalysis: true
+  log_nucleobase_formation: true  # New: nucleobase events
+  log_debug: false

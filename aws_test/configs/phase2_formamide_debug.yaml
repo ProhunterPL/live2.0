@@ -1,0 +1,212 @@
+# Phase 2B - Formamide Debug Configuration
+# ========================================
+# 
+# Debug configuration for formamide scenario:
+# - Shorter simulation (100K steps) for debugging
+# - Enhanced logging and monitoring
+# - Detailed reaction tracking
+# 
+# Goal: Identify why formamide produces 0 molecules
+
+scenario_name: "formamide_debug"
+
+simulation:
+  name: "formamide_debug"
+  scenario: "phase2_prebiotic"
+  description: "Debug formamide scenario - short run with detailed logging"
+  
+  # Debug simulation parameters
+  n_particles: 2000
+  max_steps: 100000  # 100K steps for debugging
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature
+  target_temperature: 323.0  # 50°C
+  temperature_control: true
+  thermostat_strength: 0.1
+
+# Initial composition (formamide-rich)
+initial_molecules:
+  # Formamide as main component
+  - name: "formamide"
+    formula: "HCONH2"
+    count: 1200
+    
+  # Water
+  - name: "water"
+    formula: "H2O"
+    count: 400
+    
+  # Nitrogen/carbon sources
+  - name: "ammonia"
+    formula: "NH3"
+    count: 200
+    
+  - name: "hydrogen_cyanide"
+    formula: "HCN"
+    count: 200
+
+# Enhanced UV radiation for debugging
+energy_injection:
+  enabled: true
+  type: "uv"
+  
+  # More frequent pulses for debugging
+  pulse_interval: 200  # Every 200 steps
+  pulse_energy: 30.0   # Higher energy for debugging
+  pulse_duration: 30   # Longer duration
+  pulse_radius: 20.0   # Larger radius
+  pulse_shape: "spherical"
+  
+  # Wavelength specificity
+  wavelength_range: [200, 300]  # nm
+
+# Enhanced mineral catalysts for debugging
+catalysis:
+  enabled: true
+  type: "heterogeneous_catalysis"
+  
+  catalysts:
+    # More TiO2 for debugging
+    - name: "TiO2"
+      concentration: 0.05  # 5% (vs 2%)
+      effect: "uv_enhancement"
+      boost_factor: 5.0  # Higher boost
+      
+    # More ZnS
+    - name: "ZnS"
+      concentration: 0.03  # 3% (vs 1%)
+      effect: "bond_formation_boost"
+      boost_factor: 3.0  # Higher boost
+      
+    # More clay
+    - name: "montmorillonite"
+      concentration: 0.03  # 3% (vs 1%)
+      effect: "polymerization_catalyst"
+      boost_factor: 2.5  # Higher boost
+
+# Enhanced chemistry for debugging
+chemistry:
+  pH: 7.0
+  ionic_strength: 0.1  # Higher ionic strength
+  
+  # Enhanced formamide chemistry
+  enable_formamide_chemistry: true
+  formamide_reactivity: 3.0  # Much higher reactivity
+  
+  # Additional debug settings
+  debug_mode: true
+  track_all_reactions: true
+
+# Enhanced physics parameters for debugging
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  # More frequent checks for debugging
+  bond_check_interval: 50   # Every 50 steps
+  bond_formation_threshold: 2.0  # Tighter threshold
+  bond_breaking_energy_threshold: 0.5  # Lower threshold
+  
+  cluster_check_interval: 100  # Every 100 steps
+  cluster_distance_threshold: 2.5  # Tighter clustering
+  
+  # Enhanced polymerization
+  enable_polymerization: true
+  polymerization_boost: 5.0  # Much higher boost
+  
+  # Debug settings
+  debug_bonding: true
+  debug_reactions: true
+
+# Enhanced validation for debugging
+validation:
+  enabled: true
+  thermodynamic_check_interval: 1000  # Very frequent checks
+  energy_tolerance: 0.0001  # Very strict tolerance
+  momentum_tolerance: 0.00001
+
+# Enhanced diagnostics & output for debugging
+diagnostics:
+  enabled: true
+  output_interval: 100  # Very frequent output
+  save_snapshots: true
+  snapshot_interval: 10000  # Every 10k steps
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+    - "bond_count"
+    - "novelty_score"
+    - "nucleobase_detection"
+    - "polymer_length"
+    - "reaction_count"
+    - "bond_formation_rate"
+    - "bond_breaking_rate"
+    - "catalytic_activity"
+
+# Enhanced benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "adenine"  # C5H5N5
+    - "guanine"  # C5H5N5O
+    - "cytosine"  # C4H5N3O
+    - "uracil"  # C4H4N2O2
+    - "glycine"  # NH2CH2COOH
+    - "glycolaldehyde"  # C2H4O2
+    - "carbodiimide"  # HN=C=NH
+    - "formamide_dimer"  # (HCONH2)2
+    - "formamide_trimer"  # (HCONH2)3
+
+# Enhanced output paths for debugging
+output:
+  base_dir: "results/phase2b_additional/formamide_debug"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+  export_performance: true
+  export_debug: true
+  export_detailed_logs: true  # New: detailed logs
+
+# Enhanced performance monitoring
+performance:
+  enabled: true
+  log_interval: 100  # Very frequent logging
+  track_memory: true
+  track_cpu: true
+  track_gpu: true
+  
+  metrics:
+    - "steps_per_second"
+    - "memory_usage"
+    - "cpu_usage"
+    - "gpu_usage"
+    - "reaction_rate"
+    - "bond_formation_rate"
+    - "bond_breaking_rate"
+    - "catalytic_activity"
+    - "molecule_detection_rate"
+
+# Enhanced logging for debugging
+logging:
+  level: "DEBUG"  # Debug level
+  file: "logs/phase2b_formamide_debug.log"
+  
+  # Detailed logging
+  log_reactions: true
+  log_molecules: true
+  log_performance: true
+  log_catalysis: true
+  log_bonding: true  # New: bonding events
+  log_debug: true  # Enable debug logging
+  
+  # Additional debug files
+  reaction_log: "logs/formamide_reactions_debug.log"
+  bonding_log: "logs/formamide_bonding_debug.log"
+  catalysis_log: "logs/formamide_catalysis_debug.log"

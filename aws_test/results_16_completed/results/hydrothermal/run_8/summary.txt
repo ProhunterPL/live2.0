@@ -1,0 +1,21 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: hydrothermal_vent
+Description: Alkaline hydrothermal vent with H2, H2S chemistry
+
+Configuration:
+  Steps: 200,000
+  Temperature: 373.0K
+  Seed: 58
+
+Initial Molecules:
+  - hydrogen (H2): 600
+  - hydrogen_sulfide (H2S): 300
+  - carbon_dioxide (CO2): 400
+  - water (H2O): 600
+  - ammonia (NH3): 100
+
+Final State:
+  Particles: 6099
+  Time: 200.00

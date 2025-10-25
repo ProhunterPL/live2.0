@@ -1,0 +1,87 @@
+# Phase 2 Optimized Fix - Better Performance and Visualization
+# =============================================================
+# Fixed configuration for better performance and proper visualization
+
+scenario_name: "phase2_optimized_fix"
+
+simulation:
+  name: "phase2_optimized_fix"
+  scenario: "phase2_prebiotic"
+  description: "Optimized configuration with proper particle density and energy distribution"
+  
+  # Smaller box for better particle density and visualization
+  n_particles: 1000
+  max_steps: 10000
+  dt: 0.001
+  box_size: 50.0  # Reduced from 100.0 to 50.0 for better density
+  
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+  
+  # Spatial hashing
+  spatial_hash_cell_size: 5.0  # Reduced from 10.0 to 5.0 for better resolution
+
+# Miller-Urey composition (scaled for smaller box)
+initial_molecules:
+  - name: "methane"
+    formula: "CH4"
+    count: 250  # Increased for better density
+  - name: "ammonia"
+    formula: "NH3"
+    count: 200
+  - name: "water"
+    formula: "H2O"
+    count: 400
+  - name: "hydrogen"
+    formula: "H2"
+    count: 150
+
+# Energy injection - larger radius for better visibility
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 1000
+  pulse_energy: 50.0
+  pulse_duration: 10
+  pulse_radius: 15.0  # Increased from 10.0 to 15.0 for better visibility
+  pulse_shape: "spherical"
+
+# Physics - REACTIONS DISABLED for performance
+physics:
+  use_physics_db: false
+  enable_bonding: false
+  enable_breaking: false
+  enable_reactions: false
+
+# Performance - optimized intervals
+performance:
+  metrics_update_interval: 1000  # More frequent updates
+  diagnostics_frequency: 5000
+  novelty_check_interval: 999999  # Disabled
+  mutation_interval: 999999  # Disabled
+  graph_update_interval: 999999  # Disabled
+  energy_update_interval: 100
+  memory_check_interval: 5000
+  gc_interval: 10000
+  performance_log_interval: 1000
+
+# Validation disabled
+validation:
+  enable_thermodynamic_validation: false
+
+# Diagnostics minimal
+diagnostics:
+  enabled: true
+  output_interval: 5000
+  save_snapshots: false
+
+# Output
+output:
+  base_dir: "results/phase2_optimized_fix"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: false
+
+logging:
+  level: "INFO"

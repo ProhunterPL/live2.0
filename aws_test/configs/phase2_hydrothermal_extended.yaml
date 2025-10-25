@@ -1,0 +1,194 @@
+# Phase 2B - Hydrothermal Extended Configuration
+# ==============================================
+# 
+# Extended hydrothermal vent simulation for Phase 2B additional runs:
+# - Longer simulation time (500K steps)
+# - Enhanced catalysis and monitoring
+# - Optimized for autocatalytic cycles
+# 
+# Expected outcomes:
+# - 30+ unique molecules
+# - Iron-sulfur clusters
+# - Autocatalytic cycles
+
+scenario_name: "hydrothermal_extended"
+
+simulation:
+  name: "hydrothermal_extended"
+  scenario: "phase2_prebiotic"
+  description: "Extended hydrothermal vent simulation for Phase 2B"
+  
+  # Extended simulation parameters
+  n_particles: 2000
+  max_steps: 500000  # 500K steps for extended evolution
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature (hot springs)
+  target_temperature: 373.0  # 100°C
+  temperature_control: true
+  thermostat_strength: 0.1
+  temperature_fluctuations: true
+  temperature_range: [323.0, 423.0]  # 50-150°C
+
+# Initial composition (hydrothermal vent fluids)
+initial_molecules:
+  # Reducing gases
+  - name: "hydrogen"
+    formula: "H2"
+    count: 600
+    
+  - name: "hydrogen_sulfide"
+    formula: "H2S"
+    count: 300
+    
+  - name: "carbon_dioxide"
+    formula: "CO2"
+    count: 400
+    
+  - name: "water"
+    formula: "H2O"
+    count: 600
+    
+  # Nitrogen source
+  - name: "ammonia"
+    formula: "NH3"
+    count: 100
+
+# Enhanced energy injection for extended simulation
+energy_injection:
+  enabled: true
+  type: "thermal"
+  pulse_interval: 400  # More frequent pulses
+  pulse_energy: 40.0  # Higher energy
+  pulse_duration: 25  # Longer duration
+  pulse_radius: 18.0  # Larger radius
+  pulse_shape: "spherical"
+
+# Enhanced mineral surface catalysis
+catalysis:
+  enabled: true
+  type: "thermal"
+  
+  # More catalysts for extended simulation
+  catalysts:
+    - name: "FeS"
+      concentration: 0.02  # 2% of particles (vs 1%)
+      effect: "bond_formation_boost"
+      boost_factor: 2.5  # Higher boost
+      
+    - name: "FeS2"
+      concentration: 0.01  # 1% (vs 0.5%)
+      effect: "electron_transfer"
+      boost_factor: 2.0  # Higher boost
+      
+    - name: "NiS"  # New: Nickel sulfide
+      concentration: 0.005
+      effect: "hydrogenation_catalyst"
+      boost_factor: 1.8
+
+# Enhanced alkaline conditions
+chemistry:
+  pH: 10.5  # Slightly more alkaline
+  ionic_strength: 0.15  # Higher ionic strength
+  
+  # Enhanced reactivity
+  reaction_rate_modifier: 2.0  # Higher modifier
+  
+  # More metal ions
+  metal_ions:
+    - "Fe2+"  # Iron(II)
+    - "Ni2+"  # Nickel
+    - "Co2+"  # Cobalt (trace)
+
+# Enhanced physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  # More frequent bond dynamics
+  bond_check_interval: 100  # Every 100 steps
+  bond_formation_threshold: 2.3  # Tighter threshold
+  bond_breaking_energy_threshold: 0.6  # Lower for hot conditions
+  
+  # More frequent clustering
+  cluster_check_interval: 200  # Every 200 steps
+  cluster_distance_threshold: 2.8  # Tighter clustering
+
+# Enhanced validation
+validation:
+  enabled: true
+  thermodynamic_check_interval: 5000  # More frequent checks
+  energy_tolerance: 0.0005  # Stricter tolerance
+  momentum_tolerance: 0.00005
+
+# Enhanced diagnostics & output
+diagnostics:
+  enabled: true
+  output_interval: 250  # More frequent output
+  save_snapshots: true
+  snapshot_interval: 25000  # Every 25k steps
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+    - "bond_count"
+    - "novelty_score"
+    - "iron_sulfur_clusters"
+    - "reaction_rate"
+    - "catalytic_activity"
+
+# Enhanced benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "formic_acid"  # HCOOH
+    - "acetic_acid"  # CH3COOH
+    - "pyruvic_acid"  # CH3COCOOH
+    - "iron_sulfur_clusters"  # [FeS]n
+    - "thiols"  # R-SH
+    - "methanethiol"  # CH3SH
+    - "dimethyl_sulfide"  # CH3SCH3
+    - "acetamide"  # CH3CONH2
+
+# Enhanced output paths
+output:
+  base_dir: "results/phase2b_additional/hydrothermal_extended"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+  export_performance: true
+  export_debug: true
+
+# Performance monitoring
+performance:
+  enabled: true
+  log_interval: 1000
+  track_memory: true
+  track_cpu: true
+  track_gpu: true
+  
+  metrics:
+    - "steps_per_second"
+    - "memory_usage"
+    - "cpu_usage"
+    - "gpu_usage"
+    - "reaction_rate"
+    - "catalytic_activity"
+    - "iron_sulfur_cluster_formation"
+
+# Extended logging
+logging:
+  level: "INFO"
+  file: "logs/phase2b_hydrothermal_extended.log"
+  
+  # Detailed logging
+  log_reactions: true
+  log_molecules: true
+  log_performance: true
+  log_catalysis: true  # New: catalysis events
+  log_debug: false
