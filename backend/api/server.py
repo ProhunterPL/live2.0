@@ -3,6 +3,9 @@ FastAPI server for Live 2.0 simulation
 Provides WebSocket streaming and REST API endpoints
 """
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*'api.server' found in sys.modules.*")
+
 import asyncio
 import json
 import time
