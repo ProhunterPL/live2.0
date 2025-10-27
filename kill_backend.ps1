@@ -3,8 +3,8 @@
 
 Write-Host "🛑 Stopping Live 2.0 backend..." -ForegroundColor Red
 
-# Kill processes using port 8000
-$connections = netstat -ano | Select-String ":8000 "
+# Kill processes using port 8001 (backend port)
+$connections = netstat -ano | Select-String ":8001 "
 if ($connections) {
     $pids = $connections | ForEach-Object { 
         ($_ -split '\s+')[-1] | Where-Object { $_ -match '^\d+$' }
