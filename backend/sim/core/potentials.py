@@ -247,8 +247,8 @@ class PotentialSystem:
         self.binding_threshold[None] = config.binding_threshold
         self.unbinding_threshold[None] = config.unbinding_threshold
         
-        # Initialize spatial hashing (O(n) performance!)
-        self.use_spatial_hash = SPATIAL_HASH_AVAILABLE
+        # Initialize spatial hashing (O(n) performance!) - check config first
+        self.use_spatial_hash = SPATIAL_HASH_AVAILABLE and config.use_spatial_hash
         self.spatial_cell_size = 10.0  # Default
         if self.use_spatial_hash:
             try:
