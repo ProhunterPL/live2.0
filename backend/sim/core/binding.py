@@ -853,11 +853,11 @@ class BindingSystem:
     
     def get_clusters(self, min_size: int = 2) -> List[List[int]]:
         """Get list of clusters with minimum size - OPTIMIZED for performance"""
-        # PERFORMANCE FIX: Use reasonable limit for visualization (max 200 particles)
+        # PERFORMANCE FIX: Use reasonable limit for visualization (max 500 particles for our current config)
         from collections import defaultdict
         clusters_dict = defaultdict(list)
         
-        max_check = min(200, self.max_particles)
+        max_check = min(500, self.max_particles)
         
         # Extract cluster data only for particles in the limited range
         for i in range(max_check):

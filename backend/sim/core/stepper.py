@@ -1312,8 +1312,8 @@ class SimulationStepper:
             
             # Time bonds/clusters extraction
             t_bonds_start = time.time()
-            # OPTIMIZATION: Only get bonds/clusters every 200 steps to reduce load - PERFORMANCE FIX
-            if self.step_count % 200 == 0:
+            # OPTIMIZATION: Only get bonds/clusters every 50 steps to reduce load (faster than 200) - PERFORMANCE FIX
+            if self.step_count % 50 == 0:
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
                 # Cache the data for intermediate steps
