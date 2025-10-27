@@ -37,11 +37,11 @@ class SimulationConfig(BaseModel):
     max_particles: int = Field(default=500, gt=0, le=100000)  # REDUCED from 10000 to 500 for stability
     particle_radius: float = Field(default=0.5, gt=0)
     
-    # Binding settings - MORE RESTRICTIVE for performance
+    # Binding settings - BALANCED for meaningful clusters
     # Literature: vdW bonds 2-10 kJ/mol, H-bonds 10-40 kJ/mol, covalent 300-400 kJ/mol
-    # FIXED: More restrictive thresholds to reduce bond count and improve performance
-    binding_threshold: float = Field(default=0.6, gt=0, le=1)  # INCREASED from 0.45 - more restrictive binding
-    unbinding_threshold: float = Field(default=0.2, gt=0, le=1)  # INCREASED from 0.15 - more stable bonds
+    # FIXED: Balanced thresholds for good cluster formation
+    binding_threshold: float = Field(default=0.5, gt=0, le=1)  # BALANCED: Medium permissiveness
+    unbinding_threshold: float = Field(default=0.18, gt=0, le=1)  # BALANCED: Stable bonds but not too restrictive
     
     # Novelty detection - BALANCED ANTI-BURNOUT settings
     novelty_window: int = Field(default=500, gt=0)  # INCREASED from 100 - longer memory for novelty detection

@@ -781,8 +781,8 @@ class BindingSystem:
         """Get list of active bonds - OPTIMIZED for performance"""
         bonds = []
         
-        # PERFORMANCE FIX: Use reasonable limit for visualization (max 200 particles)
-        max_check = min(200, self.max_particles)
+        # PERFORMANCE FIX: Use reasonable limit for visualization (max 500 particles to match get_clusters)
+        max_check = min(500, self.max_particles)
         
         # Only check bonds between particles in the limited range
         for i in range(max_check):
