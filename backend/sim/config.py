@@ -45,7 +45,7 @@ class SimulationConfig(BaseModel):
     
     # Novelty detection - BALANCED ANTI-BURNOUT settings
     novelty_window: int = Field(default=500, gt=0)  # INCREASED from 100 - longer memory for novelty detection
-    min_cluster_size: int = Field(default=2, ge=1)  # BALANCED: Decreased from 3 - detect smaller clusters for better analysis
+    min_cluster_size: int = Field(default=3, ge=1)  # INCREASED from 2 - detect meaningful clusters (3+ particles)
     novelty_check_interval: int = Field(default=500, gt=0)  # How often to check for novel substances (steps) - BALANCED for performance
     
     # Visualization - OPTIMIZED for performance
