@@ -192,15 +192,19 @@ class Phase2FullRunner:
         return count
     
     def initialize_taichi(self):
-        """Initialize Taichi (CPU ONLY for safety after GPU crash)"""
+        """Initialize Taichi - Try GPU first, fallback to CPU"""
         logger.info("Initializing Taichi...")
         
-        # FORCE CPU ONLY - GPU caused system crash!
-        import multiprocessing
-        max_threads = multiprocessing.cpu_count()
-        logger.info(f"  Using CPU with {max_threads} threads (SAFE MODE)")
-        logger.info("  GPU disabled after system crash")
-        ti.init(arch=ti.cpu, cpu_max_num_threads=max_threads)
+        try:
+            ti.init(arch=ti.cuda)
+            logger.info("✅ Using GPU acceleration")
+        except Exception as e:
+            logger.warning(f"⚠️ GPU not available: {e}")
+            logger.info("Falling back to CPU...")
+            import multiprocessing
+            max_threads = multiprocessing.cpu_count()
+            ti.init(arch=ti.cpu, cpu_max_num_threads=max_threads)
+            logger.info(f"Using CPU with {max_threads} threads")
     
     def run(self) -> dict:
         """

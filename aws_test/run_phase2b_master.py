@@ -43,7 +43,7 @@ def debug_formamide():
     print("=" * 50)
     
     cmd = [
-        "python", "scripts/debug_formamide.py",
+        "python3", "scripts/debug_formamide.py",
         "--output-dir", "results/phase2b_additional/formamide_debug"
     ]
     
@@ -64,7 +64,7 @@ def run_additional_simulations():
     print("=" * 50)
     
     cmd = [
-        "python", "scripts/run_phase2b_additional.py",
+        "python3", "scripts/run_phase2b_additional.py",
         "--output-dir", "results/phase2b_additional"
     ]
     
@@ -88,7 +88,7 @@ def monitor_progress():
     print("   Press Ctrl+C to stop monitoring")
     
     cmd = [
-        "python", "scripts/monitor_runs.py",
+        "python3", "scripts/monitor_runs.py",
         "--results-dir", "results/phase2b_additional",
         "--interval", "30"
     ]
@@ -109,7 +109,7 @@ def analyze_results():
     print("=" * 50)
     
     cmd = [
-        "python", "scripts/analyze_additional_results.py",
+        "python3", "scripts/analyze_additional_results.py",
         "--phase2b-dir", "results/phase2b_additional",
         "--phase2a-dir", "aws_test"
     ]
