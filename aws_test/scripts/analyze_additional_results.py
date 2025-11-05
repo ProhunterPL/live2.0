@@ -35,7 +35,7 @@ class Phase2BAnalyzer:
         
     def load_phase2a_results(self):
         """Load Phase 2A results from AWS test"""
-        print("📊 Loading Phase 2A results...")
+        print("[INFO] Loading Phase 2A results...")
         
         phase2a_data = {
             "scenarios": defaultdict(list),
@@ -95,11 +95,11 @@ class Phase2BAnalyzer:
                         phase2a_data["failed_runs"] += 1
         
         self.analysis_results["phase2a_results"] = phase2a_data
-        print(f"  ✅ Loaded {phase2a_data['successful_runs']}/{phase2a_data['total_runs']} Phase 2A runs")
+        print(f"  [OK] Loaded {phase2a_data['successful_runs']}/{phase2a_data['total_runs']} Phase 2A runs")
         
     def load_phase2b_results(self):
         """Load Phase 2B results"""
-        print("📊 Loading Phase 2B results...")
+        print("[INFO] Loading Phase 2B results...")
         
         phase2b_data = {
             "scenarios": defaultdict(list),
@@ -152,11 +152,11 @@ class Phase2BAnalyzer:
                     phase2b_data["failed_runs"] += 1
         
         self.analysis_results["phase2b_results"] = phase2b_data
-        print(f"  ✅ Loaded {phase2b_data['successful_runs']}/{phase2b_data['total_runs']} Phase 2B runs")
+        print(f"  [OK] Loaded {phase2b_data['successful_runs']}/{phase2b_data['total_runs']} Phase 2B runs")
         
     def analyze_molecular_diversity(self):
         """Analyze molecular diversity across phases"""
-        print("🧬 Analyzing molecular diversity...")
+        print("[INFO] Analyzing molecular diversity...")
         
         diversity_analysis = {
             "phase2a": {},
@@ -225,7 +225,7 @@ class Phase2BAnalyzer:
         
     def analyze_autocatalytic_cycles(self):
         """Analyze autocatalytic cycles (placeholder for now)"""
-        print("🔄 Analyzing autocatalytic cycles...")
+        print("[INFO] Analyzing autocatalytic cycles...")
         
         # This would integrate with autocatalytic_detector.py
         # For now, placeholder analysis
@@ -241,7 +241,7 @@ class Phase2BAnalyzer:
         
     def generate_recommendations(self):
         """Generate recommendations based on analysis"""
-        print("💡 Generating recommendations...")
+        print("[INFO] Generating recommendations...")
         
         recommendations = []
         
@@ -253,43 +253,43 @@ class Phase2BAnalyzer:
         )
         
         if phase2b_total >= 100:
-            recommendations.append("✅ SUCCESS: Molecular diversity target (100+) achieved")
+            recommendations.append("[SUCCESS] Molecular diversity target (100+) achieved")
         elif phase2b_total >= 50:
-            recommendations.append("⚠️ PARTIAL: Molecular diversity improved but below target")
+            recommendations.append("[PARTIAL] Molecular diversity improved but below target")
         else:
-            recommendations.append("❌ INSUFFICIENT: Molecular diversity still too low")
+            recommendations.append("[INSUFFICIENT] Molecular diversity still too low")
         
         # Check formamide activity
         formamide_2b = diversity.get("phase2b", {}).get("formamide_extended", {})
         if formamide_2b.get("total_unique_molecules", 0) > 0:
-            recommendations.append("✅ SUCCESS: Formamide scenario now active")
+            recommendations.append("[SUCCESS] Formamide scenario now active")
         else:
-            recommendations.append("❌ ISSUE: Formamide scenario still inactive")
+            recommendations.append("[ISSUE] Formamide scenario still inactive")
         
         # Check completion rates
         phase2b_data = self.analysis_results["phase2b_results"]
         completion_rate = phase2b_data["successful_runs"] / phase2b_data["total_runs"] * 100 if phase2b_data["total_runs"] > 0 else 0
         
         if completion_rate >= 90:
-            recommendations.append("✅ SUCCESS: High completion rate achieved")
+            recommendations.append("[SUCCESS] High completion rate achieved")
         elif completion_rate >= 80:
-            recommendations.append("⚠️ ACCEPTABLE: Completion rate acceptable")
+            recommendations.append("[ACCEPTABLE] Completion rate acceptable")
         else:
-            recommendations.append("❌ ISSUE: Low completion rate")
+            recommendations.append("[ISSUE] Low completion rate")
         
         # Overall recommendation
         if phase2b_total >= 100 and completion_rate >= 90:
-            recommendations.append("🎉 PHASE 2 COMPLETE: Ready for Phase 3 (Paper Writing)")
+            recommendations.append("[COMPLETE] PHASE 2 COMPLETE: Ready for Phase 3 (Paper Writing)")
         elif phase2b_total >= 50 and completion_rate >= 80:
-            recommendations.append("⚠️ PHASE 2 MOSTLY COMPLETE: Consider additional runs")
+            recommendations.append("[PARTIAL] PHASE 2 MOSTLY COMPLETE: Consider additional runs")
         else:
-            recommendations.append("❌ PHASE 2 INCOMPLETE: Need more work")
+            recommendations.append("[INCOMPLETE] PHASE 2 INCOMPLETE: Need more work")
         
         self.analysis_results["recommendations"] = recommendations
         
     def generate_report(self):
         """Generate comprehensive analysis report"""
-        print("📄 Generating analysis report...")
+        print("[INFO] Generating analysis report...")
         
         report_file = self.phase2b_dir / "phase2b_analysis_report.md"
         
@@ -344,18 +344,18 @@ class Phase2BAnalyzer:
             f.write("2. Generate publication figures\n")
             f.write("3. Proceed to Phase 3 (Paper Writing)\n")
         
-        print(f"📄 Analysis report saved: {report_file}")
+        print(f"[OK] Analysis report saved: {report_file}")
         
         # Save JSON results
         json_file = self.phase2b_dir / "phase2b_analysis_results.json"
         with open(json_file, 'w') as f:
             json.dump(self.analysis_results, f, indent=2)
         
-        print(f"📊 Analysis results saved: {json_file}")
+        print(f"[OK] Analysis results saved: {json_file}")
         
     def run_analysis(self):
         """Run complete analysis"""
-        print("🔍 Starting Phase 2B Analysis")
+        print("[INFO] Starting Phase 2B Analysis")
         print("=" * 50)
         
         # Load data
@@ -371,10 +371,10 @@ class Phase2BAnalyzer:
         self.generate_report()
         
         print("=" * 50)
-        print("✅ Analysis complete!")
+        print("[OK] Analysis complete!")
         
         # Print summary
-        print("\n📊 SUMMARY:")
+        print("\n[SUMMARY]:")
         for rec in self.analysis_results["recommendations"]:
             print(f"  {rec}")
 
