@@ -554,14 +554,31 @@ class SimulationStepper:
                     self._log_diagnostics()
                 
                 # Mutations (OPTIMIZED: configurable interval)
+                # CRITICAL: Disable mutations on CPU mode to avoid LLVM errors on Windows
                 mutation_interval = getattr(self.config, 'mutation_interval', 2000)
-                if mutation_interval > 0 and mutation_interval < 999999 and self.step_count % mutation_interval == 0:
-                    self.apply_mutations(dt)
+                enable_mutations = getattr(self.config, 'enable_mutations', True)
+                
+                # Disable mutations if explicitly disabled OR if CPU mode (to avoid LLVM crash)
+                import taichi as ti
+                is_cpu_mode = ti.cfg.arch == ti.cpu
+                if enable_mutations and not is_cpu_mode and mutation_interval > 0 and mutation_interval < 999999 and self.step_count % mutation_interval == 0:
+                    try:
+                        self.apply_mutations(dt)
+                    except RuntimeError as e:
+                        if "LLVM Fatal Error" in str(e):
+                            logger.warning("Mutations disabled due to LLVM error on CPU")
+                            self.config.mutation_interval = 999999  # Disable for future
+                        else:
+                            raise
                 
                 # Novelty detection (OPTIMIZED: configurable interval)
-                novelty_interval = getattr(self.config, 'novelty_check_interval', 500)  # INCREASED from 100 to 500 for better performance
-                if novelty_interval > 0 and novelty_interval < 999999 and self.step_count % novelty_interval == 0:
-                    self.detect_novel_substances()
+                # Check if detection is disabled
+                detect_enabled = getattr(self.config, 'detect_novel_substances', True)
+                
+                if detect_enabled:
+                    novelty_interval = getattr(self.config, 'novelty_check_interval', 500)  # INCREASED from 100 to 500 for better performance
+                    if novelty_interval > 0 and novelty_interval < 999999 and self.step_count % novelty_interval == 0:
+                        self.detect_novel_substances()
             
             
         except Exception as e:

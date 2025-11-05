@@ -1,0 +1,20 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: miller_urey_extended
+Description: Extended Miller-Urey simulation for Phase 2B (SUPER FAST MODE)
+
+Configuration:
+  Steps: 10,000
+  Temperature: 298.0K
+  Seed: 42
+
+Initial Molecules:
+  - methane (CH4): 250
+  - ammonia (NH3): 200
+  - water (H2O): 400
+  - hydrogen (H2): 150
+
+Final State:
+  Particles: 4550
+  Time: 20.27

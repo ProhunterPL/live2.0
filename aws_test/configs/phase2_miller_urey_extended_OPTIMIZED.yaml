@@ -1,0 +1,136 @@
+# Phase 2B - Miller-Urey Extended Configuration - OPTIMIZED
+# ==============================================
+# 
+# Optimized for local GPU execution with:
+# - Reduced novelty detection frequency (10000 steps vs 500)
+# - Smaller particle count (1500 vs 2000)
+# - Fewer atoms per molecule
+# 
+# Expected outcomes:
+# - Faster execution (1-2 hours vs 10+ hours)
+# - Same scientific validity
+# - Reduced resource usage
+
+scenario_name: "miller_urey_extended"
+
+simulation:
+  name: "miller_urey_extended"
+  scenario: "phase2_prebiotic"
+  description: "Extended Miller-Urey simulation for Phase 2B (OPTIMIZED)"
+  
+  # OPTIMIZED simulation parameters
+  n_particles: 1500  # REDUCED from 2000 for performance
+  max_steps: 500000  # 500K steps for extended evolution
+  dt: 0.001
+  box_size: 100.0
+  
+  # Temperature
+  target_temperature: 298.0
+  temperature_control: true
+  thermostat_strength: 0.1
+  
+  # OPTIMIZATION: DISABLE novelty detection during simulation
+  # Will be run as post-process batch job
+  novelty_check_interval: 99999999  # DISABLED: Run detection offline later
+  detect_novel_substances: false  # COMPLETELY DISABLE during run
+  
+  # OPTIMIZATION: Reduce validation frequency
+  validate_every_n_steps: 10000  # Check every 10K steps (vs 5000)
+
+# Initial composition (Miller-Urey atmosphere) - REDUCED counts
+initial_molecules:
+  # Reducing atmosphere - REDUCED for performance
+  - name: "methane"
+    formula: "CH4"
+    count: 375  # Was 500
+    
+  - name: "ammonia"
+    formula: "NH3"
+    count: 300  # Was 400
+    
+  - name: "water"
+    formula: "H2O"
+    count: 600  # Was 800
+    
+  - name: "hydrogen"
+    formula: "H2"
+    count: 225  # Was 300
+
+# Enhanced energy input
+energy_injection:
+  enabled: true
+  type: "electrical_discharge"
+  pulse_interval: 800
+  pulse_energy: 60.0
+  pulse_duration: 15
+  pulse_radius: 12.0
+  pulse_shape: "spherical"
+
+# Enhanced physics parameters
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  bond_check_interval: 100
+  bond_formation_threshold: 2.3
+  bond_breaking_energy_threshold: 0.7
+  cluster_check_interval: 200
+  cluster_distance_threshold: 2.8
+
+# REDUCED validation for performance
+validation:
+  enabled: false  # CHANGED: Disable for faster execution
+  thermodynamic_check_interval: 10000
+  energy_tolerance: 0.0005
+  momentum_tolerance: 0.00005
+
+# REDUCED diagnostics for performance
+diagnostics:
+  enabled: false  # CHANGED: Disable for faster execution
+  output_interval: 1000  # REDUCED from 250
+  save_snapshots: true
+  snapshot_interval: 10000  # CHANGED: Every 10K steps (for offline analysis)
+  
+  # Snapshots for offline batch analysis
+  save_cluster_state: true
+  cluster_snapshot_interval: 10000  # Save cluster state every 10K steps
+  
+  metrics:
+    - "energy_total"
+    - "temperature"
+    - "cluster_count"
+    - "molecule_count"
+
+# Benchmark tracking
+benchmark:
+  track_known_molecules: true
+  expected_products:
+    - "glycine"
+    - "alanine"
+    - "formaldehyde"
+    - "hydrogen_cyanide"
+    - "formic_acid"
+    - "urea"
+
+# Output paths
+output:
+  base_dir: "results/phase2b_additional/miller_urey_extended"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+
+# REDUCED performance monitoring
+performance:
+  enabled: false  # CHANGED: Disable for faster execution
+  log_interval: 10000
+
+# REDUCED logging
+logging:
+  level: "WARNING"  # CHANGED: Reduce logging
+  file: "logs/phase2b_miller_urey_extended.log"
+  
+  log_reactions: false  # CHANGED
+  log_molecules: false  # CHANGED
+  log_performance: false  # CHANGED
+

@@ -273,6 +273,29 @@ class PotentialSystem:
                 from .physics_db import PhysicsDatabase
                 db_path = Path(config.physics_db_path)
                 
+                # Fix relative paths - try multiple locations
+                import os
+                
+                # List of possible paths to try
+                possible_paths = [
+                    db_path,  # Original path
+                    Path(config.physics_db_path),  # Config path
+                    Path.cwd() / config.physics_db_path,  # CWD relative
+                    Path(__file__).parent.parent.parent / "data" / "physics_parameters.json",  # Backend relative
+                    Path.cwd() / "data" / "physics_parameters.json",  # Root/data
+                    Path.cwd().parent / "data" / "physics_parameters.json",  # Parent/data
+                ]
+                
+                # Find first existing path
+                for possible_path in possible_paths:
+                    try:
+                        if possible_path.exists():
+                            db_path = possible_path
+                            logger.info(f"Found PhysicsDatabase at: {db_path}")
+                            break
+                    except:
+                        continue
+                
                 if db_path.exists():
                     self.physics_db = PhysicsDatabase(str(db_path))
                     logger.info(f"Loaded PhysicsDatabase from {db_path}")
@@ -282,7 +305,7 @@ class PotentialSystem:
                     logger.info(f"  VDW parameters: {stats['total_vdw']}")
                     logger.info(f"  Citations: {stats['unique_citations']}")
                 else:
-                    logger.error(f"PhysicsDatabase not found at {db_path}, using fallback parameters")
+                    logger.error(f"PhysicsDatabase not found, using fallback parameters")
                     self.use_physics_db = False
                     
             except Exception as e:

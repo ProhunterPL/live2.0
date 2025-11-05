@@ -1,6 +1,6 @@
 # Live 2.0 Backend Dependencies
 # Core simulation
-taichi>=1.7.0
+taichi>=1.6.0
 numpy>=1.24.0
 scipy>=1.10.0
 

@@ -71,6 +71,10 @@ class Phase2Config(BaseModel):
     track_known_molecules: bool = Field(default=True)
     expected_products: List[str] = Field(default_factory=list, description="Expected molecules to track")
     
+    # Novelty detection control
+    detect_novel_substances: Optional[bool] = Field(default=None, description="Enable/disable novelty detection during simulation")
+    novelty_check_interval: Optional[int] = Field(default=None, description="How often to check for novel substances (steps)")
+    
     # Output
     output_base_dir: str = Field(default="results/phase2")
     save_snapshots: bool = Field(default=True)
@@ -81,6 +85,8 @@ class Phase2Config(BaseModel):
     dt: Optional[float] = Field(default=None, description="Timestep override")
     box_size: Optional[float] = Field(default=None, description="Box size override")
     max_steps: Optional[int] = Field(default=None, description="Max steps override")
+    grid_width: Optional[int] = Field(default=None, description="Grid width")
+    grid_height: Optional[int] = Field(default=None, description="Grid height")
     
     # Performance parameters
     enable_thermodynamic_validation: Optional[bool] = Field(default=None)
@@ -89,6 +95,7 @@ class Phase2Config(BaseModel):
     metrics_update_interval: Optional[int] = Field(default=None)
     enable_diagnostics: Optional[bool] = Field(default=None)
     diagnostics_frequency: Optional[int] = Field(default=None)
+    enable_mutations: Optional[bool] = Field(default=None, description="Enable/disable mutations")
 
 
 def load_phase2_config_from_yaml(yaml_path: str) -> Phase2Config:
@@ -141,6 +148,10 @@ def load_phase2_config_from_yaml(yaml_path: str) -> Phase2Config:
             pulse_shape=energy_inj.get('pulse_shape', 'spherical')
         ),
         
+        # Novelty detection control
+        detect_novel_substances=sim_config.get('detect_novel_substances'),
+        novelty_check_interval=sim_config.get('novelty_check_interval'),
+        
         # Catalysts
         catalysts=[
             CatalystConfig(
@@ -172,13 +183,18 @@ def load_phase2_config_from_yaml(yaml_path: str) -> Phase2Config:
         box_size=sim_config.get('box_size'),
         max_steps=sim_config.get('max_steps'),
         
+        # Grid dimensions
+        grid_width=sim_config.get('grid_width'),
+        grid_height=sim_config.get('grid_height'),
+        
         # Performance parameters from YAML
         enable_thermodynamic_validation=sim_config.get('enable_thermodynamic_validation'),
         validate_every_n_steps=sim_config.get('validate_every_n_steps'),
         energy_update_interval=sim_config.get('energy_update_interval'),
         metrics_update_interval=sim_config.get('metrics_update_interval'),
         enable_diagnostics=sim_config.get('enable_diagnostics'),
-        diagnostics_frequency=sim_config.get('diagnostics_frequency')
+        diagnostics_frequency=sim_config.get('diagnostics_frequency'),
+        enable_mutations=sim_config.get('enable_mutations')
     )
     
     return phase2_config

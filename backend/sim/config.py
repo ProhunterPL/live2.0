@@ -47,6 +47,7 @@ class SimulationConfig(BaseModel):
     novelty_window: int = Field(default=500, gt=0)  # INCREASED from 100 - longer memory for novelty detection
     min_cluster_size: int = Field(default=3, ge=1)  # INCREASED from 2 - detect meaningful clusters (3+ particles)
     novelty_check_interval: int = Field(default=500, gt=0)  # How often to check for novel substances (steps) - BALANCED for performance
+    detect_novel_substances: bool = Field(default=True, description="Enable/disable novelty detection during simulation")
     
     # Visualization - OPTIMIZED for performance
     vis_frequency: int = Field(default=10, gt=0)  # INCREASED from 5 - less frequent updates
@@ -63,6 +64,7 @@ class SimulationConfig(BaseModel):
     p_mut_gain: float = Field(default=30.0, gt=0)  # Increased from 20.0
     attr_sigma: float = Field(default=0.15, gt=0)  # Stronger perturbation
     mutation_interval: int = Field(default=500, gt=0)  # More frequent mutations (was 2000)
+    enable_mutations: bool = Field(default=True, description="Enable/disable mutations (disable on CPU/Windows to avoid LLVM errors)")
     
     # Performance optimization parameters - OPTIMIZED for stability
     energy_update_interval: int = Field(default=10, gt=0, description="Update energy every N steps")  # INCREASED from 5
@@ -83,7 +85,7 @@ class SimulationConfig(BaseModel):
     
     # Physics Database (PHASE 1 WEEK 2: Literature-based parameters)
     use_physics_db: bool = Field(default=True, description="Use literature parameters from physics database")
-    physics_db_path: str = Field(default="../data/physics_parameters.json", description="Path to physics parameters database")
+    physics_db_path: str = Field(default="data/physics_parameters.json", description="Path to physics parameters database (relative to project root)")
     
     # Fallback parameters (when DB not available or parameter not found)
     default_epsilon: float = Field(default=0.439, gt=0, description="Default LJ epsilon (kJ/mol) - Carbon UFF value")

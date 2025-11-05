@@ -138,10 +138,43 @@ class Phase2FullRunner:
         if config_n_particles > 0:
             max_particles = max(config_n_particles, max_particles)
         
+        # Get novelty detection settings
+        detect_enabled = getattr(phase2_config, 'detect_novel_substances', True)
+        if detect_enabled is None:
+            detect_enabled = True  # Default to enabled
+        novelty_interval = getattr(phase2_config, 'novelty_check_interval', 500)
+        if novelty_interval is None:
+            novelty_interval = 500
+        
+        if not detect_enabled:
+            logger.info("FAST MODE: Novelty detection DISABLED during simulation")
+            novelty_interval = 99999999  # Never run
+        
+        # Get mutations control
+        enable_mutations_val = getattr(phase2_config, 'enable_mutations', True)
+        if enable_mutations_val is None:
+            enable_mutations_val = True  # Default to enabled
+        
+        # Get grid size from config or use box_size as fallback
+        # Try multiple fallbacks in order
+        grid_width = getattr(phase2_config, 'grid_width', None)
+        if grid_width is None:
+            grid_width = getattr(phase2_config, 'box_size', 256)
+        
+        grid_height = getattr(phase2_config, 'grid_height', None)
+        if grid_height is None:
+            grid_height = getattr(phase2_config, 'box_size', 256)
+        
+        # Convert to int and ensure valid
+        grid_width = int(grid_width)
+        grid_height = int(grid_height)
+        
+        logger.info(f"Grid size: {grid_width}x{grid_height}")
+        
         sim_config = SimulationConfig(
             mode='open_chemistry',
-            grid_width=getattr(phase2_config, 'box_size', 256),
-            grid_height=getattr(phase2_config, 'box_size', 256),
+            grid_width=grid_width,
+            grid_height=grid_height,
             max_particles=max_particles,
             dt=getattr(phase2_config, 'dt', 0.005),
             max_time=float(self.max_steps) * getattr(phase2_config, 'dt', 0.005),
@@ -159,6 +192,13 @@ class Phase2FullRunner:
             # Enable diagnostics
             enable_diagnostics=phase2_config.enable_diagnostics if phase2_config.enable_diagnostics is not None else True,
             diagnostics_frequency=phase2_config.diagnostics_frequency if phase2_config.diagnostics_frequency is not None else 100,
+            
+            # Novelty detection control
+            detect_novel_substances=detect_enabled,
+            novelty_check_interval=novelty_interval,
+            
+            # Mutations control (disable on CPU to avoid LLVM errors)
+            enable_mutations=enable_mutations_val,
             
             # Use physics database
             use_physics_db=True,
@@ -196,10 +236,29 @@ class Phase2FullRunner:
         logger.info("Initializing Taichi...")
         
         try:
+            # Try GPU first
             ti.init(arch=ti.cuda)
-            logger.info("✅ Using GPU acceleration")
+            
+            # Quick test to verify GPU is actually being used
+            @ti.kernel
+            def quick_test(arr: ti.template()):
+                for i in range(arr.shape[0]):
+                    arr[i] = i * 2.0
+            
+            test_arr = ti.field(dtype=ti.f32, shape=1000)
+            start = time.time()
+            quick_test(test_arr)
+            ti.sync()
+            elapsed = time.time() - start
+            
+            if elapsed > 0.1:  # More than 100ms = likely not using GPU
+                logger.warning(f"GPU initialization slow ({elapsed*1000:.0f}ms) - GPU may be busy!")
+                logger.warning("Consider disabling ShadowPlay/video encoding or use CPU mode")
+            else:
+                logger.info("Using GPU acceleration")
+                
         except Exception as e:
-            logger.warning(f"⚠️ GPU not available: {e}")
+            logger.warning(f"GPU not available: {e}")
             logger.info("Falling back to CPU...")
             import multiprocessing
             max_threads = multiprocessing.cpu_count()
@@ -294,27 +353,42 @@ class Phase2FullRunner:
         return results
     
     def _save_snapshot(self, stepper, step: int, phase2_config: Phase2Config):
-        """Save simulation snapshot"""
+        """Save simulation snapshot with full data for batch analysis"""
         snapshot_dir = self.output_dir / "snapshots"
         snapshot_dir.mkdir(exist_ok=True)
         
         snapshot_file = snapshot_dir / f"step_{step:08d}.json"
         
-        # Extract state (simplified - full implementation would use SnapshotManager)
+        # Extract full state for batch analysis
         n_particles = stepper.particles.particle_count[None]
+        
+        # Get particle data
+        positions, velocities, attributes, active_mask, energies = stepper.particles.get_active_particles()
+        
+        # Get bonds
+        bonds = stepper.binding.get_bonds()
+        
+        # Get clusters
+        clusters = stepper.binding.get_clusters(min_size=2)
         
         snapshot = {
             'step': step,
             'time': stepper.current_time,
             'n_particles': n_particles,
             'scenario': phase2_config.scenario_name,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            # Full data for batch analysis
+            'positions': positions.tolist() if hasattr(positions, 'tolist') else positions,
+            'attributes': attributes.tolist() if hasattr(attributes, 'tolist') else attributes,
+            'active_mask': active_mask.tolist() if hasattr(active_mask, 'tolist') else active_mask,
+            'bonds': bonds,  # List of (i, j, strength) tuples
+            'clusters': clusters  # List of particle index lists
         }
         
         with open(snapshot_file, 'w') as f:
             json.dump(snapshot, f, indent=2, default=self._json_serializer)
         
-        logger.debug(f"  Snapshot saved: {snapshot_file.name}")
+        logger.info(f"  [SNAPSHOT] Step {step:,} saved with {len(bonds)} bonds, {len(clusters)} clusters")
     
     def _save_checkpoint(self, stepper, step: int, phase2_config: Phase2Config):
         """Save checkpoint for restart capability"""

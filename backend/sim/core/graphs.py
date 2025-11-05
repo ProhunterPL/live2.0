@@ -50,7 +50,10 @@ class MolecularGraph:
         """Get canonical form of the graph for isomorphism detection"""
         # Use NetworkX's canonical form
         try:
-            canonical = nx.weisfeiler_lehman_graph_hash(self.nx_graph)
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=UserWarning, module='networkx.*graph_hashing')
+                canonical = nx.weisfeiler_lehman_graph_hash(self.nx_graph)
             return canonical
         except:
             # Fallback to simpler hash

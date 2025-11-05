@@ -1,0 +1,21 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: hydrothermal_extended
+Description: Extended hydrothermal vent simulation for Phase 2B
+
+Configuration:
+  Steps: 10,000
+  Temperature: 373.0K
+  Seed: 100
+
+Initial Molecules:
+  - hydrogen (H2): 600
+  - hydrogen_sulfide (H2S): 300
+  - carbon_dioxide (CO2): 400
+  - water (H2O): 600
+  - ammonia (NH3): 100
+
+Final State:
+  Particles: 6739
+  Time: 2.81
