@@ -26,34 +26,40 @@ from datetime import datetime
 import logging
 
 # Add project root to path
-project_root = Path(__file__).parent.parent
+# __file__ is at aws_test/scripts/run_phase2b_additional.py
+# project_root should be live2.0/ (two levels up from scripts/)
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 class Phase2BRunner:
     def __init__(self, base_output_dir="results/phase2b_additional"):
+        # Make base_output_dir relative to project root
         self.base_output_dir = Path(base_output_dir)
+        if not self.base_output_dir.is_absolute():
+            self.base_output_dir = project_root / self.base_output_dir
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
         
         # Setup logging
         self.setup_logging()
         
         # Simulation configurations (SUPER FAST MODE - optimized)
+        # Config files are in aws_test/configs/ relative to project root
         self.configs = {
             "miller_urey_extended": {
-                "config_file": "configs/phase2_miller_urey_extended_SUPER_FAST.yaml",
+                "config_file": str(project_root / "aws_test" / "configs" / "phase2_miller_urey_extended_SUPER_FAST.yaml"),
                 "runs": 10,
                 "seeds": list(range(100, 110)),
                 "description": "Extended Miller-Urey (500K steps) - SUPER FAST MODE"
             },
             "hydrothermal_extended": {
-                "config_file": "configs/phase2_hydrothermal_extended_SUPER_FAST.yaml", 
+                "config_file": str(project_root / "aws_test" / "configs" / "phase2_hydrothermal_extended_SUPER_FAST.yaml"),
                 "runs": 10,
                 "seeds": list(range(110, 120)),
                 "description": "Extended Hydrothermal (500K steps) - SUPER FAST MODE"
             },
             "formamide_extended": {
-                "config_file": "configs/phase2_formamide_extended_SUPER_FAST.yaml",
-                "runs": 10, 
+                "config_file": str(project_root / "aws_test" / "configs" / "phase2_formamide_extended_SUPER_FAST.yaml"),
+                "runs": 10,
                 "seeds": list(range(120, 130)),
                 "description": "Extended Formamide (500K steps) - SUPER FAST MODE"
             }
