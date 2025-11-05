@@ -1,0 +1,21 @@
+Phase 2 Simulation Summary
+======================================================================
+
+Scenario: formamide_extended
+Description: Extended Formamide simulation for Phase 2B (SUPER FAST MODE)
+
+Configuration:
+  Steps: 10,000
+  Temperature: 323.0K
+  Seed: 42
+
+Initial Molecules:
+  - formamide (HCONH2): 400
+  - water (H2O): 300
+  - ammonia (NH3): 150
+  - hydrogen_cyanide (HCN): 100
+  - formic_acid (HCOOH): 50
+
+Final State:
+  Particles: 5450
+  Time: 20.34

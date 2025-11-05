@@ -37,25 +37,25 @@ class Phase2BRunner:
         # Setup logging
         self.setup_logging()
         
-        # Simulation configurations
+        # Simulation configurations (SUPER FAST MODE - optimized)
         self.configs = {
             "miller_urey_extended": {
-                "config_file": "configs/phase2_miller_urey_extended.yaml",
+                "config_file": "configs/phase2_miller_urey_extended_SUPER_FAST.yaml",
                 "runs": 10,
                 "seeds": list(range(100, 110)),
-                "description": "Extended Miller-Urey (500K steps)"
+                "description": "Extended Miller-Urey (500K steps) - SUPER FAST MODE"
             },
             "hydrothermal_extended": {
-                "config_file": "configs/phase2_hydrothermal_extended.yaml", 
+                "config_file": "configs/phase2_hydrothermal_extended_SUPER_FAST.yaml", 
                 "runs": 10,
                 "seeds": list(range(110, 120)),
-                "description": "Extended Hydrothermal (500K steps)"
+                "description": "Extended Hydrothermal (500K steps) - SUPER FAST MODE"
             },
             "formamide_extended": {
-                "config_file": "configs/phase2_formamide_extended.yaml",
+                "config_file": "configs/phase2_formamide_extended_SUPER_FAST.yaml",
                 "runs": 10, 
                 "seeds": list(range(120, 130)),
-                "description": "Extended Formamide (500K steps)"
+                "description": "Extended Formamide (500K steps) - SUPER FAST MODE"
             }
         }
         
@@ -108,7 +108,7 @@ class Phase2BRunner:
                 cwd=project_root,
                 capture_output=True,
                 text=True,
-                timeout=3600  # 1 hour timeout
+                timeout=21600  # 6 hours timeout (for 500K steps in SUPER FAST MODE)
             )
             
             duration = time.time() - start_time
@@ -129,11 +129,11 @@ class Phase2BRunner:
                 }
                 
         except subprocess.TimeoutExpired:
-            self.logger.error(f"⏰ {scenario_name} run {run_id} timed out")
+            self.logger.error(f"⏰ {scenario_name} run {run_id} timed out after 6 hours")
             return {
                 "status": "timeout",
-                "duration": 3600,
-                "error": "Simulation timed out"
+                "duration": 21600,
+                "error": "Simulation timed out after 6 hours"
             }
         except Exception as e:
             self.logger.error(f"💥 {scenario_name} run {run_id} crashed: {str(e)}")

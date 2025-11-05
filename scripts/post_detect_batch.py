@@ -244,22 +244,40 @@ def process_directory(directory: Path, parallel: int = None):
 
 def main():
     parser = argparse.ArgumentParser(description="Batch Post-Detection Analysis")
-    parser.add_argument('--input', type=Path, help='Single snapshot file')
-    parser.add_argument('--output', type=Path, help='Output file')
-    parser.add_argument('--dir', type=Path, help='Directory with snapshots')
+    parser.add_argument('--input', type=Path, help='Single snapshot file or directory')
+    parser.add_argument('--output', type=Path, help='Output file (optional, auto-generated if not provided)')
+    parser.add_argument('--dir', type=Path, help='Directory with snapshots (alternative to --input)')
     parser.add_argument('--parallel', type=int, default=1,
                        help='Number of parallel workers (default: 1)')
     
     args = parser.parse_args()
     
-    if args.input and args.output:
-        # Single file
-        process_snapshot(args.input, args.output, None)
-    elif args.dir:
-        # Directory
+    # Handle --dir (explicit directory)
+    if args.dir:
         process_directory(args.dir, args.parallel)
+    # Handle --input
+    elif args.input:
+        input_path = Path(args.input)
+        
+        # Check if input is a directory
+        if input_path.is_dir():
+            process_directory(input_path, args.parallel)
+        # Check if input is a file
+        elif input_path.is_file():
+            # Generate output path if not provided
+            if args.output:
+                output_path = Path(args.output)
+            else:
+                # Auto-generate output path next to input file
+                output_dir = input_path.parent / "post_detect"
+                output_dir.mkdir(exist_ok=True)
+                output_path = output_dir / f"{input_path.stem}_detected.json"
+            
+            process_snapshot(input_path, output_path, None)
+        else:
+            parser.error(f"Input path does not exist: {input_path}")
     else:
-        parser.error("Must specify --input/--output or --dir")
+        parser.error("Must specify --input (file or directory) or --dir")
 
 
 if __name__ == "__main__":
