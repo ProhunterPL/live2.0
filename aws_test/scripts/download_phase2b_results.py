@@ -48,28 +48,48 @@ def check_remote_status(host, key_path):
     
     print(f"🔍 Checking Phase 2B status on {host}")
     
-    # Check if Phase 2B is running
+    # Check multiple indicators of completion
     check_cmd = [
         "ssh", "-i", key_path,
         f"ubuntu@{host}",
-        "cd ~/live2.0/aws_test && find results/phase2b_additional -name 'summary.txt' | wc -l"
+        """cd ~/live2.0/aws_test/results/phase2b_additional && \
+        (find . -name 'summary.txt' | wc -l; \
+         find . -name 'results.json' | wc -l; \
+         find . -name '*.md' -type f | wc -l; \
+         ls -d */run_*/ 2>/dev/null | wc -l)"""
     ]
     
     try:
         result = subprocess.run(check_cmd, check=True, capture_output=True, text=True)
-        completed_runs = int(result.stdout.strip())
-        print(f"📊 Completed runs: {completed_runs}")
+        lines = result.stdout.strip().split('\n')
+        
+        summary_count = int(lines[0]) if len(lines) > 0 else 0
+        results_count = int(lines[1]) if len(lines) > 1 else 0
+        reports_count = int(lines[2]) if len(lines) > 2 else 0
+        run_dirs = int(lines[3]) if len(lines) > 3 else 0
+        
+        completed_runs = max(summary_count, results_count, run_dirs)
+        
+        print(f"📊 Completed runs (summary.txt): {summary_count}")
+        print(f"📊 Completed runs (results.json): {results_count}")
+        print(f"📊 Run directories: {run_dirs}")
+        print(f"📊 Reports (MD files): {reports_count}")
         
         # Check if still running
         running_cmd = [
             "ssh", "-i", key_path,
             f"ubuntu@{host}",
-            "ps aux | grep run_phase2b | grep -v grep | wc -l"
+            "ps aux | grep -E 'run_phase2b|run_phase2_full' | grep -v grep | wc -l"
         ]
         
         result = subprocess.run(running_cmd, check=True, capture_output=True, text=True)
         running_processes = int(result.stdout.strip())
         print(f"🔄 Running processes: {running_processes}")
+        
+        # Check for report files (indicates completion)
+        if reports_count >= 3:  # At least 3 report files
+            print("✅ Phase 2B reports found - looks completed!")
+            return "completed"
         
         if running_processes > 0:
             print("⏳ Phase 2B still running...")
@@ -77,12 +97,16 @@ def check_remote_status(host, key_path):
         elif completed_runs >= 30:
             print("✅ Phase 2B completed!")
             return "completed"
-        else:
-            print("⚠️ Phase 2B may have issues")
+        elif completed_runs > 0:
+            print(f"⚠️ Phase 2B partially completed ({completed_runs}/30)")
             return "partial"
+        else:
+            print("⚠️ Phase 2B may have issues or not started yet")
+            return "error"
             
     except subprocess.CalledProcessError as e:
         print(f"❌ Status check failed: {e.stderr}")
+        print(f"Debug output: {e.stdout}")
         return "error"
 
 def analyze_downloaded_results(local_dir):
@@ -95,11 +119,21 @@ def analyze_downloaded_results(local_dir):
         print(f"❌ Local directory {local_dir} not found")
         return False
     
-    # Run analysis
+    # Run analysis - use aws_test/scripts path
+    script_path = Path(__file__).parent.parent / "scripts" / "analyze_additional_results.py"
+    if not script_path.exists():
+        # Try alternative path
+        script_path = Path(__file__).parent.parent.parent / "aws_test" / "scripts" / "analyze_additional_results.py"
+    
+    if not script_path.exists():
+        print(f"⚠️ Analysis script not found at {script_path}")
+        print("📄 Skipping analysis - check results manually")
+        return True  # Don't fail, just skip analysis
+    
     analysis_cmd = [
-        "python", "scripts/analyze_additional_results.py",
+        "python", str(script_path),
         "--phase2b-dir", str(local_path),
-        "--phase2a-dir", "aws_test"
+        "--phase2a-dir", str(Path(__file__).parent.parent.parent / "aws_test")
     ]
     
     try:
@@ -109,7 +143,8 @@ def analyze_downloaded_results(local_dir):
         return True
     except subprocess.CalledProcessError as e:
         print(f"❌ Analysis failed: {e.stderr}")
-        return False
+        print("📄 Check results manually - analysis script had issues")
+        return True  # Don't fail download because of analysis issues
 
 def main():
     parser = argparse.ArgumentParser(description="AWS Phase 2B Results Downloader")

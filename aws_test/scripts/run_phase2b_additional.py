@@ -91,9 +91,12 @@ class Phase2BRunner:
         output_dir = self.base_output_dir / scenario_name / f"run_{run_id}"
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Prepare command
+        # Prepare command - use python3 on Linux/AWS
+        import sys
+        python_cmd = sys.executable  # Use current Python interpreter
+        
         cmd = [
-            "python", "scripts/run_phase2_full.py",
+            python_cmd, "scripts/run_phase2_full.py",
             "--config", config_file,
             "--output", str(output_dir),
             "--seed", str(seed),
