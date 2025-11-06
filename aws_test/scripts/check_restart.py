@@ -76,12 +76,14 @@ for scenario in scenarios:
                     
                     # Check for step 0 or very low steps after high steps
                     high_steps = [s for s in steps if s[1] > 100000]
-                    low_steps_after_high = [s for s in steps if s[1] < 20000 and s[0] > high_steps[-1][0] if high_steps else False]
                     
-                    if high_steps and any(s[1] < 20000 for s in steps if s[0] > high_steps[-1][0]):
-                        print(f"  ⚠️  WARNING: Found low steps after high steps - simulation was restarted!")
-                        print(f"      Last high step: {high_steps[-1][1]:,} at line {high_steps[-1][0]}")
-                        print(f"      First low step after: {next((s for s in steps if s[0] > high_steps[-1][0] and s[1] < 20000), None)}")
+                    if high_steps:
+                        low_steps_after_high = [s for s in steps if s[1] < 20000 and s[0] > high_steps[-1][0]]
+                        
+                        if low_steps_after_high:
+                            print(f"  ⚠️  WARNING: Found low steps after high steps - simulation was restarted!")
+                            print(f"      Last high step: {high_steps[-1][1]:,} at line {high_steps[-1][0]}")
+                            print(f"      First low step after: {low_steps_after_high[0]}")
             
             # Check first few lines for start indicators
             print(f"\n  First 5 lines:")
