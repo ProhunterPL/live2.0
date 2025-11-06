@@ -282,9 +282,28 @@ class PotentialSystem:
                     Path(config.physics_db_path),  # Config path
                     Path.cwd() / config.physics_db_path,  # CWD relative
                     Path(__file__).parent.parent.parent / "data" / "physics_parameters.json",  # Backend relative
+                    Path(__file__).parent.parent.parent.parent / "data" / "physics_parameters.json",  # Backend relative (one more level)
                     Path.cwd() / "data" / "physics_parameters.json",  # Root/data
                     Path.cwd().parent / "data" / "physics_parameters.json",  # Parent/data
+                    Path.home() / "live2.0" / "data" / "physics_parameters.json",  # Home directory
                 ]
+                
+                # Also try to find project root by looking for common markers
+                current = Path.cwd()
+                for _ in range(5):  # Go up max 5 levels
+                    test_path = current / "data" / "physics_parameters.json"
+                    if test_path.exists():
+                        possible_paths.insert(0, test_path)  # Add to front of list
+                        break
+                    if (current / "backend").exists() and (current / "scripts").exists():
+                        # Found project root
+                        test_path = current / "data" / "physics_parameters.json"
+                        if test_path.exists():
+                            possible_paths.insert(0, test_path)
+                        break
+                    current = current.parent
+                    if current == current.parent:  # Reached filesystem root
+                        break
                 
                 # Find first existing path
                 for possible_path in possible_paths:
