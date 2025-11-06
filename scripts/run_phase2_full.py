@@ -17,6 +17,7 @@ import argparse
 import time
 import logging
 import json
+import multiprocessing
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
@@ -48,7 +49,8 @@ class Phase2FullRunner:
                  config_path: str,
                  output_dir: str,
                  max_steps: int = 10000000,
-                 seed: int = 42):
+                 seed: int = 42,
+                 force_cpu: bool = False):
         """
         Initialize Phase 2 runner
         
@@ -57,11 +59,13 @@ class Phase2FullRunner:
             output_dir: Output directory for results
             max_steps: Maximum simulation steps
             seed: Random seed
+            force_cpu: Force CPU mode (skip GPU detection)
         """
         self.config_path = Path(config_path)
         self.output_dir = Path(output_dir)
         self.max_steps = max_steps
         self.seed = seed
+        self.force_cpu = force_cpu
         
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -232,8 +236,20 @@ class Phase2FullRunner:
         return count
     
     def initialize_taichi(self):
-        """Initialize Taichi - Try GPU first, fallback to CPU"""
+        """Initialize Taichi - Try GPU first, fallback to CPU with all available cores"""
         logger.info("Initializing Taichi...")
+        
+        # Get available CPU cores
+        available_cores = multiprocessing.cpu_count()
+        logger.info(f"Available CPU cores: {available_cores}")
+        
+        # Force CPU mode if requested (useful for AWS instances without GPU)
+        if self.force_cpu:
+            logger.info("Force CPU mode enabled - skipping GPU detection")
+            ti.init(arch=ti.cpu, cpu_max_num_threads=available_cores)
+            logger.info(f"✅ Using CPU with ALL {available_cores} threads")
+            logger.info(f"   This will utilize all {available_cores} CPU cores for maximum performance")
+            return
         
         try:
             # Try GPU first
@@ -253,17 +269,20 @@ class Phase2FullRunner:
             
             if elapsed > 0.1:  # More than 100ms = likely not using GPU
                 logger.warning(f"GPU initialization slow ({elapsed*1000:.0f}ms) - GPU may be busy!")
-                logger.warning("Consider disabling ShadowPlay/video encoding or use CPU mode")
+                logger.warning("Falling back to CPU with all available cores...")
+                ti.reset()
+                ti.init(arch=ti.cpu, cpu_max_num_threads=available_cores)
+                logger.info(f"✅ Using CPU with ALL {available_cores} threads")
             else:
-                logger.info("Using GPU acceleration")
+                logger.info("✅ Using GPU acceleration")
                 
         except Exception as e:
             logger.warning(f"GPU not available: {e}")
-            logger.info("Falling back to CPU...")
-            import multiprocessing
-            max_threads = multiprocessing.cpu_count()
+            logger.info("Falling back to CPU with all available cores...")
+            max_threads = available_cores
             ti.init(arch=ti.cpu, cpu_max_num_threads=max_threads)
-            logger.info(f"Using CPU with {max_threads} threads")
+            logger.info(f"✅ Using CPU with ALL {max_threads} threads")
+            logger.info(f"   This will utilize all {max_threads} CPU cores for maximum performance")
     
     def run(self) -> dict:
         """
@@ -558,6 +577,8 @@ def main():
                        help='Random seed (default: 42)')
     parser.add_argument('--dry-run', action='store_true',
                        help='Dry run (load config only, don\'t run)')
+    parser.add_argument('--force-cpu', action='store_true',
+                       help='Force CPU mode (skip GPU detection, use all CPU cores)')
     
     args = parser.parse_args()
     
@@ -566,7 +587,8 @@ def main():
         config_path=args.config,
         output_dir=args.output,
         max_steps=args.steps,
-        seed=args.seed
+        seed=args.seed,
+        force_cpu=args.force_cpu
     )
     
     if args.dry_run:

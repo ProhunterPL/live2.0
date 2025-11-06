@@ -106,7 +106,8 @@ class Phase2BRunner:
             "--config", config_file,
             "--output", str(output_dir),
             "--seed", str(seed),
-            "--steps", "500000"  # 500K steps
+            "--steps", "500000",  # 500K steps
+            "--force-cpu"  # Force CPU mode to use all available cores on AWS
         ]
         
         # Run simulation
