@@ -24,6 +24,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add project root to path
 # __file__ is at aws_test/scripts/run_phase2b_additional.py
@@ -32,15 +33,23 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 class Phase2BRunner:
-    def __init__(self, base_output_dir="results/phase2b_additional"):
+    def __init__(self, base_output_dir="results/phase2b_additional", max_parallel=2):
         # Make base_output_dir relative to project root
         self.base_output_dir = Path(base_output_dir)
         if not self.base_output_dir.is_absolute():
             self.base_output_dir = project_root / self.base_output_dir
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Maximum parallel simulations (default: 2 for 64 CPU cores, ~32 cores each)
+        self.max_parallel = max_parallel
+        
         # Setup logging
         self.setup_logging()
+        
+        # Log project root for debugging
+        self.logger.info(f"📁 Project root: {project_root}")
+        self.logger.info(f"📁 Script path: {project_root / 'scripts' / 'run_phase2_full.py'}")
+        self.logger.info(f"⚡ Max parallel simulations: {self.max_parallel}")
         
         # Simulation configurations (SUPER FAST MODE - optimized)
         # Config files are in aws_test/configs/ relative to project root
@@ -101,8 +110,18 @@ class Phase2BRunner:
         import sys
         python_cmd = sys.executable  # Use current Python interpreter
         
+        # Use absolute path to script
+        script_path = project_root / "scripts" / "run_phase2_full.py"
+        if not script_path.exists():
+            self.logger.error(f"❌ Script not found: {script_path}")
+            return {
+                "status": "failed",
+                "duration": 0,
+                "error": f"Script not found: {script_path}"
+            }
+        
         cmd = [
-            python_cmd, "scripts/run_phase2_full.py",
+            python_cmd, str(script_path),
             "--config", config_file,
             "--output", str(output_dir),
             "--seed", str(seed),
@@ -154,7 +173,7 @@ class Phase2BRunner:
             }
     
     def run_scenario(self, scenario_name, config_info):
-        """Run all simulations for a scenario"""
+        """Run all simulations for a scenario (in parallel)"""
         self.logger.info(f"🚀 Starting {scenario_name}: {config_info['description']}")
         
         scenario_results = {
@@ -166,33 +185,62 @@ class Phase2BRunner:
             "runs": []
         }
         
+        # Prepare all simulation tasks
+        tasks = []
         for i in range(config_info["runs"]):
             run_id = i + 1
             seed = config_info["seeds"][i]
-            
-            result = self.run_single_simulation(
-                scenario_name, run_id, seed, config_info["config_file"]
-            )
-            
-            scenario_results["runs"].append({
+            tasks.append({
+                "scenario_name": scenario_name,
                 "run_id": run_id,
                 "seed": seed,
-                **result
+                "config_file": config_info["config_file"]
             })
+        
+        # Run simulations in parallel
+        self.logger.info(f"⚡ Running {len(tasks)} simulations with max {self.max_parallel} parallel")
+        
+        with ThreadPoolExecutor(max_workers=self.max_parallel) as executor:
+            # Submit all tasks
+            future_to_task = {
+                executor.submit(self.run_single_simulation, 
+                              task["scenario_name"], 
+                              task["run_id"], 
+                              task["seed"], 
+                              task["config_file"]): task
+                for task in tasks
+            }
             
-            if result["status"] == "success":
-                scenario_results["completed_runs"] += 1
-                self.results["completed_runs"] += 1
-            else:
-                scenario_results["failed_runs"] += 1
-                self.results["failed_runs"] += 1
-            
-            # Save intermediate results
-            self.save_results()
-            
-            # Progress update
-            total_progress = self.results["completed_runs"] + self.results["failed_runs"]
-            self.logger.info(f"📊 Progress: {total_progress}/30 runs completed")
+            # Process completed tasks as they finish
+            for future in as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    result = future.result()
+                    
+                    scenario_results["runs"].append({
+                        "run_id": task["run_id"],
+                        "seed": task["seed"],
+                        **result
+                    })
+                    
+                    if result["status"] == "success":
+                        scenario_results["completed_runs"] += 1
+                        self.results["completed_runs"] += 1
+                    else:
+                        scenario_results["failed_runs"] += 1
+                        self.results["failed_runs"] += 1
+                    
+                    # Save intermediate results
+                    self.save_results()
+                    
+                    # Progress update
+                    total_progress = self.results["completed_runs"] + self.results["failed_runs"]
+                    self.logger.info(f"📊 Progress: {total_progress}/30 runs completed ({scenario_results['completed_runs']}/{scenario_results['total_runs']} for {scenario_name})")
+                    
+                except Exception as e:
+                    self.logger.error(f"💥 Exception in {scenario_name} run {task['run_id']}: {e}")
+                    scenario_results["failed_runs"] += 1
+                    self.results["failed_runs"] += 1
         
         self.results["scenarios"][scenario_name] = scenario_results
         self.logger.info(f"✅ {scenario_name} completed: {scenario_results['completed_runs']}/{scenario_results['total_runs']} successful")
@@ -267,10 +315,12 @@ def main():
                        help="Run only specific scenario")
     parser.add_argument("--dry-run", action="store_true",
                        help="Show what would be run without executing")
+    parser.add_argument("--max-parallel", type=int, default=2,
+                       help="Maximum parallel simulations (default: 2 for 64 CPU cores)")
     
     args = parser.parse_args()
     
-    runner = Phase2BRunner(args.output_dir)
+    runner = Phase2BRunner(args.output_dir, max_parallel=args.max_parallel)
     
     if args.dry_run:
         print("🔍 DRY RUN - What would be executed:")
