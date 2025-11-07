@@ -137,7 +137,7 @@ class Phase2BRunner:
                 cwd=project_root,
                 capture_output=True,
                 text=True,
-                timeout=21600  # 6 hours timeout (for 500K steps in SUPER FAST MODE)
+                timeout=86400  # 24 hours timeout (500K steps can take 10-14 hours)
             )
             
             duration = time.time() - start_time
@@ -158,11 +158,11 @@ class Phase2BRunner:
                 }
                 
         except subprocess.TimeoutExpired:
-            self.logger.error(f"⏰ {scenario_name} run {run_id} timed out after 6 hours")
+            self.logger.error(f"⏰ {scenario_name} run {run_id} timed out after 24 hours")
             return {
                 "status": "timeout",
-                "duration": 21600,
-                "error": "Simulation timed out after 6 hours"
+                "duration": 86400,
+                "error": "Simulation timed out after 24 hours"
             }
         except Exception as e:
             self.logger.error(f"💥 {scenario_name} run {run_id} crashed: {str(e)}")

@@ -1,0 +1,147 @@
+# ========================================
+# AWS EMERGENCY FIX - Problem z Round 1
+# ========================================
+
+# PROBLEM: 
+# - 15/24 procesów działa (5 procesów umarło)
+# - 19/24 wyników (5 brakuje)
+# - Symulacje BARDZO WOLNE (1.0 steps/s → ~40h zamiast 10h)
+
+# ========================================
+# KROK 1: DIAGNOZA
+# ========================================
+
+# Uruchom diagnostykę:
+bash diagnose_round1.sh > diagnosis.txt 2>&1
+cat diagnosis.txt
+
+# Sprawdź system logs czy były OOM (Out Of Memory):
+dmesg | grep -i "out of memory" | tail -20
+dmesg | grep -i "killed process" | tail -20
+
+# ========================================
+# KROK 2: PRAWDOPODOBNE PRZYCZYNY
+# ========================================
+
+# A) OUT OF MEMORY - za dużo procesów jednocześnie
+#    Rozwiązanie: Zabij wszystko i uruchom po kolei
+
+# B) SYMULACJE ZA WOLNE - za duże molekuły lub za dużo kolizji
+#    Rozwiązanie: Zmniejsz steps z 200,000 → 100,000 lub 50,000
+
+# C) DEADLOCK w symulacji
+#    Rozwiązanie: Update kodu
+
+# ========================================
+# KROK 3: OPCJA A - RESTART Z MNIEJSZĄ LICZBĄ RÓWNOLEGŁYCH PROCESÓW
+# ========================================
+
+# Zabij wszystkie obecne procesy:
+pkill -f run_phase2_full
+
+# Poczekaj chwilę:
+sleep 5
+
+# Sprawdź że wszystkie umarły:
+ps aux | grep run_phase2_full | grep -v grep
+
+# Uruchom tylko PO 8 naraz (zamiast 24):
+# BATCH 1 - Miller Urey (8 procesów):
+for i in {1..8}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_miller_urey.yaml --output results/miller_urey/run_$i --steps 200000 --seed $((42 + i)) > logs/miller_$i.log 2>&1 & done
+
+# Sprawdź:
+ps aux | grep run_phase2_full | grep -v grep | wc -l
+# Powinno: 8
+
+free -h
+# Sprawdź czy pamięć OK
+
+# Monitoruj przez 10 minut:
+tail -f logs/miller_1.log
+
+# Jeśli OK po 10 minutach, dodaj kolejne 8:
+# BATCH 2 - Hydrothermal (8 procesów):
+for i in {1..8}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_hydrothermal.yaml --output results/hydrothermal/run_$i --steps 200000 --seed $((50 + i)) > logs/hydro_$i.log 2>&1 & done
+
+# Sprawdź:
+ps aux | grep run_phase2_full | grep -v grep | wc -l
+# Powinno: 16
+
+# Jeśli OK, dodaj ostatnie 8:
+# BATCH 3 - Formamide (8 procesów):
+for i in {1..8}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_formamide.yaml --output results/formamide/run_$i --steps 200000 --seed $((60 + i)) > logs/form_$i.log 2>&1 & done
+
+# ========================================
+# KROK 4: OPCJA B - ZMNIEJSZ STEPS (jeśli za wolno)
+# ========================================
+
+# Jeśli 1.0 steps/s jest zbyt wolne (40h per run = 960h total!!)
+# Zmniejsz z 200,000 → 50,000 steps:
+
+# Zabij wszystko:
+pkill -f run_phase2_full
+
+# Uruchom z mniejszymi steps:
+for i in {1..8}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_miller_urey.yaml --output results/miller_urey/run_$i --steps 50000 --seed $((42 + i)) > logs/miller_$i.log 2>&1 & done
+
+for i in {1..8}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_hydrothermal.yaml --output results/hydrothermal/run_$i --steps 50000 --seed $((50 + i)) > logs/hydro_$i.log 2>&1 & done
+
+for i in {1..8}; do nohup python3 scripts/run_phase2_full.py --config configs/phase2_formamide.yaml --output results/formamide/run_$i --steps 50000 --seed $((60 + i)) > logs/form_$i.log 2>&1 & done
+
+# To da ~10 godzin zamiast 40 godzin
+
+# ========================================
+# KROK 5: MONITOROWANIE
+# ========================================
+
+# Sprawdzaj co 30 minut:
+watch -n 1800 'ps aux | grep run_phase2_full | grep -v grep | wc -l && free -h'
+
+# Sprawdzaj prędkość:
+tail -20 logs/miller_1.log | grep "steps/s"
+
+# Sprawdzaj czy są crashes:
+dmesg | grep -i "killed process" | tail -5
+
+# ========================================
+# KROK 6: CO ZROBIĆ TEŻ
+# ========================================
+
+# TERAZ na AWS:
+# 1. Uruchom diagnostykę: bash diagnose_round1.sh
+# 2. Sprawdź czy były OOM kills
+# 3. Zdecyduj:
+#    - Jeśli OOM → użyj Opcja A (po 8 procesów)
+#    - Jeśli za wolno → użyj Opcja B (50,000 steps)
+#    - Jeśli oba → użyj Opcja B + po 8 procesów
+
+# PRZYSZŁOŚĆ:
+# - Optymalizuj kod (spatial hash, lepszy collision detection)
+# - Użyj większej instancji AWS
+# - Zmniejsz collision_radius w configs
+
+# ========================================
+# QUICK DECISION GUIDE
+# ========================================
+
+# Sprawdź prędkość:
+tail -20 logs/miller_1.log | grep "steps/s"
+
+# Jeśli < 2.0 steps/s:
+#   → Zdecydowanie za wolno, użyj 50,000 steps
+
+# Jeśli 2-5 steps/s:
+#   → Akceptowalne, ale może użyj 100,000 steps
+
+# Jeśli > 5 steps/s:
+#   → OK, zostaw 200,000 steps
+
+# Sprawdź pamięć:
+free -h
+
+# Jeśli < 5 GB dostępne:
+#   → Problem z pamięcią, użyj po 8 procesów
+
+# Jeśli > 10 GB dostępne:
+#   → Pamięć OK, możesz więcej procesów
+

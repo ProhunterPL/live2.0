@@ -265,6 +265,16 @@ diagnostics/
 *.pkl
 *.pickle
 
+# Security - SSH keys and credentials (NEVER commit these!)
+*.pem
+*.key
+*.p12
+*.pfx
+key-*.pem
+*private*
+*credential*
+*secret*
+
 # Taichi
 __pycache__/
 *.pyc
