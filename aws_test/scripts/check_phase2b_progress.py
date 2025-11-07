@@ -34,39 +34,49 @@ def parse_last_step(log_file):
     return None
 
 def parse_step_times(log_file, num_samples=5):
-    """Parse recent step times to calculate average speed"""
+    """Parse recent step times to calculate average speed using real timestamps"""
     if not log_file.exists():
         return None
     
     try:
         with open(log_file, 'r') as f:
             lines = f.readlines()
-            step_times = []
+            step_entries = []
             
-            # Look for step completion times
+            # Look for step completion times with timestamps
             for line in reversed(lines):
                 # Match: "2025-11-06 15:01:11,097 - backend.sim.core.stepper - INFO - Step 95000 completed in 108.3ms"
-                match = re.search(r'Step (\d+) completed in ([\d.]+)ms', line)
+                match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+.*Step (\d+) completed', line)
                 if match:
-                    step_num = int(match.group(1))
-                    time_ms = float(match.group(2))
-                    step_times.append((step_num, time_ms))
-                    if len(step_times) >= num_samples:
-                        break
+                    timestamp_str = match.group(1)
+                    step_num = int(match.group(2))
+                    try:
+                        timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        step_entries.append((step_num, timestamp))
+                        if len(step_entries) >= num_samples:
+                            break
+                    except:
+                        continue
             
-            if len(step_times) < 2:
+            if len(step_entries) < 2:
                 return None
             
-            # Calculate time between steps (steps are logged every 10K steps)
-            # So time_ms is per 10K steps
-            times = [t[1] for t in step_times]
-            avg_time_per_10k = sum(times) / len(times)  # milliseconds per 10K steps
-            avg_time_per_step = avg_time_per_10k / 10000  # milliseconds per step
+            # Calculate real time between steps (steps are logged every 10K steps)
+            # Use timestamps to get actual elapsed time
+            step_entries.sort(key=lambda x: x[0])  # Sort by step number
+            
+            total_steps = step_entries[-1][0] - step_entries[0][0]
+            total_time = (step_entries[-1][1] - step_entries[0][1]).total_seconds()
+            
+            if total_time <= 0 or total_steps <= 0:
+                return None
+            
+            steps_per_sec = total_steps / total_time
             
             return {
-                'avg_ms_per_10k': avg_time_per_10k,
-                'avg_ms_per_step': avg_time_per_step,
-                'steps_per_sec': 1000 / avg_time_per_step if avg_time_per_step > 0 else 0
+                'steps_per_sec': steps_per_sec,
+                'total_steps': total_steps,
+                'total_time_sec': total_time
             }
     except Exception as e:
         return None
@@ -140,6 +150,18 @@ def check_progress(results_dir="results/phase2b_additional", target_steps=500000
                             print(f"      ETA: {eta_time.strftime('%Y-%m-%d %H:%M:%S')} ({eta_seconds/3600:.1f} hours)")
                         else:
                             print(f"      Speed: {steps_per_sec:.2f} steps/sec (may be paused)")
+                    else:
+                        # Fallback: estimate from log file age
+                        if is_active:
+                            log_age_seconds = time.time() - log_file.stat().st_mtime
+                            if log_age_seconds > 0:
+                                # Rough estimate: assume 8-12 steps/sec average
+                                estimated_speed = 10.0  # conservative estimate
+                                remaining_steps = target_steps - last_step
+                                eta_seconds = remaining_steps / estimated_speed
+                                eta_time = datetime.now() + timedelta(seconds=eta_seconds)
+                                print(f"      Speed: ~{estimated_speed:.1f} steps/sec (estimated)")
+                                print(f"      ETA: {eta_time.strftime('%Y-%m-%d %H:%M:%S')} ({eta_seconds/3600:.1f} hours)")
                     
                     if is_active:
                         total_running += 1
