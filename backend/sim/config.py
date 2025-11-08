@@ -70,6 +70,9 @@ class SimulationConfig(BaseModel):
     energy_update_interval: int = Field(default=10, gt=0, description="Update energy every N steps")  # INCREASED from 5
     metrics_update_interval: int = Field(default=5, gt=0, description="Update metrics every N steps")  # INCREASED from 1
     
+    # Hybrid GPU+CPU mode settings
+    chemistry_snapshot_interval: int = Field(default=100, gt=0, description="Send snapshot to CPU for chemistry analysis every N steps (hybrid mode)")
+    
     # Spatial hashing - DISABLED on Windows due to LLVM compilation errors
     use_spatial_hash: bool = Field(default=False, description="Use O(n) spatial hashing instead of O(n²) (disabled on Windows)")
     spatial_hash_cell_size: float = Field(default=10.0, gt=0, description="Cell size for spatial hashing")

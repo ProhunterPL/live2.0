@@ -1305,8 +1305,9 @@ class SimulationStepper:
             # Provide particle/bond/cluster data for open chemistry - OPTIMIZED with caching
             # Time particles extraction
             t_particles_start = time.time()
-            # OPTIMIZATION: Only get particles every 10 steps to reduce load - PERFORMANCE FIX
-            if self.step_count % 10 == 0:
+            # OPTIMIZATION: Only get particles every 20 steps to reduce load - PRODUCTION OPTIMIZED
+            # Reduces GPU↔CPU or memory transfer overhead
+            if self.step_count % 20 == 0:
                 positions, velocities, attributes, active_mask, energies = self.particles.get_active_particles()
                 # Cache the data for intermediate steps
                 self._cached_particles_data = {
@@ -1329,8 +1330,9 @@ class SimulationStepper:
             
             # Time bonds/clusters extraction
             t_bonds_start = time.time()
-            # OPTIMIZATION: Only get bonds/clusters every 50 steps to reduce load (faster than 200) - PERFORMANCE FIX
-            if self.step_count % 50 == 0:
+            # OPTIMIZATION: Only get bonds/clusters every 200 steps to reduce load - PRODUCTION OPTIMIZED
+            # Benchmark showed: CPU is 728x faster than GPU, but still O(n²) - reduce frequency
+            if self.step_count % 200 == 0:
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
                 # Cache the data for intermediate steps
