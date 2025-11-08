@@ -33,14 +33,14 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 class Phase2BRunner:
-    def __init__(self, base_output_dir="results/phase2b_additional", max_parallel=2):
+    def __init__(self, base_output_dir="results/phase2b_additional", max_parallel=4):
         # Make base_output_dir relative to project root
         self.base_output_dir = Path(base_output_dir)
         if not self.base_output_dir.is_absolute():
             self.base_output_dir = project_root / self.base_output_dir
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Maximum parallel simulations (default: 2 for 64 CPU cores, ~32 cores each)
+        # Maximum parallel simulations (default: 4 for 64 CPU cores, ~16 cores each)
         self.max_parallel = max_parallel
         
         # Setup logging
@@ -315,8 +315,8 @@ def main():
                        help="Run only specific scenario")
     parser.add_argument("--dry-run", action="store_true",
                        help="Show what would be run without executing")
-    parser.add_argument("--max-parallel", type=int, default=2,
-                       help="Maximum parallel simulations (default: 2 for 64 CPU cores)")
+    parser.add_argument("--max-parallel", type=int, default=4,
+                       help="Maximum parallel simulations (default: 4 for 64 CPU cores)")
     
     args = parser.parse_args()
     

@@ -66,7 +66,7 @@ def run_additional_simulations():
     cmd = [
         "python3", "scripts/run_phase2b_additional.py",
         "--output-dir", "results/phase2b_additional",
-        "--max-parallel", "2"  # Run 2 simulations in parallel (32 cores each)
+        "--max-parallel", "4"  # Run 4 simulations in parallel (16 cores each)
     ]
     
     print(f"[RUN] Run 30 additional simulations")
