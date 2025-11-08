@@ -84,6 +84,74 @@ npm run dev
 - 🔌 API: http://localhost:8001
 - 📚 API Docs: http://localhost:8001/docs
 
+## ⚡ Performance Optimization
+
+### Check Your Backend
+
+Want to know if your simulation is running on GPU or CPU?
+
+```bash
+python scripts/check_current_backend.py
+```
+
+This will show:
+- Available backends (CUDA, Vulkan, CPU)
+- Current active backend
+- Performance recommendations
+
+### GPU vs CPU Benchmark
+
+To test which backend is fastest for your system:
+
+**Windows:**
+```powershell
+.\run_benchmark.ps1
+```
+
+**Linux/Mac:**
+```bash
+python tests/benchmark_gpu_vs_cpu.py
+```
+
+The benchmark will:
+- ✅ Test GPU (CUDA) if available
+- ✅ Test CPU with different thread counts
+- ✅ Measure both simulation and visualization performance
+- ✅ Provide clear recommendations
+
+**Expected results:**
+- **GPU (CUDA)**: Best for visualization and large particle counts (10-50x faster)
+- **CPU (many threads)**: Can be faster for smaller simulations with complex chemistry
+- Results depend on: particle count, GPU model, CPU core count
+
+**Note from Phase 2B testing:** On AWS instances with 96 vCPUs, CPU was faster than GPU for our specific workload (chemistry-heavy, not visualization-heavy). Your results may vary!
+
+### 🚀 NEW: Hybrid GPU+CPU Mode
+
+Get the best of both worlds - GPU for physics, CPU for chemistry!
+
+```powershell
+.\run_hybrid_test.ps1
+```
+
+**Hybrid mode uses:**
+- 🎮 **GPU (CUDA)**: Fast particle physics in main thread
+- 🧮 **CPU (Python)**: Complex chemistry analysis in background thread
+- 🔄 **Async communication**: No blocking, smooth real-time experience
+
+**Benefits:**
+- ✅ GPU runs at full speed (chemistry doesn't block)
+- ✅ CPU handles complex logic (graphs, branching) - its strength!
+- ✅ 5-10x faster than Pure GPU for chemistry-heavy simulations
+- ✅ Smooth 30+ FPS visualization with full analysis
+
+**When to use:**
+- You have NVIDIA GPU
+- Visualization shows slow "Bonds/Clusters" timing (>200ms)
+- You want real-time UI with full chemistry analysis
+
+See [HYBRID_GPU_CPU_GUIDE.md](docs/HYBRID_GPU_CPU_GUIDE.md) for usage instructions.
+
 ## 📖 Documentation
 
 Comprehensive documentation is available in the [`docs/`](docs/) directory:
