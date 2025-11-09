@@ -493,8 +493,9 @@ class SimulationStepper:
                     )
                 
                 # Update binding system (heavily throttled for performance)
-                # OPTIMIZATION: Update bonds every 500 steps (was 150) for overnight test
-                if self.step_count % 500 == 0:
+                # OPTIMIZATION: Update bonds every 600 steps - STAGGERED to avoid overlaps
+                # Offset by 100 to not coincide with other heavy operations
+                if (self.step_count - 100) % 600 == 0:
                     self.binding.update_bonds(
                         self.particles.positions,
                         self.particles.attributes,
@@ -503,8 +504,9 @@ class SimulationStepper:
                         dt
                     )
                 
-                # OPTIMIZATION: Update clusters every 1000 steps (was 300) for overnight test
-                if self.step_count % 1000 == 0:
+                # OPTIMIZATION: Update clusters every 1200 steps - STAGGERED
+                # Offset by 300 to spread load over time
+                if (self.step_count - 300) % 1200 == 0:
                     self.binding.update_clusters(
                         self.particles.positions,
                         self.particles.active,
@@ -576,8 +578,9 @@ class SimulationStepper:
                 detect_enabled = getattr(self.config, 'detect_novel_substances', True)
                 
                 if detect_enabled:
-                    novelty_interval = getattr(self.config, 'novelty_check_interval', 500)  # INCREASED from 100 to 500 for better performance
-                    if novelty_interval > 0 and novelty_interval < 999999 and self.step_count % novelty_interval == 0:
+                    novelty_interval = getattr(self.config, 'novelty_check_interval', 700)  # STAGGERED - increased and offset
+                    # Offset by 500 to not coincide with bonds/clusters updates
+                    if novelty_interval > 0 and novelty_interval < 999999 and (self.step_count - 500) % novelty_interval == 0:
                         self.detect_novel_substances()
             
             
