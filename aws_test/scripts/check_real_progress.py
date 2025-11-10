@@ -228,17 +228,40 @@ def check_simulation_progress(results_dir="results/phase2b_additional"):
                 print(f"     💡 This suggests log buffering (normal for old code)")
                 print(f"     💡 Process is likely making progress, but logs aren't flushed")
                 
-                # Estimate: if using 1000% CPU, that's ~10 cores
-                # At ~10 steps/sec per core = ~100 steps/sec total
-                # In 1 hour = ~360,000 steps
+                # More realistic estimation:
+                # - Use time since last log (age_hours), not total CPU time
+                # - Conservative: ~5-8 steps/sec per 100% CPU (varies by simulation)
+                # - For SUPER_FAST config, typically ~8-12 steps/sec per 100% CPU
                 if age_hours is not None and age_hours > 0:
-                    estimated_steps_per_hour = (cpu_percent / 100) * 10 * 3600  # Conservative
-                    estimated_progress = estimated_steps_per_hour * age_hours
-                    estimated_current = min(last_step + int(estimated_progress), target_steps)
+                    # Conservative estimate: 7 steps/sec per 100% CPU
+                    steps_per_100pct_cpu_per_sec = 7
+                    steps_per_hour_per_100pct = steps_per_100pct_cpu_per_sec * 3600
+                    
+                    # Calculate steps since last log
+                    estimated_steps_since_log = int((cpu_percent / 100) * steps_per_hour_per_100pct * age_hours)
+                    
+                    # Cap at remaining steps (can't exceed target)
+                    remaining_steps = target_steps - last_step
+                    estimated_steps_since_log = min(estimated_steps_since_log, remaining_steps)
+                    
+                    estimated_current = last_step + estimated_steps_since_log
                     estimated_progress_pct = (estimated_current / target_steps) * 100
                     
-                    print(f"     📈 Estimated current step: ~{estimated_current:,} ({estimated_progress_pct:.1f}%)")
-                    print(f"     ⚠️  This is an ESTIMATE - actual progress may vary")
+                    # Check if simulation might be completed
+                    results_file = results_dir / scenario / run_name / "results.json"
+                    if results_file.exists():
+                        print(f"     ✅ Simulation appears to be COMPLETED (results.json exists)")
+                        print(f"     📊 Final step should be: {target_steps:,} (100.0%)")
+                    elif estimated_current >= target_steps:
+                        print(f"     🎯 Simulation likely COMPLETED or very close to completion")
+                        print(f"     📊 Estimated: ~{target_steps:,} ({estimated_progress_pct:.1f}%)")
+                        print(f"     💡 Check for results.json file to confirm completion")
+                    else:
+                        print(f"     📈 Estimated current step: ~{estimated_current:,} ({estimated_progress_pct:.1f}%)")
+                        print(f"     📊 Estimated progress since last log: +{estimated_steps_since_log:,} steps")
+                        print(f"     ⚠️  This is an ESTIMATE based on CPU usage - actual progress may vary")
+                        print(f"     💡 Estimation assumes ~{steps_per_100pct_cpu_per_sec} steps/sec per 100% CPU")
+                        print(f"     📉 Remaining steps: {target_steps - estimated_current:,}")
             else:
                 print(f"     ✅ Log is recent - progress is visible")
         else:
