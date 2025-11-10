@@ -1333,9 +1333,10 @@ class SimulationStepper:
             
             # Time bonds/clusters extraction
             t_bonds_start = time.time()
-            # OPTIMIZATION: Only get bonds/clusters every 200 steps to reduce load - PRODUCTION OPTIMIZED
-            # Benchmark showed: CPU is 728x faster than GPU, but still O(n²) - reduce frequency
-            if self.step_count % 200 == 0:
+            # OPTIMIZATION: Only get bonds/clusters every 500 steps to reduce load - PRODUCTION OPTIMIZED
+            # With numpy vectorization, this is now much faster, but still cache to avoid overhead
+            # Increased from 200 to 500 steps for better performance on slower CPUs
+            if self.step_count % 500 == 0:
                 bonds = self.binding.get_bonds()
                 clusters = self.binding.get_clusters()
                 # Cache the data for intermediate steps

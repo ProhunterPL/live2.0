@@ -778,18 +778,24 @@ class BindingSystem:
         return merge_count
     
     def get_bonds(self) -> List[Tuple[int, int, float]]:
-        """Get list of active bonds - OPTIMIZED for performance"""
-        bonds = []
-        
+        """Get list of active bonds - OPTIMIZED with numpy vectorization"""
         # PERFORMANCE FIX: Use reasonable limit for visualization (max 500 particles to match get_clusters)
         max_check = min(500, self.max_particles)
         
-        # Only check bonds between particles in the limited range
-        for i in range(max_check):
-            for j in range(i + 1, max_check):
-                if self.bond_active[i, j] == 1:
-                    strength = float(self.bond_matrix[i, j])
-                    bonds.append((int(i), int(j), strength))
+        # OPTIMIZATION: Use numpy for fast vectorized operations instead of Python loops
+        # Copy only upper triangle to numpy (much faster than Python loops)
+        bond_active_np = self.bond_active.to_numpy()[:max_check, :max_check]
+        bond_matrix_np = self.bond_matrix.to_numpy()[:max_check, :max_check]
+        
+        # Get upper triangle indices where bonds are active
+        # Use numpy to find all active bonds at once
+        i_indices, j_indices = np.where(np.triu(bond_active_np, k=1) == 1)
+        
+        # Extract strengths for active bonds
+        strengths = bond_matrix_np[i_indices, j_indices]
+        
+        # Convert to list of tuples (much faster than appending in loop)
+        bonds = [(int(i), int(j), float(strength)) for i, j, strength in zip(i_indices, j_indices, strengths)]
         
         return bonds
     
@@ -852,20 +858,33 @@ class BindingSystem:
         return largest_cluster
     
     def get_clusters(self, min_size: int = 2) -> List[List[int]]:
-        """Get list of clusters with minimum size - OPTIMIZED for performance"""
+        """Get list of clusters with minimum size - OPTIMIZED with numpy vectorization"""
         # PERFORMANCE FIX: Use reasonable limit for visualization (max 500 particles for our current config)
         from collections import defaultdict
-        clusters_dict = defaultdict(list)
         
         max_check = min(500, self.max_particles)
         
-        # Extract cluster data only for particles in the limited range
-        for i in range(max_check):
-            cid = int(self.cluster_id[i])
-            if cid >= 0:
-                cluster_size = int(self.cluster_sizes[cid])
-                if cluster_size >= min_size:
-                    clusters_dict[cid].append(i)
+        # OPTIMIZATION: Use numpy for fast vectorized operations instead of Python loops
+        cluster_id_np = self.cluster_id.to_numpy()[:max_check]
+        cluster_sizes_np = self.cluster_sizes.to_numpy()
+        
+        # Find valid clusters (size >= min_size) using numpy
+        valid_mask = cluster_id_np >= 0
+        particle_indices = np.arange(max_check)[valid_mask]
+        cluster_ids = cluster_id_np[valid_mask]
+        
+        # Filter by cluster size using numpy (much faster than checking in loop)
+        cluster_sizes_for_particles = cluster_sizes_np[cluster_ids]
+        size_valid_mask = cluster_sizes_for_particles >= min_size
+        
+        # Only process particles in valid clusters
+        valid_particle_indices = particle_indices[size_valid_mask]
+        valid_cluster_ids = cluster_ids[size_valid_mask]
+        
+        # Group particles by cluster ID (still need defaultdict for grouping)
+        clusters_dict = defaultdict(list)
+        for particle_idx, cluster_id in zip(valid_particle_indices, valid_cluster_ids):
+            clusters_dict[int(cluster_id)].append(int(particle_idx))
         
         return list(clusters_dict.values())
     

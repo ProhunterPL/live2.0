@@ -93,6 +93,7 @@ if not use_gpu:
 
 from sim.config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
 from sim.core.stepper import SimulationStepper
+from sim.core.hybrid_stepper import HybridSimulationStepper
 from sim.io.snapshot import SnapshotManager
 
 # Pydantic models for API
@@ -318,11 +319,23 @@ class Live2Server:
                     config = PresetPrebioticConfig(**request.config)
                 elif request.mode == "open_chemistry":
                     config = SimulationConfig(**request.config)
+                    # Performance optimizations for production
+                    if not hasattr(config, 'chemistry_snapshot_interval') or config.chemistry_snapshot_interval is None:
+                        config.chemistry_snapshot_interval = 200  # Less frequent snapshots = better performance
+                    if not hasattr(config, 'metrics_update_interval') or config.metrics_update_interval is None:
+                        config.metrics_update_interval = 1000  # Less frequent metrics = better performance
                 else:
                     raise ValueError(f"Unknown mode: {request.mode}")
                 
-                # Create simulation
-                simulation = SimulationStepper(config)
+                # Create simulation - use HybridSimulationStepper for better performance
+                # Hybrid mode runs chemistry in background thread, doesn't block simulation
+                try:
+                    # Try Hybrid mode first (better performance)
+                    simulation = HybridSimulationStepper(config)
+                    logger.info(f"Using HybridSimulationStepper for {simulation_id} (GPU physics + CPU chemistry)")
+                except Exception as e:
+                    logger.warning(f"HybridSimulationStepper failed, falling back to SimulationStepper: {e}")
+                    simulation = SimulationStepper(config)
                 self.simulations[simulation_id] = simulation
                 self.active_connections[simulation_id] = []
                 
@@ -903,7 +916,7 @@ class Live2Server:
                     break
                 # OPTIMIZED: Send data less frequently to avoid overwhelming slow get_visualization_data
                 # Wait for simulation to progress (don't spam if simulation is slow)
-                await asyncio.sleep(0.1)  # 10 FPS broadcast - FASTER for better responsiveness
+                await asyncio.sleep(0.2)  # 5 FPS broadcast - reduced from 10 FPS for better performance
 
                 # Get visualization data with timing
                 t0 = time.time()
