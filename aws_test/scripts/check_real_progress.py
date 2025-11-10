@@ -13,6 +13,7 @@ import re
 import subprocess
 import time
 import os
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -123,10 +124,34 @@ def estimate_progress_from_cpu(pid, last_step, target_steps=500000):
     
     return None
 
+def load_previous_state(cache_file):
+    """Load previous progress state from cache file"""
+    if cache_file.exists():
+        try:
+            with open(cache_file, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+def save_current_state(cache_file, state):
+    """Save current progress state to cache file"""
+    try:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(cache_file, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"⚠️  Warning: Could not save state cache: {e}")
+
 def check_simulation_progress(results_dir="results/phase2b_additional"):
     """Check progress of all running simulations"""
     results_dir = Path(results_dir)
     target_steps = 500000
+    
+    # Load previous state for comparison
+    cache_file = results_dir / ".progress_cache.json"
+    previous_state = load_previous_state(cache_file)
+    current_state = {}
     
     print("=" * 80)
     print("🔍 REAL PROGRESS CHECK")
@@ -195,6 +220,23 @@ def check_simulation_progress(results_dir="results/phase2b_additional"):
         
         progress = (last_step / target_steps) * 100
         
+        # Compare with previous state
+        prev_key = key
+        previous_last_step = previous_state.get(prev_key, {}).get('last_step')
+        previous_timestamp = previous_state.get(prev_key, {}).get('timestamp')
+        
+        # Store current state
+        current_state[prev_key] = {
+            'last_step': last_step,
+            'timestamp': time.time(),
+            'progress': progress
+        }
+        
+        # Calculate time since last check
+        time_since_last_check = None
+        if previous_timestamp:
+            time_since_last_check = (time.time() - previous_timestamp) / 3600  # hours
+        
         # Get log file age
         if log_file.exists():
             mtime = os.path.getmtime(log_file)
@@ -216,6 +258,19 @@ def check_simulation_progress(results_dir="results/phase2b_additional"):
             print(f"  ⏰ Log age: {age_minutes:.1f} minutes ({age_hours:.2f} hours)")
         
         print(f"  💻 CPU usage: {cpu_percent:.0f}%")
+        
+        # Show progress comparison if available
+        if previous_last_step is not None and time_since_last_check is not None:
+            step_change = last_step - previous_last_step
+            if step_change > 0:
+                print(f"  📈 Progress change: +{step_change:,} steps since last check ({time_since_last_check:.2f}h ago)")
+                steps_per_hour = step_change / time_since_last_check if time_since_last_check > 0 else 0
+                print(f"  ⚡ Actual progress rate: ~{steps_per_hour:,.0f} steps/hour")
+            elif step_change == 0:
+                print(f"  ⚠️  NO PROGRESS in logs since last check ({time_since_last_check:.2f}h ago)")
+                print(f"  💡 This confirms log buffering - process is working but logs aren't updating")
+            else:
+                print(f"  ⚠️  Step count decreased (unusual - may be log parsing issue)")
         
         # Analysis
         print(f"\n  🔍 Analysis:")
@@ -249,19 +304,62 @@ def check_simulation_progress(results_dir="results/phase2b_additional"):
                     
                     # Check if simulation might be completed
                     results_file = results_dir / scenario / run_name / "results.json"
+                    
+                    # If results.json exists, simulation is definitely completed
                     if results_file.exists():
-                        print(f"     ✅ Simulation appears to be COMPLETED (results.json exists)")
-                        print(f"     📊 Final step should be: {target_steps:,} (100.0%)")
-                    elif estimated_current >= target_steps:
-                        print(f"     🎯 Simulation likely COMPLETED or very close to completion")
-                        print(f"     📊 Estimated: ~{target_steps:,} ({estimated_progress_pct:.1f}%)")
-                        print(f"     💡 Check for results.json file to confirm completion")
+                        print(f"     ✅ Simulation is COMPLETED (results.json exists)")
+                        print(f"     📊 Final step: {target_steps:,} (100.0%)")
+                    # If process is still running but estimated to be at target, it's likely near completion
+                    # BUT: be conservative if last_step was very low (< 50%) - estimation may be too optimistic
+                    elif estimated_current >= target_steps and last_step >= target_steps * 0.5:
+                        # Process is still running, so it might be in final steps or extracting results
+                        if last_step >= target_steps * 0.95:  # Very close (95%+)
+                            print(f"     🎯 Simulation likely COMPLETED or in final stages")
+                            print(f"     📊 Last logged: {last_step:,}, Estimated: ~{target_steps:,} (100.0%)")
+                            print(f"     💡 Process may be extracting results or saving final data")
+                            print(f"     💡 Check for results.json file - it should appear soon if completed")
+                        else:
+                            # Process running but estimated at target - might be close but not done
+                            print(f"     🎯 Simulation likely very close to completion")
+                            print(f"     📊 Last logged: {last_step:,}, Estimated: ~{target_steps:,} (100.0%)")
+                            print(f"     ⚠️  Process still running - may be in final steps")
+                            print(f"     💡 Estimated progress since last log: +{estimated_steps_since_log:,} steps")
+                            print(f"     💡 Check for results.json file to confirm completion")
                     else:
-                        print(f"     📈 Estimated current step: ~{estimated_current:,} ({estimated_progress_pct:.1f}%)")
-                        print(f"     📊 Estimated progress since last log: +{estimated_steps_since_log:,} steps")
-                        print(f"     ⚠️  This is an ESTIMATE based on CPU usage - actual progress may vary")
-                        print(f"     💡 Estimation assumes ~{steps_per_100pct_cpu_per_sec} steps/sec per 100% CPU")
-                        print(f"     📉 Remaining steps: {target_steps - estimated_current:,}")
+                        # Normal progress estimate
+                        # If estimated is at target but last_step was low, be more conservative
+                        use_conservative = estimated_current >= target_steps and last_step < target_steps * 0.5
+                        display_estimate = estimated_current
+                        
+                        if use_conservative:
+                            # Estimation seems too optimistic - show more conservative estimate
+                            # Cap at a reasonable maximum based on last_step progress
+                            conservative_max = min(last_step * 2, target_steps * 0.9)  # Max 2x last_step or 90%
+                            display_estimate = min(estimated_current, conservative_max)
+                            conservative_pct = (display_estimate / target_steps) * 100
+                            
+                            print(f"     📈 Estimated current step: ~{display_estimate:,} ({conservative_pct:.1f}%)")
+                            print(f"     ⚠️  Conservative estimate (last log was at {last_step:,}, {last_step/target_steps*100:.1f}%)")
+                            print(f"     💡 Full estimate would be ~{estimated_current:,}, but may be too optimistic")
+                            print(f"     📊 Estimated progress since last log: +{estimated_steps_since_log:,} steps")
+                            print(f"     ⚠️  This is an ESTIMATE - actual progress may be lower")
+                            print(f"     💡 Estimation assumes ~{steps_per_100pct_cpu_per_sec} steps/sec per 100% CPU")
+                            print(f"     📉 Remaining steps: {target_steps - display_estimate:,}")
+                        else:
+                            # Normal estimate
+                            print(f"     📈 Estimated current step: ~{display_estimate:,} ({estimated_progress_pct:.1f}%)")
+                            print(f"     📊 Estimated progress since last log: +{estimated_steps_since_log:,} steps")
+                            print(f"     ⚠️  This is an ESTIMATE based on CPU usage - actual progress may vary")
+                            print(f"     💡 Estimation assumes ~{steps_per_100pct_cpu_per_sec} steps/sec per 100% CPU")
+                            print(f"     📉 Remaining steps: {target_steps - display_estimate:,}")
+                        
+                        # Add time estimate if reasonable
+                        if estimated_steps_since_log > 0 and age_hours > 0:
+                            steps_per_hour_actual = estimated_steps_since_log / age_hours
+                            remaining_steps = target_steps - display_estimate
+                            remaining_hours = remaining_steps / steps_per_hour_actual if steps_per_hour_actual > 0 else None
+                            if remaining_hours and remaining_hours < 24:
+                                print(f"     ⏱️  Estimated time remaining: ~{remaining_hours:.1f} hours")
             else:
                 print(f"     ✅ Log is recent - progress is visible")
         else:
@@ -279,9 +377,14 @@ def check_simulation_progress(results_dir="results/phase2b_additional"):
         else:
             print(f"     - Process may be stuck - investigate further")
     
+    # Save current state for next run
+    save_current_state(cache_file, current_state)
+    
     print(f"\n{'='*80}")
     print("ℹ️  NOTE: This script estimates progress based on CPU usage patterns")
     print("   Actual progress may vary. Check logs periodically for updates.")
+    if previous_state:
+        print("   Progress comparison is based on previous run (stored in .progress_cache.json)")
     print("=" * 80)
 
 if __name__ == "__main__":
