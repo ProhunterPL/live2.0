@@ -265,6 +265,15 @@ diagnostics/
 *.pkl
 *.pickle
 
+# Simulation results (should not be in repository)
+results/phase2b_additional/
+results/phase2b_local/
+results/phase2b_aws_results/
+**/summary.txt
+**/simulation.log
+**/checkpoints/
+**/snapshots/
+
 # Security - SSH keys and credentials (NEVER commit these!)
 *.pem
 *.key
