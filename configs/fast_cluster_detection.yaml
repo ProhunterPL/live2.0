@@ -1,0 +1,62 @@
+# Fast Cluster Detection Configuration
+# Optimized for quicker novel substance detection and more stable clusters
+
+mode: "open_chemistry"
+
+# Simulation basics
+grid_width: 128
+grid_height: 128
+dt: 0.1
+max_particles: 500
+
+# FASTER NOVELTY DETECTION (was 700)
+novelty_check_interval: 200  # Check every 200 steps instead of 700
+min_cluster_size: 3          # Still require meaningful clusters (3+ particles)
+detect_novel_substances: true
+
+# IMPROVED CLUSTER STABILITY
+# Reduce max bond length for more realistic, stable bonds
+# Note: This requires code change in binding.py
+# Currently: PARTICLE_RADIUS * 6.8 = 3.4 units (too long!)
+# Recommended: PARTICLE_RADIUS * 4.0 = 2.0 units (realistic)
+
+binding_threshold: 0.5        # Moderate permissiveness
+unbinding_threshold: 0.15     # REDUCED from 0.18 - more stable bonds
+
+# Particle settings
+particle_radius: 0.5
+initial_particle_count: 100
+
+# Energy settings
+energy_transfer_rate: 0.01
+energy_dissipation: 0.01
+thermostat_enabled: true
+thermostat_target_temp: 300.0
+thermostat_alpha: 0.05
+
+# Visualization - more frequent updates
+vis_frequency: 10            # Update every 10 steps
+log_frequency: 200           # Log every 200 steps
+
+# Validation
+validate_every_n_steps: 300
+enable_thermodynamic_validation: true
+energy_tolerance: 0.002
+momentum_tolerance: 0.0002
+
+# Mutations - balanced for sustained novelty
+p_mut_base: 0.003
+p_mut_gain: 30.0
+attr_sigma: 0.15
+
+# Performance note:
+# - More frequent novelty checks (200 vs 700) = ~10% slower
+# - More frequent validation (300 vs 300) = same
+# - Worth it for faster cluster detection!
+
+# To use this config:
+# 1. Copy to configs/fast_cluster_detection.yaml
+# 2. In backend, start with:
+#    python -m backend.api.server --config configs/fast_cluster_detection.yaml
+# 3. Or create simulation with this config via API
+
