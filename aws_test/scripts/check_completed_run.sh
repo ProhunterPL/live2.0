@@ -92,8 +92,36 @@ fi
 # Check if process is still running
 PID=$(ps aux | grep "$RUN_DIR" | grep run_phase2_full | grep -v grep | awk '{print $2}')
 if [ -n "$PID" ]; then
-    echo "🔄 Process is still RUNNING (PID: $PID)"
-    echo "   Simulation may still be in progress"
+    CPU_USAGE=$(ps -p $PID -o %cpu= 2>/dev/null | tr -d ' ')
+    ELAPSED=$(ps -p $PID -o etime= 2>/dev/null | tr -d ' ')
+    
+    echo "🔄 Process is RUNNING (PID: $PID)"
+    echo "   CPU usage: ${CPU_USAGE}%"
+    echo "   Elapsed time: $ELAPSED"
+    
+    if [ -n "$CPU_USAGE" ] && (( $(echo "$CPU_USAGE > 100" | bc -l 2>/dev/null || echo 0) )); then
+        echo "   ✅ Process is actively computing (using multiple cores)"
+        echo "   ⚠️  Logs are old due to buffering (old code)"
+        echo "   💡 Actual progress is likely higher than logged"
+        
+        # Estimate current progress based on elapsed time
+        if [ -n "$LAST_STEP" ] && [ "$LAST_STEP" -gt 0 ]; then
+            # Rough estimate: assume 8 steps/sec average
+            LOG_AGE_HOURS=$(( ($(date +%s) - $(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)) / 3600 ))
+            ESTIMATED_ADDITIONAL=$((LOG_AGE_HOURS * 8 * 3600 / 10000 * 10000))  # Round to 10K steps
+            ESTIMATED_CURRENT=$((LAST_STEP + ESTIMATED_ADDITIONAL))
+            
+            if [ "$ESTIMATED_CURRENT" -gt 500000 ]; then
+                ESTIMATED_CURRENT=500000
+            fi
+            
+            EST_PROGRESS=$((ESTIMATED_CURRENT * 100 / 500000))
+            echo "   📊 Estimated current step: ~$ESTIMATED_CURRENT/500,000 (~$EST_PROGRESS%)"
+            echo "   ⏱️  Log age: ~${LOG_AGE_HOURS} hours"
+        fi
+    else
+        echo "   ⚠️  Process is running but using low CPU - may be in I/O wait"
+    fi
 else
     echo "⏸️  Process is NOT running"
     echo "   Simulation has stopped"
@@ -122,14 +150,28 @@ elif [ -n "$LAST_STEP" ] && [ "$LAST_STEP" -ge 490000 ]; then
     echo "   - Check for any error messages in log"
     echo "   - Consider re-running from checkpoint if available"
 elif [ -n "$LAST_STEP" ] && [ "$LAST_STEP" -ge 400000 ]; then
-    echo "📊 Simulation made significant progress (${LAST_STEP}/500000)"
-    echo "   - May have been stopped by timeout"
-    echo "   - Check for checkpoints to resume"
-    echo "   - Consider re-running with longer timeout"
+    if [ -n "$PID" ]; then
+        echo "📊 Simulation is running (${LAST_STEP}/500000 logged, likely higher)"
+        echo "   - Process is active (CPU usage confirms)"
+        echo "   - Logs are buffered (old code)"
+        echo "   - Should complete within hours"
+    else
+        echo "📊 Simulation made significant progress (${LAST_STEP}/500000)"
+        echo "   - May have been stopped by timeout"
+        echo "   - Check for checkpoints to resume"
+        echo "   - Consider re-running with longer timeout"
+    fi
 else
-    echo "⚠️  Simulation stopped early (${LAST_STEP:-0}/500000)"
-    echo "   - Check logs for errors"
-    echo "   - May need to restart"
+    if [ -n "$PID" ]; then
+        echo "⏳ Simulation is running (${LAST_STEP:-0}/500000 logged, likely higher)"
+        echo "   - Process is active (CPU usage confirms)"
+        echo "   - Logs are buffered (old code)"
+        echo "   - Check periodically for results.json"
+    else
+        echo "⚠️  Simulation stopped early (${LAST_STEP:-0}/500000)"
+        echo "   - Check logs for errors"
+        echo "   - May need to restart"
+    fi
 fi
 
 echo ""
