@@ -97,7 +97,28 @@ tail -20 ~/live2.0/results/phase2b_additional/miller_urey_extended/run_5/simulat
 
 # Sprawdź postęp przez poprawiony skrypt
 python3 aws_test/scripts/quick_diagnose.py
+
+# Sprawdź rzeczywisty postęp (szacuje na podstawie CPU usage)
+python3 aws_test/scripts/check_real_progress.py
 ```
+
+### Nowy skrypt: `check_real_progress.py`
+
+Ten skrypt analizuje:
+- **CPU usage** procesu (jeśli >100%, używa wielu rdzeni)
+- **Czas działania** procesu
+- **Wiek logów** (jak długo nie były aktualizowane)
+- **Szacowany postęp** na podstawie wzorców użycia CPU
+
+**Użycie:**
+```bash
+python3 aws_test/scripts/check_real_progress.py
+```
+
+Skrypt pokaże:
+- ✅ Czy proces rzeczywiście pracuje (CPU > 100%)
+- ⚠️ Czy logi są buforowane (stare logi + aktywny proces = buforowanie)
+- 📈 Szacowany aktualny postęp (na podstawie CPU usage i czasu)
 
 ### Jeśli postęp nadal nie jest widoczny:
 
@@ -122,6 +143,23 @@ python3 aws_test/scripts/quick_diagnose.py
 - **Buforowanie logów**: Python może buforować logi. Nowy kod wymusza flush po każdym logu.
 - **Częstotliwość logowania**: Postęp jest logowany co 10,000 kroków. Dla 500,000 kroków = 50 wpisów.
 - **Czas między logami**: Przy ~10-12 kroków/sekundę, logi powinny pojawiać się co ~15-20 minut.
+
+### ⚠️ Ważne: Stare Procesy vs Nowe Procesy
+
+**Istniejące procesy (run_5, run_6, run_7, run_8):**
+- Używają **starego kodu** bez flush logów
+- Logi mogą być buforowane przez wiele godzin (normalne!)
+- **Procesy działają** (wysokie CPU), ale postęp nie jest widoczny w logach
+- Użyj `check_real_progress.py` aby oszacować rzeczywisty postęp
+
+**Nowe procesy (po synchronizacji):**
+- Używają **nowego kodu** z flush logów
+- Postęp będzie widoczny w czasie rzeczywistym
+- Logi będą aktualizowane natychmiast po każdym logu
+
+**Rekomendacja:**
+- Nie restartuj istniejących procesów - pozwól im dokończyć
+- Nowe symulacje będą miały lepszą widoczność postępu
 
 ## ✅ Oczekiwane Rezultaty
 
