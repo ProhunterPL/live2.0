@@ -70,13 +70,20 @@ class Phase2FullRunner:
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Setup file logging
+        # Setup file logging with immediate flushing
         log_file = self.output_dir / "simulation.log"
-        file_handler = logging.FileHandler(log_file)
+        # Use a custom file handler that flushes after each write
+        class FlushingFileHandler(logging.FileHandler):
+            def emit(self, record):
+                super().emit(record)
+                self.flush()
+        
+        file_handler = FlushingFileHandler(log_file)
         file_handler.setFormatter(
             logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         )
         logging.getLogger().addHandler(file_handler)
+        self.file_handler = file_handler  # Store reference for manual flushing
         
         logger.info("=" * 70)
         logger.info("PHASE 2 FULL SIMULATION RUNNER")
@@ -342,6 +349,9 @@ class Phase2FullRunner:
                     f"Elapsed: {elapsed/60:.1f}min | "
                     f"ETA: {eta/60:.1f}min"
                 )
+                # Force flush to ensure progress is visible immediately
+                if hasattr(self, 'file_handler'):
+                    self.file_handler.flush()
             
             # Save snapshots
             if phase2_config.save_snapshots and step % save_interval == 0 and step > 0:

@@ -129,7 +129,15 @@ for scenario in scenarios:
                 
                 last_step = None
                 for line in reversed(lines):
-                    match = re.search(r'Step (\d+) completed', line)
+                    # Try multiple patterns to match different log formats
+                    # Pattern 1: "Step 123,456/500,000" or "Step 123456/500000"
+                    match = re.search(r'Step\s+([\d,]+)/([\d,]+)', line)
+                    if match:
+                        step_str = match.group(1).replace(',', '')
+                        last_step = int(step_str)
+                        break
+                    # Pattern 2: "Step 123 completed" (fallback)
+                    match = re.search(r'Step\s+(\d+)\s+completed', line)
                     if match:
                         last_step = int(match.group(1))
                         break
