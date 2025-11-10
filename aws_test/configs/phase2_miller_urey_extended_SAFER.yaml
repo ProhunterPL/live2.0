@@ -90,9 +90,8 @@ physics:
   bond_breaking_energy_threshold: 0.7
   
   # DISABLE CLUSTER DETECTION (main suspect for deadlock)
-  cluster_check_interval: 999999999  # Effectively disabled
+  cluster_check_interval: 999999999  # Effectively disabled - will be read by patched code
   cluster_distance_threshold: 2.8
-  enable_cluster_detection: false  # Explicit disable
 
 # NO validation
 validation:

@@ -1,0 +1,27 @@
+--- backend/sim/core/stepper.py.orig	2025-11-10 13:00:00.000000000 +0000
++++ backend/sim/core/stepper.py	2025-11-10 14:00:00.000000000 +0000
+@@ -505,11 +505,15 @@
+                     )
+                 
+-                # OPTIMIZATION: Update clusters every 1200 steps - STAGGERED
+-                # Offset by 300 to spread load over time
+-                if (self.step_count - 300) % 1200 == 0:
+-                    self.binding.update_clusters(
+-                        self.particles.positions,
+-                        self.particles.active,
+-                        self.particles.particle_count[None]
+-                    )
++                # OPTIMIZATION: Update clusters - now configurable to prevent infinite loops
++                # Check if cluster detection is enabled (default interval = 1200)
++                cluster_interval = getattr(self.config, 'cluster_check_interval', 1200)
++                if cluster_interval < 999999999:  # Only if not disabled
++                    # Offset by 300 to spread load over time
++                    if (self.step_count - 300) % cluster_interval == 0:
++                        self.binding.update_clusters(
++                            self.particles.positions,
++                            self.particles.active,
++                            self.particles.particle_count[None]
++                        )
+                 
+                 # Apply periodic boundary conditions
+
