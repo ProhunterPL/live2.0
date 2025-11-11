@@ -293,7 +293,7 @@ unbinding_threshold: 0.12  # Zamiast 0.15 (bardziej stabilne wiązania)
 1. **check_real_clusters.py** - diagnostyka stanu
 2. **force_cluster_detection.py** - timing detekcji
 3. **configs/fast_cluster_detection.yaml** - lepsza konfiguracja
-4. **CLUSTER_DETECTION_ISSUE.md** - analiza techniczna (EN)
+4. **docs/CLUSTER_DETECTION_ISSUE.md** - analiza techniczna (EN)
 5. **PODSUMOWANIE_PROBLEM_KLASTROW.md** - podsumowanie (PL)
 6. **ROZWIAZANIE_KROK_PO_KROKU.md** - ten plik
 

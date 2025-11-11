@@ -213,9 +213,9 @@ tail -f ~/live2.0/results/phase2b_additional/miller_urey_extended/run_9/simulati
 - `aws_test/configs/phase2_miller_urey_extended_SAFER.yaml` - Bez wykrywania klastrów
 
 ### Dokumentacja
-- `aws_test/PODSUMOWANIE_NAPRAWY_PL.md` - Ten plik (po polsku)
-- `aws_test/EMERGENCY_SUMMARY.md` - Angielska wersja
-- `aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - Szczegółowe instrukcje
+- `docs/aws_test/PODSUMOWANIE_NAPRAWY_PL.md` - Ten plik (po polsku)
+- `docs/aws_test/EMERGENCY_SUMMARY.md` - Angielska wersja
+- `docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - Szczegółowe instrukcje
 
 ---
 

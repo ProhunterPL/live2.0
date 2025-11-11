@@ -216,8 +216,8 @@ tail -f ~/live2.0/results/phase2b_additional/miller_urey_extended/run_9/simulati
 - `aws_test/configs/phase2_miller_urey_extended_SAFER.yaml` - No cluster detection
 
 ### Documentation
-- `aws_test/EMERGENCY_SUMMARY.md` - This file
-- `aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - Detailed instructions
+- `docs/aws_test/EMERGENCY_SUMMARY.md` - This file
+- `docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - Detailed instructions
 - `aws_test/patches/disable_cluster_detection.patch` - Code patch
 
 ---

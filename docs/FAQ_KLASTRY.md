@@ -286,7 +286,7 @@ python -m api.server --config ../configs/fast_cluster_detection.yaml
 
 ## 🎓 Więcej informacji
 
-- **Szczegółowa analiza**: `CLUSTER_DETECTION_ISSUE.md`
+- **Szczegółowa analiza**: `docs/CLUSTER_DETECTION_ISSUE.md`
 - **Rozwiązanie krok po kroku**: `ROZWIAZANIE_KROK_PO_KROKU.md`
 - **Podsumowanie (PL)**: `PODSUMOWANIE_PROBLEM_KLASTROW.md`
 - **Skrypty**:

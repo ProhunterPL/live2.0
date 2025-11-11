@@ -175,7 +175,7 @@ With cluster detection disabled:
 - `aws_test/scripts/kill_stuck_simulations.sh` - Kill deadlocked processes
 - `aws_test/scripts/restart_phase2b_safe.sh` - Restart with safe config
 - `aws_test/configs/phase2_miller_urey_extended_SAFER.yaml` - Config without cluster detection
-- `aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - This file
+- `docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - This file
 
 ## Contact
 

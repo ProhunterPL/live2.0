@@ -59,11 +59,11 @@ bash aws_test/DEPLOY_FIX_NOW.sh
 - `aws_test/configs/phase2_miller_urey_extended_SAFER.yaml` - Disables cluster detection
 
 ### 📚 **Documentation**
-- **`aws_test/QUICK_REFERENCE.md`** - Quick command reference
-- **`aws_test/EMERGENCY_SUMMARY.md`** - Full problem description (EN)
-- **`aws_test/PODSUMOWANIE_NAPRAWY_PL.md`** - Full problem description (PL)
-- **`aws_test/CLUSTER_FIX_INSTRUCTIONS.md`** - Detailed step-by-step
-- **`aws_test/README_FIX_DEPLOYED.md`** - This file
+- **`docs/aws_test/QUICK_REFERENCE.md`** - Quick command reference
+- **`docs/aws_test/EMERGENCY_SUMMARY.md`** - Full problem description (EN)
+- **`docs/aws_test/PODSUMOWANIE_NAPRAWY_PL.md`** - Full problem description (PL)
+- **`docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md`** - Detailed step-by-step
+- **`docs/aws_test/README_FIX_DEPLOYED.md`** - This file
 
 ### 🩹 **Patches**
 - `aws_test/patches/disable_cluster_detection.patch` - Code patch (for reference)
@@ -271,12 +271,12 @@ Remaining: 19-20 (next batch)
 ## 📞 SUPPORT REFERENCE
 
 ### Quick Reference
-- **`aws_test/QUICK_REFERENCE.md`** - All commands in one place
+- **`docs/aws_test/QUICK_REFERENCE.md`** - All commands in one place
 
 ### Full Documentation
-- **`aws_test/EMERGENCY_SUMMARY.md`** - Complete analysis (English)
-- **`aws_test/PODSUMOWANIE_NAPRAWY_PL.md`** - Complete analysis (Polish)
-- **`aws_test/CLUSTER_FIX_INSTRUCTIONS.md`** - Detailed step-by-step
+- **`docs/aws_test/EMERGENCY_SUMMARY.md`** - Complete analysis (English)
+- **`docs/aws_test/PODSUMOWANIE_NAPRAWY_PL.md`** - Complete analysis (Polish)
+- **`docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md`** - Detailed step-by-step
 
 ### Key Commands
 ```bash

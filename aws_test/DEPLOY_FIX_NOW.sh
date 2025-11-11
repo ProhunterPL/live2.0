@@ -19,7 +19,7 @@ echo ""
 read -p "Continue? (y/n) " -n 1 -r
 echo ""
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Cancelled. See aws_test/CLUSTER_FIX_INSTRUCTIONS.md for manual steps."
+    echo "Cancelled. See docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md for manual steps."
     exit 1
 fi
 

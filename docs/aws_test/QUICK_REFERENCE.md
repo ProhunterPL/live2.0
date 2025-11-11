@@ -135,10 +135,10 @@ python3 -c "import taichi; print(taichi.__version__)"
 - `aws_test/configs/phase2_miller_urey_extended_SAFER.yaml` - Safe config (no cluster detection)
 
 ### Docs
-- `aws_test/QUICK_REFERENCE.md` - This file
-- `aws_test/EMERGENCY_SUMMARY.md` - Full problem description
-- `aws_test/PODSUMOWANIE_NAPRAWY_PL.md` - Polish version
-- `aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - Detailed instructions
+- `docs/aws_test/QUICK_REFERENCE.md` - This file
+- `docs/aws_test/EMERGENCY_SUMMARY.md` - Full problem description
+- `docs/aws_test/PODSUMOWANIE_NAPRAWY_PL.md` - Polish version
+- `docs/aws_test/CLUSTER_FIX_INSTRUCTIONS.md` - Detailed instructions
 
 ---
 

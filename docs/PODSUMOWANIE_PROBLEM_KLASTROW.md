@@ -257,7 +257,7 @@ Jeśli nadal nie widzisz novel substances:
 Stworzyłem dla Ciebie:
 1. `check_real_clusters.py` - diagnostyka stanu klastrów
 2. `force_cluster_detection.py` - sprawdź timing detekcji
-3. `CLUSTER_DETECTION_ISSUE.md` - szczegółowa analiza techniczna
+3. `docs/CLUSTER_DETECTION_ISSUE.md` - szczegółowa analiza techniczna
 4. `PODSUMOWANIE_PROBLEM_KLASTROW.md` - ten plik (podsumowanie po polsku)
 
 ---
