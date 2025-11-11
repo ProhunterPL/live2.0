@@ -172,9 +172,39 @@ class Phase2BRunner:
                 "error": str(e)
             }
     
+    def check_running_simulations(self):
+        """Check how many simulations are currently running"""
+        try:
+            result = subprocess.run(
+                ["ps", "aux"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            count = len([line for line in result.stdout.split('\n') 
+                        if 'run_phase2_full.py' in line and 'grep' not in line])
+            return count
+        except Exception as e:
+            self.logger.warning(f"Could not check running simulations: {e}")
+            return 0
+    
     def run_scenario(self, scenario_name, config_info):
         """Run all simulations for a scenario (in parallel)"""
         self.logger.info(f"🚀 Starting {scenario_name}: {config_info['description']}")
+        
+        # Check current running simulations
+        current_running = self.check_running_simulations()
+        if current_running >= self.max_parallel:
+            self.logger.warning(f"⚠️  {current_running} simulations already running (max: {self.max_parallel})")
+            self.logger.warning(f"   Waiting for some to complete before starting new ones...")
+            # Wait a bit and check again
+            import time
+            time.sleep(30)
+            current_running = self.check_running_simulations()
+            if current_running >= self.max_parallel:
+                self.logger.error(f"❌ Still {current_running} simulations running. Please wait or kill some processes.")
+                self.logger.error(f"   Run: bash aws_test/scripts/limit_parallel_simulations.sh {self.max_parallel}")
+                return
         
         scenario_results = {
             "scenario": scenario_name,
@@ -199,6 +229,7 @@ class Phase2BRunner:
         
         # Run simulations in parallel
         self.logger.info(f"⚡ Running {len(tasks)} simulations with max {self.max_parallel} parallel")
+        self.logger.info(f"   Currently running: {current_running} simulations")
         
         with ThreadPoolExecutor(max_workers=self.max_parallel) as executor:
             # Submit all tasks
