@@ -504,14 +504,18 @@ class SimulationStepper:
                         dt
                     )
                 
-                # OPTIMIZATION: Update clusters every 1200 steps - STAGGERED
-                # Offset by 300 to spread load over time
-                if (self.step_count - 300) % 1200 == 0:
-                    self.binding.update_clusters(
-                        self.particles.positions,
-                        self.particles.active,
-                        self.particles.particle_count[None]
-                    )
+                # OPTIMIZATION: Update clusters - now configurable via config
+                # Read interval from config (default 1200 if not specified)
+                # Set to 999999999 to effectively disable (prevents deadlock in complex networks)
+                cluster_interval = getattr(self.config, 'cluster_check_interval', 1200)
+                if cluster_interval < 999999999:  # Only if not disabled
+                    # Offset by 300 to spread load over time
+                    if (self.step_count - 300) % cluster_interval == 0:
+                        self.binding.update_clusters(
+                            self.particles.positions,
+                            self.particles.active,
+                            self.particles.particle_count[None]
+                        )
                 
                 # Apply periodic boundary conditions
                 self.grid.apply_periodic_boundary()

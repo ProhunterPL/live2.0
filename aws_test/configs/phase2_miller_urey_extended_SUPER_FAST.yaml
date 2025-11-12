@@ -91,7 +91,7 @@ physics:
   bond_check_interval: 200  # INCREASED from 100
   bond_formation_threshold: 2.3
   bond_breaking_energy_threshold: 0.7
-  cluster_check_interval: 300  # INCREASED from 200
+  cluster_check_interval: 999999999  # DISABLED - prevents deadlock in complex networks
   cluster_distance_threshold: 2.8
 
 # NO validation
