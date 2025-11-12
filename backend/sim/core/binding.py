@@ -310,37 +310,50 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     # Default: no bond
     bond_type = -1
     
-    # FIXED: Reduced formation distance to prevent stretched bonds
-    # Bonds should form at realistic distances close to equilibrium lengths
-    # vdW: ~3.0 Å = 1.5 units, covalent: ~1.5-2.0 Å = 0.75-1.0 units
-    max_formation_dist = PARTICLE_RADIUS_COMPILE * 3.5  # Reduced from 6.8 - prevents over-stretched bonds (1.75 units max)
+    # FIXED: Bonds should only form when particles are close to equilibrium distance
+    # This prevents the cycle of forming-stretching-breaking-reforming
+    # vdW rest_len = 1.5, covalent = 1.0, H-bond = 1.25
+    # Allow formation within 20% of rest length to ensure stability
+    max_formation_dist_vdW = PARTICLE_RADIUS_COMPILE * 3.0 * 1.2  # 1.5 * 1.2 = 1.8 units
+    max_formation_dist_covalent = PARTICLE_RADIUS_COMPILE * 2.0 * 1.2  # 1.0 * 1.2 = 1.2 units
+    max_formation_dist_hbond = PARTICLE_RADIUS_COMPILE * 2.5 * 1.2  # 1.25 * 1.2 = 1.5 units
+    
+    # Calculate binding probability first
+    binding_probability = calculate_binding_probability(i, j, positions, attributes)
+    
+    # Check distance thresholds based on potential bond type (determined by compatibility)
+    # Get particle properties to determine bond type
+    mass_i = attributes[i][0]
+    mass_j = attributes[j][0]
+    charge_i = attributes[i][1]
+    charge_j = attributes[j][1]
+    mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
+    charge_product = charge_i * charge_j
+    charge_sum = ti.abs(charge_i + charge_j)
+    
+    # Determine appropriate distance threshold based on compatibility
+    max_formation_dist = max_formation_dist_vdW  # default
+    if mass_ratio > 0.2:  # covalent candidate
+        max_formation_dist = max_formation_dist_covalent
+    elif charge_product < -0.1:  # H-bond candidate
+        max_formation_dist = max_formation_dist_hbond
+    
     if r <= max_formation_dist:
-        # Calculate binding probability
-        binding_probability = calculate_binding_probability(i, j, positions, attributes)
-        
-        # SCIENTIFICALLY CALIBRATED: More permissive for larger structures (Miller-Urey experiments)
-        if binding_probability > 0.005:  # FURTHER REDUCED from 0.01 - extremely easy bond formation
-            # Get particle properties
-            mass_i = attributes[i][0]
-            mass_j = attributes[j][0]
-            charge_i = attributes[i][1]
-            charge_j = attributes[j][1]
-            
-            # Calculate compatibility metrics
-            mass_ratio = ti.min(mass_i, mass_j) / ti.max(mass_i, mass_j)
-            charge_product = charge_i * charge_j
-            charge_sum = ti.abs(charge_i + charge_j)
-            
-            # SCIENTIFICALLY REALISTIC bonding conditions - VERY PERMISSIVE for larger cluster formation
-            # Based on Miller-Urey experiments showing extensive organic networks
-            if mass_ratio > 0.2:  # REDUCED from 0.3 - allows more diverse bonds (C-O, C-N, H-O, etc.)
-                bond_type = 1  # covalent
-            elif charge_product < -0.1:  # REDUCED from -0.2 - easier ionic/H-bond formation
-                bond_type = 2  # H-bond
-            elif charge_sum > 0.1:  # REDUCED from 0.2 - easier metallic bond formation
-                bond_type = 3  # metallic
-            elif mass_ratio > 0.05:  # REDUCED from 0.1 - very permissive vdW interactions
-                bond_type = 0  # vdW
+        # FIXED: Higher threshold prevents unstable bonds from forming too easily
+        # Realistic bonds require stronger compatibility (0.15 instead of 0.005)
+        if binding_probability > 0.15:  # INCREASED from 0.005 - more selective bond formation
+            # Determine bond type based on compatibility (already calculated above)
+            # SCIENTIFICALLY REALISTIC bonding conditions - balanced for stability
+            if mass_ratio > 0.2:  # covalent bonds
+                bond_type = 1
+            elif charge_product < -0.1:  # H-bond
+                bond_type = 2
+            elif charge_sum > 0.1:  # metallic
+                bond_type = 3
+            elif mass_ratio > 0.05:  # vdW
+                bond_type = 0
+            else:
+                bond_type = -1  # No bond if compatibility too low
     
     return bond_type
 
