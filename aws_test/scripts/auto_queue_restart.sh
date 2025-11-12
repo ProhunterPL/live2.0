@@ -19,7 +19,7 @@ set -e
 PROJECT_ROOT="$HOME/live2.0"
 RESULTS_DIR="$PROJECT_ROOT/results/phase2b_additional/miller_urey_extended"
 CONFIG_FILE="$PROJECT_ROOT/aws_test/configs/phase2_miller_urey_extended_SUPER_FAST.yaml"
-MAX_PARALLEL=4
+MAX_PARALLEL=5
 MONITOR_INTERVAL=300  # Check every 5 minutes
 
 cd "$PROJECT_ROOT"
