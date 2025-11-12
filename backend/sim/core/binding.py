@@ -186,25 +186,26 @@ def update_bonds_kernel(positions: ti.template(), attributes: ti.template(),
                         
                         # Set parameters based on bond type
                         # Type 0: vdW (weak), Type 1: covalent (strong), Type 2: H-bond, Type 3: metallic
-                        if bond_type == 0:  # van der Waals
-                            k_spring = 2.0
-                            rest_len = dist  # Use current distance
-                            damping = 0.1
+                        # FIXED: Use realistic equilibrium distances, not current stretched distance
+                        if bond_type == 0:  # van der Waals - equilibrium ~3.0-3.5 Å = 1.5-1.75 units
+                            k_spring = 5.0  # Increased from 2.0 for stronger restoring force
+                            rest_len = PARTICLE_RADIUS_COMPILE * 3.0  # Realistic vdW equilibrium distance
+                            damping = 0.15  # Increased from 0.1
                             strength = 5.0
-                        elif bond_type == 1:  # covalent
-                            k_spring = 10.0
-                            rest_len = dist * 0.9  # Slightly shorter
-                            damping = 0.2
+                        elif bond_type == 1:  # covalent - equilibrium ~1.5-2.0 Å = 0.75-1.0 units
+                            k_spring = 20.0  # Increased from 10.0 for much stronger covalent bonds
+                            rest_len = PARTICLE_RADIUS_COMPILE * 2.0  # Realistic covalent bond length
+                            damping = 0.25  # Increased from 0.2
                             strength = 20.0
-                        elif bond_type == 2:  # H-bond
-                            k_spring = 5.0
-                            rest_len = dist * 1.1  # Slightly longer
-                            damping = 0.15
+                        elif bond_type == 2:  # H-bond - equilibrium ~2.5-3.0 Å = 1.25-1.5 units
+                            k_spring = 8.0  # Increased from 5.0
+                            rest_len = PARTICLE_RADIUS_COMPILE * 2.5  # Realistic H-bond distance
+                            damping = 0.2  # Increased from 0.15
                             strength = 10.0
                         else:  # metallic or other
-                            k_spring = 7.0
-                            rest_len = dist
-                            damping = 0.25
+                            k_spring = 10.0  # Increased from 7.0
+                            rest_len = PARTICLE_RADIUS_COMPILE * 2.5  # Realistic metallic bond distance
+                            damping = 0.3  # Increased from 0.25
                             strength = 15.0
                         
                         # Check valence constraints BEFORE forming bond
@@ -309,8 +310,11 @@ def should_form_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     # Default: no bond
     bond_type = -1
     
-    # SCIENTIFICALLY CALIBRATED: 6.8× radius = 3.4 Å (literature: vdW C-C = 3.40 Å, Bondi 1964)
-    if r <= PARTICLE_RADIUS_COMPILE * 6.8:  # INCREASED from 6.5 - realistic vdW contact distance
+    # FIXED: Reduced formation distance to prevent stretched bonds
+    # Bonds should form at realistic distances close to equilibrium lengths
+    # vdW: ~3.0 Å = 1.5 units, covalent: ~1.5-2.0 Å = 0.75-1.0 units
+    max_formation_dist = PARTICLE_RADIUS_COMPILE * 3.5  # Reduced from 6.8 - prevents over-stretched bonds (1.75 units max)
+    if r <= max_formation_dist:
         # Calculate binding probability
         binding_probability = calculate_binding_probability(i, j, positions, attributes)
         
@@ -360,12 +364,25 @@ def should_break_bond_func(i: ti.i32, j: ti.i32, positions: ti.template(),
     bond_type = bond_type_field[i, j]
     
     # Condition 1: Overload - too much stretch/compression
+    # FIXED: Realistic strain threshold - bonds break at 30-50% stretch, not 300%!
     strain = ti.abs(r - rest_len) / ti.max(rest_len, 0.1)
-    if strain > 3.0:  # 300% strain threshold (MUCH more stable bonds - was 2.0)
+    max_strain = 0.5  # 50% strain threshold (realistic for most bonds)
+    if bond_type == 0:  # vdW - more flexible
+        max_strain = 0.8  # 80% strain
+    elif bond_type == 1:  # covalent - less flexible
+        max_strain = 0.3  # 30% strain
+    elif bond_type == 2:  # H-bond - medium flexibility
+        max_strain = 0.6  # 60% strain
+    
+    if strain > max_strain:
         result = 1
     
     # Condition 2: Distance too large (safety check)
-    if r > PARTICLE_RADIUS_COMPILE * 5.0:
+    # FIXED: Break bonds if they exceed realistic maximum distances
+    max_distance = PARTICLE_RADIUS_COMPILE * 4.0  # Reduced from 5.0
+    if bond_type == 1:  # covalent bonds should be shorter
+        max_distance = PARTICLE_RADIUS_COMPILE * 3.0
+    if r > max_distance:
         result = 1
     
     # Condition 3: Aging - probabilistic breaking for old bonds
