@@ -24,7 +24,7 @@ pandas>=2.0.0
 scikit-learn>=1.3.0
 
 # Chemistry matcher (PubChem integration)
-rdkit-pypi>=2022.9.5
+rdkit>=2024.0.0  # Use 'rdkit' package (works on Windows), not 'rdkit-pypi'
 requests>=2.32.0
 Pillow>=10.4.0
 watchdog>=4.0.0
