@@ -23,10 +23,10 @@ ps aux | grep 'run_phase2_full.py' | grep -v grep | while read line; do
         CMDLINE=$(cat "/proc/$PID/cmdline" | tr '\0' ' ')
         echo "    $CMDLINE"
         
-        # Extract key information
-        OUTPUT_DIR=$(echo "$CMDLINE" | grep -oE "--output[= ][^ ]+" | sed 's/--output[= ]//')
-        CONFIG=$(echo "$CMDLINE" | grep -oE "--config[= ][^ ]+" | sed 's/--config[= ]//')
-        SEED=$(echo "$CMDLINE" | grep -oE "--seed[= ][^ ]+" | sed 's/--seed[= ]//')
+        # Extract key information using sed instead of grep
+        OUTPUT_DIR=$(echo "$CMDLINE" | sed -n 's/.*--output[= ]\([^ ]*\).*/\1/p')
+        CONFIG=$(echo "$CMDLINE" | sed -n 's/.*--config[= ]\([^ ]*\).*/\1/p')
+        SEED=$(echo "$CMDLINE" | sed -n 's/.*--seed[= ]\([^ ]*\).*/\1/p')
         
         echo "  Extracted:"
         [ -n "$OUTPUT_DIR" ] && echo "    Output: $OUTPUT_DIR"
