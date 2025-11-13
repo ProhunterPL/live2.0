@@ -44,16 +44,24 @@ for PID in 73085 76917 79713 79914 80149; do
         AGE_MIN=$(( (NOW - LAST_MOD) / 60 ))
         
         # Determine status
-        if [ "$STATE" = "S" ] && [ "${CPU%.*}" -gt 100 ]; then
-            if [ "$AGE_MIN" -gt 60 ]; then
-                STATUS="🚨 STUCK"
-                STUCK_COUNT=$((STUCK_COUNT + 1))
-            else
-                STATUS="⚠️  SUSPICIOUS"
-            fi
-        elif [ "$STATE" = "R" ]; then
+        if [ "$STATE" = "R" ]; then
+            # Running state = definitely active
             STATUS="✅ ACTIVE"
             ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
+        elif [ "$STATE" = "S" ] && [ "${CPU%.*}" -gt 100 ]; then
+            # Sleeping with high CPU - check log age
+            if [ "$AGE_MIN" -gt 60 ]; then
+                # Old log (>1h) + sleeping + high CPU = stuck
+                STATUS="🚨 STUCK"
+                STUCK_COUNT=$((STUCK_COUNT + 1))
+            elif [ "$AGE_MIN" -gt 10 ]; then
+                # Medium age (10-60min) = suspicious but might be buffering
+                STATUS="⚠️  SUSPICIOUS"
+            else
+                # Recent log (<10min) = likely active, just sleeping (normal for Taichi)
+                STATUS="✅ ACTIVE (sleeping)"
+                ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
+            fi
         else
             STATUS="❓ UNKNOWN"
         fi
@@ -89,7 +97,9 @@ echo ""
 if [ "$STUCK_COUNT" -gt 0 ]; then
     echo "🚨 ACTION REQUIRED:"
     echo ""
-    echo "These processes are deadlocked (Ssl state + high CPU + old logs):"
+    echo "These processes are deadlocked (Ssl state + high CPU + old logs >60min):"
+    
+    STUCK_PIDS=()
     for PID in 73085 76917 79713 79914 80149; do
         RUN=${PROCESS_MAP[$PID]}
         STATE=$(ps -p $PID -o state= 2>/dev/null | tr -d ' ')
@@ -101,22 +111,31 @@ if [ "$STUCK_COUNT" -gt 0 ]; then
             NOW=$(date +%s)
             AGE_MIN=$(( (NOW - LAST_MOD) / 60 ))
             
+            # Only mark as stuck if: sleeping + high CPU + log >60min old
             if [ "$STATE" = "S" ] && [ "${CPU%.*}" -gt 100 ] && [ "$AGE_MIN" -gt 60 ]; then
                 echo "  - PID $PID ($RUN): CPU ${CPU}%, log ${AGE_MIN}min old"
+                STUCK_PIDS+=($PID)
             fi
         fi
     done
-    echo ""
-    echo "Kill command:"
-    echo "  kill -9 73085 76917 79713 79914 80149"
-    echo ""
-    echo "Or use smart kill script:"
-    echo "  bash aws_test/scripts/kill_stuck_smart.sh"
-    echo ""
-    echo "Then restart maintaining ≤5 processes:"
-    echo "  bash aws_test/scripts/auto_queue_restart.sh"
+    
+    if [ ${#STUCK_PIDS[@]} -gt 0 ]; then
+        echo ""
+        echo "Kill ONLY stuck processes:"
+        echo "  kill -9 ${STUCK_PIDS[*]}"
+        echo ""
+        echo "⚠️  DO NOT kill active processes (run_5 is running!)"
+        echo ""
+        echo "After killing, restart maintaining ≤5 processes:"
+        echo "  bash aws_test/scripts/auto_queue_restart.sh"
+    else
+        echo "  (No processes match strict stuck criteria)"
+    fi
 else
     echo "✅ All processes appear to be active!"
+    echo ""
+    echo "Note: Processes in 'S' state with recent logs (<10min) are likely active,"
+    echo "just sleeping (normal for Taichi parallel execution)."
 fi
 
 echo "=================================================================================="
