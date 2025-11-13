@@ -1059,13 +1059,16 @@ class Live2Server:
             
             if not simulation.is_paused:
                 try:
+                    # Log every 100 steps to track progress
+                    if simulation.step_count % 100 == 0:
+                        logger.info(f"[API] Simulation {simulation_id}: calling step() at step {simulation.step_count}")
                     simulation.step()
                     step_count += 1
                     # Log every 100 steps to avoid spam
                     if simulation.step_count % 100 == 0:
-                        logger.info(f"Simulation {simulation_id}: step {simulation.step_count}, time {simulation.current_time:.3f}")
+                        logger.info(f"[API] Simulation {simulation_id}: step {simulation.step_count} completed, time {simulation.current_time:.3f}")
                 except Exception as e:
-                    logger.error(f"Error in simulation step for {simulation_id}: {e}")
+                    logger.error(f"[API] Error in simulation step for {simulation_id}: {e}")
                     import traceback
                     traceback.print_exc()
                     break

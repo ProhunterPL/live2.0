@@ -496,13 +496,21 @@ class SimulationStepper:
                 # OPTIMIZATION: Update bonds every 600 steps - STAGGERED to avoid overlaps
                 # Offset by 100 to not coincide with other heavy operations
                 if (self.step_count - 100) % 600 == 0:
-                    self.binding.update_bonds(
-                        self.particles.positions,
-                        self.particles.attributes,
-                        self.particles.active,
-                        self.particles.particle_count[None],
-                        dt
-                    )
+                    logger.info(f"[STEP {self.step_count}] Starting bond update...")
+                    try:
+                        self.binding.update_bonds(
+                            self.particles.positions,
+                            self.particles.attributes,
+                            self.particles.active,
+                            self.particles.particle_count[None],
+                            dt
+                        )
+                        logger.info(f"[STEP {self.step_count}] Bond update completed")
+                    except Exception as e:
+                        logger.error(f"[STEP {self.step_count}] ERROR in bond update: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        raise
                 
                 # OPTIMIZATION: Update clusters - now configurable via config
                 # Read interval from config (default 1200 if not specified)
@@ -601,7 +609,8 @@ class SimulationStepper:
         # End performance timing
         step_time = self.performance_monitor.end_step_timing()
         perf_log_interval = getattr(self.config, 'performance_log_interval', 1000)
-        if perf_log_interval > 0 and self.step_count % perf_log_interval == 0:
+        # Also log every 100 steps for debugging if simulation seems stuck
+        if perf_log_interval > 0 and (self.step_count % perf_log_interval == 0 or self.step_count % 100 == 0):
             logger.info(f"Step {self.step_count} completed in {step_time*1000:.1f}ms")
 
         # Update energy conservation monitoring
