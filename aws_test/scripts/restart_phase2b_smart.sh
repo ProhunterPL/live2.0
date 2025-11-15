@@ -52,8 +52,8 @@ for run_id in "${RUNS_TO_CHECK[@]}"; do
         continue
     fi
     
-    # Check if already running
-    if ps aux | grep "run_phase2_full.py" | grep "run_${run_id}" | grep -v grep > /dev/null; then
+    # Check if already running (match exact run_X in output path)
+    if ps aux | grep "run_phase2_full.py" | grep "run_${run_id}\b" | grep -v grep > /dev/null; then
         echo "⏭️  run_${run_id}: Already running"
         SKIPPED=$((SKIPPED + 1))
         continue
@@ -126,8 +126,10 @@ if [ "$TOTAL_RUNNING" -gt 0 ]; then
     echo "📋 Currently running:"
     ps aux | grep "run_phase2_full.py" | grep "miller_urey_extended" | grep -v grep | while read line; do
         PID=$(echo "$line" | awk '{print $2}')
-        RUN=$(echo "$line" | grep -oP "run_\K[0-9]+")
-        echo "   - run_${RUN} (PID $PID)"
+        RUN=$(echo "$line" | grep -oP "miller_urey_extended/run_\K[0-9]+" | head -1)
+        if [ -n "$RUN" ]; then
+            echo "   - run_${RUN} (PID $PID)"
+        fi
     done
     echo ""
 fi
@@ -137,7 +139,7 @@ INCOMPLETE=0
 echo "📝 Still incomplete:"
 for i in {1..18}; do
     if [ ! -f "$RESULTS_DIR/run_${i}/results.json" ]; then
-        if ! ps aux | grep "run_phase2_full.py" | grep "run_${i}" | grep -v grep > /dev/null; then
+        if ! ps aux | grep "run_phase2_full.py" | grep "run_${i}\b" | grep -v grep > /dev/null; then
             echo "   - run_${i}"
             INCOMPLETE=$((INCOMPLETE + 1))
         fi

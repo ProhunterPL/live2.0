@@ -29,8 +29,10 @@ echo ""
 if [ "$RUNNING" -gt 0 ]; then
     echo "📋 Running processes:"
     for i in {1..18}; do
-        if ps aux | grep "run_phase2_full.py" | grep "run_${i}" | grep -v grep > /dev/null; then
-            PID=$(ps aux | grep "run_phase2_full.py" | grep "run_${i}" | grep -v grep | awk '{print $2}')
+        # Check if process exists for this specific run (match exact run_X in output path)
+        PROC_LINE=$(ps aux | grep "run_phase2_full.py" | grep -v grep | grep "run_${i}\b")
+        if [ -n "$PROC_LINE" ]; then
+            PID=$(echo "$PROC_LINE" | head -1 | awk '{print $2}')
             
             # Get latest step from log
             LOG_FILE="$RESULTS_DIR/run_${i}/simulation.log"
