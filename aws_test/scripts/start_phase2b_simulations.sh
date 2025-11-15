@@ -40,13 +40,11 @@ echo ""
 if [ "$AUTO_RESTART" -eq 0 ]; then
     echo "🔄 Auto-restart script is NOT running"
     echo ""
-    echo "Options:"
-    echo "  1. Start auto_queue_restart (recommended - manages queue automatically)"
-    echo "  2. Start simulations manually (start 5 runs now)"
-    echo ""
-    read -p "Choose option (1 or 2): " OPTION
     
-    if [ "$OPTION" = "1" ]; then
+    # Default to option 2 (manual start) if no input
+    OPTION="${1:-2}"
+    
+    if [ "$OPTION" = "1" ] || [ "$OPTION" = "auto" ]; then
         echo ""
         echo "Starting auto_queue_restart..."
         
