@@ -5,12 +5,17 @@ Basic functionality verification for Phase 0
 """
 
 import pytest
+import os
 import requests
 import time
 
 API_BASE = "http://localhost:8001"
 
 @pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("CI") == "true",
+    reason="Backend connectivity test requires running API server"
+)
 def test_backend_connectivity():
     """Test basic backend connectivity"""
     print("="*60)

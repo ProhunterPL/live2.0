@@ -6,6 +6,8 @@ Tests that PotentialSystem correctly loads and uses PhysicsDatabase.
 """
 
 import sys
+import os
+import pytest
 from pathlib import Path
 
 # Add backend to path
@@ -15,6 +17,19 @@ from backend.sim.config import SimulationConfig
 from backend.sim.core.potentials import PotentialSystem
 from backend.sim.core.physics_db import PhysicsDatabase
 import taichi as ti
+
+# Check if physics database file exists
+PHYSICS_DB_PATH = Path(__file__).parent.parent / 'data' / 'physics_parameters.json'
+PHYSICS_DB_AVAILABLE = PHYSICS_DB_PATH.exists()
+
+# Mark all tests as integration and skip if DB file not available
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not PHYSICS_DB_AVAILABLE,
+        reason="Physics database file not found (data/physics_parameters.json)"
+    )
+]
 
 def test_physics_db_loading():
     """Test that PhysicsDatabase loads successfully"""
