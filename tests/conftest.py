@@ -51,3 +51,18 @@ def taichi_test():
     # Only reset at session end via taichi_session fixture
     pass
 
+def pytest_collection_modifyitems(config, items):
+    """Skip tests that require RDKit if it's not available"""
+    # Check if RDKit is available
+    try:
+        import rdkit
+        rdkit_available = True
+    except ImportError:
+        rdkit_available = False
+    
+    # Skip tests in test_matcher_v2.py if RDKit not available
+    for item in items:
+        if 'test_matcher_v2' in str(item.fspath) and not rdkit_available:
+            skip_marker = pytest.mark.skip(reason="RDKit not available")
+            item.add_marker(skip_marker)
+
