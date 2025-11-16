@@ -57,20 +57,22 @@ class TestPerformanceRequirements(unittest.TestCase):
         # Create bonds
         start_time = time.time()
         
-        num_bonds = 50
-        for i in range(num_bonds):
-            particle_i = i % 25  # Create bonds between first 25 particles
-            particle_j = (i + 1) % 25
+        # Create bonds between first 25 particles in a chain
+        # This creates 24 unique bonds (0-1, 1-2, ..., 23-24)
+        num_unique_bonds = 24
+        for i in range(num_unique_bonds):
+            particle_i = i
+            particle_j = i + 1
             binding.form_bond(particle_i, particle_j)
         
         binding_time = time.time() - start_time
         
-        # Should create 50 bonds quickly
+        # Should create bonds quickly
         self.assertLess(binding_time, 0.1)
         
-        # Test bond retrieval
+        # Test bond retrieval (get_bonds returns unique bonds only)
         bonds = binding.get_bonds()
-        self.assertEqual(len(bonds), num_bonds)
+        self.assertEqual(len(bonds), num_unique_bonds)
     
     def test_graph_computation_performance(self):
         """Test molecular graph computation performance"""

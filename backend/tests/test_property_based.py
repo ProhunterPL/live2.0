@@ -27,8 +27,8 @@ class TestInvariants:
             grid_height=64,
             dt=0.01,
             mode="open_chemistry",
-            pulse_every=0,  # No pulses
-            pulse_amplitude=0.0
+            pulse_every=999999,  # Very infrequent pulses (effectively disabled)
+            pulse_amplitude=0.001  # Minimal amplitude (effectively disabled)
         )
         
         particles = ParticleSystem(config)
@@ -40,7 +40,7 @@ class TestInvariants:
             pos = ti.Vector([i * 2.0, i * 2.0])
             vel = ti.Vector([0.1, 0.1])
             attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-            particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+            particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Calculate initial energy
         initial_energy = self._calculate_total_energy(particles, potentials, energy)
@@ -77,7 +77,7 @@ class TestInvariants:
             pos = ti.Vector([i * 1.0, i * 1.0])
             vel = ti.Vector([0.0, 0.0])
             attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-            particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+            particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Run simulation
         for _ in range(50):
@@ -106,7 +106,7 @@ class TestInvariants:
             pos = ti.Vector([i * 2.0, i * 2.0])
             vel = ti.Vector([0.0, 0.0])
             attr = ti.Vector([mass, 0.0, 0.0, 0.0])  # First component is mass
-            particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+            particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Run simulation
         for _ in range(30):
@@ -155,8 +155,8 @@ class TestLocality:
         vel = ti.Vector([0.0, 0.0])
         attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
         
-        particles.add_particle(pos1, vel, attr, 0, 2, 1.0)
-        particles.add_particle(pos2, vel, attr, 0, 2, 1.0)
+        particles.add_particle_py(pos1, vel, attr, 0, 2, 1.0)
+        particles.add_particle_py(pos2, vel, attr, 0, 2, 1.0)
         
         # Compute forces
         potentials.compute_forces(particles)
@@ -186,7 +186,7 @@ class TestLocality:
                 pos = ti.Vector([i * 3.0, j * 3.0])
                 vel = ti.Vector([0.0, 0.0])
                 attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-                particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+                particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Build neighbor lists
         particles.update_neighbor_lists()
@@ -222,7 +222,7 @@ class TestNumericalStability:
             pos = ti.Vector([i * 1.0, i * 1.0])
             vel = ti.Vector([i * 0.1, i * 0.1])  # Increasing velocity
             attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-            particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+            particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Run simulation and check timestep adaptation
         for _ in range(20):
@@ -256,7 +256,7 @@ class TestNumericalStability:
             pos = ti.Vector([i * 1.0, i * 1.0])
             vel = ti.Vector([10.0, 10.0])  # High velocity
             attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-            particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+            particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Run simulation
         for _ in range(10):
@@ -287,7 +287,7 @@ class TestNumericalStability:
             pos = ti.Vector([i * 2.0, i * 2.0])
             vel = ti.Vector([0.1, 0.1])
             attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-            particles.add_particle(pos, vel, attr, 0, 2, 1.0)
+            particles.add_particle_py(pos, vel, attr, 0, 2, 1.0)
         
         # Run simulation
         for _ in range(50):
