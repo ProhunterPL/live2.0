@@ -79,12 +79,12 @@ Po każdym pushu do main lub utworzeniu PR, GitHub automatycznie:
 ## 🐛 Troubleshooting
 
 ### Testy failują lokalnie ale nie w CI
-- Sprawdź czy używasz `TI_ARCH=cpu` dla Taichi
+- Taichi jest automatycznie inicjalizowany w trybie CPU przez `conftest.py`
 - Upewnij się że masz te same wersje zależności: `pip install -r requirements.txt`
 
 ### Testy failują w CI ale nie lokalnie
 - CI używa Ubuntu, lokalnie może być Windows/Mac
-- CI nie ma GPU, sprawdź czy test wymaga CPU mode
+- CI nie ma GPU - `conftest.py` automatycznie używa CPU mode
 - Sprawdź logi w zakładce "Actions" w GitHub
 
 ### RDKit installation issues

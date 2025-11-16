@@ -41,25 +41,18 @@ jobs:
         else
           pip install -r requirements.txt
         fi
-        
-    - name: Setup Taichi for CPU
-      run: |
-        export TI_ARCH=cpu
-        echo "TI_ARCH=cpu" >> $GITHUB_ENV
     
     - name: Run backend unit tests
       working-directory: backend
       run: |
         pytest tests/ -v -m "not slow" --tb=short --color=yes --maxfail=5
       env:
-        TI_ARCH: cpu
         PYTHONPATH: ${{ github.workspace }}/backend
     
     - name: Run root tests (quick only)
       run: |
         pytest tests/ -v -k "not stability and not 24h" --tb=short --color=yes --maxfail=5
       env:
-        TI_ARCH: cpu
         PYTHONPATH: ${{ github.workspace }}
     
     - name: Upload test results
@@ -108,7 +101,6 @@ jobs:
       run: |
         pytest tests/ -v -m "integration" --tb=short --color=yes
       env:
-        TI_ARCH: cpu
         PYTHONPATH: ${{ github.workspace }}/backend
     
     - name: Upload integration test results

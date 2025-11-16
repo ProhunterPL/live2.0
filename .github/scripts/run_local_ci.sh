@@ -21,8 +21,7 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
-# Ustaw Taichi na CPU mode
-export TI_ARCH=cpu
+# Ustaw PYTHONPATH (Taichi będzie zainicjalizowany przez conftest.py)
 export PYTHONPATH=$(pwd)
 
 echo -e "${YELLOW}📦 Step 1: Checking dependencies...${NC}"

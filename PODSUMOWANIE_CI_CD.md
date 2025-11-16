@@ -151,9 +151,9 @@ W README.md pojawił się badge pokazujący status testów:
 ## 🔧 Konfiguracja Specjalna dla Live 2.0
 
 ### Taichi w CPU Mode
-CI automatycznie ustawia:
-```bash
-export TI_ARCH=cpu
+Taichi jest automatycznie inicjalizowany w trybie CPU przez `conftest.py`:
+```python
+ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=1)
 ```
 
 ### Lżejsze Dependencies
@@ -190,7 +190,7 @@ Automatycznie pomijane w CI:
 
 **Rozwiązanie:**
 ```bash
-export TI_ARCH=cpu
+# Taichi automatycznie w CPU mode przez conftest.py
 pytest tests/ -v -m "not slow"
 ```
 

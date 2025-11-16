@@ -82,7 +82,7 @@ pytest --pdb                # Debugger przy failure
 
 ### "Test failed in CI but passes locally"
 ```bash
-export TI_ARCH=cpu
+# Taichi automatycznie inicjalizowany przez conftest.py
 pip install --force-reinstall -r requirements.txt
 pytest tests/ -v -m "not slow"
 ```
@@ -102,8 +102,7 @@ git add . && git commit -m "style: fix formatting"
 
 ### "Taichi error in CI"
 ```bash
-# CI zawsze używa CPU mode
-export TI_ARCH=cpu
+# CI zawsze używa CPU mode (automatycznie przez conftest.py)
 pytest tests/
 ```
 
@@ -155,15 +154,14 @@ git push origin feature/my-feature
 ## Environment Variables
 
 ```bash
-# Taichi CPU mode (required for CI)
-export TI_ARCH=cpu
-
 # Python path
 export PYTHONPATH=$(pwd)
 export PYTHONPATH=$(pwd)/backend
 
 # Pytest verbosity
 export PYTEST_CURRENT_TEST=1
+
+# Note: Taichi CPU mode is automatically set by conftest.py
 ```
 
 ## Badge dla README

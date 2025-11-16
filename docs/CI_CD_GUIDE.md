@@ -180,8 +180,8 @@ Ten skrypt uruchomi **dokładnie te same testy** co CI.
 
 #### Ustaw środowisko:
 ```bash
-export TI_ARCH=cpu
 export PYTHONPATH=$(pwd)
+# Taichi jest automatycznie inicjalizowany w CPU mode przez conftest.py
 ```
 
 #### Testy backend:
@@ -235,8 +235,7 @@ pytest -v -k "test_particle"
 
 **Rozwiązanie:**
 ```bash
-# Sprawdź czy używasz CPU mode
-export TI_ARCH=cpu
+# Taichi jest automatycznie inicjalizowany przez conftest.py
 
 # Reinstaluj zależności
 pip install --force-reinstall -r requirements.txt
@@ -393,7 +392,7 @@ tests/
 2. **Pobierz artefakty** (jeśli dostępne)
 3. **Odtwórz lokalnie**:
 ```bash
-export TI_ARCH=cpu
+# Taichi automatycznie w CPU mode przez conftest.py
 pytest -v --tb=long --capture=no
 ```
 4. **Fix i push**

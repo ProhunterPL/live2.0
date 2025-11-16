@@ -14,8 +14,7 @@ if (-not (Test-Path "requirements.txt")) {
     exit 1
 }
 
-# Ustaw Taichi na CPU mode
-$env:TI_ARCH = "cpu"
+# Ustaw PYTHONPATH (Taichi będzie zainicjalizowany przez conftest.py)
 $env:PYTHONPATH = $PWD
 
 Write-Host "📦 Step 1: Checking dependencies..." -ForegroundColor Yellow
