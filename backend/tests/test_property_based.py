@@ -240,7 +240,12 @@ class TestNumericalStability:
         # Run simulation and check timestep adaptation
         for _ in range(20):
             # Compute forces
-            potentials.compute_forces(particles)
+            potentials.compute_forces(
+                particles.positions,
+                particles.attributes,
+                particles.active,
+                int(particles.particle_count[None])
+            )
             
             # Use fixed timestep (adaptive timestep not implemented in v1)
             current_dt = config.dt
@@ -250,7 +255,8 @@ class TestNumericalStability:
             assert current_dt <= 1.0, f"dt should be reasonable: {current_dt}"
             
             # Integrate
-            particles.integrate_motion(current_dt)
+            particles.update_positions(current_dt)
+            particles.apply_forces(potentials.forces, current_dt)
     
     def test_velocity_clamping(self):
         """Test that velocities are clamped to prevent explosion"""
@@ -273,7 +279,7 @@ class TestNumericalStability:
         
         # Run simulation
         for _ in range(10):
-            particles.integrate_motion(config.dt)
+            particles.update_positions(config.dt)
         
         # Check that velocities are reasonable (no velocity clamping implemented in v1)
         for i in range(particles.particle_count[None]):
@@ -304,7 +310,7 @@ class TestNumericalStability:
         
         # Run simulation
         for _ in range(50):
-            particles.integrate_motion(config.dt)
+            particles.update_positions(config.dt)
         
         # Check that particles are within bounds (with periodic boundaries)
         for i in range(particles.particle_count[None]):
