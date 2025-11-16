@@ -51,7 +51,7 @@ def taichi_test():
     # Only reset at session end via taichi_session fixture
     pass
 
-def pytest_ignore_collect(path, config):
+def pytest_ignore_collect(collection_path, config):
     """Ignore test files that require RDKit if it's not available"""
     # Check if RDKit is available
     try:
@@ -61,7 +61,7 @@ def pytest_ignore_collect(path, config):
         rdkit_available = False
     
     # Skip test_matcher_v2.py if RDKit not available
-    if 'test_matcher_v2.py' in str(path) and not rdkit_available:
+    if 'test_matcher_v2.py' in str(collection_path) and not rdkit_available:
         return True
     
     return None  # Don't ignore other files
