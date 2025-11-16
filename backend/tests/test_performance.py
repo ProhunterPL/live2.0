@@ -19,7 +19,7 @@ class TestPerformanceRequirements(unittest.TestCase):
         """Set up test environment"""
         self.config = SimulationConfig()
         self.config.max_particles = 1000  # Reduced for testing
-        ti.init(arch=ti.cpu)  # Use CPU for consistent testing
+        # Taichi is initialized by conftest.py - don't reinitialize
     
     def test_particle_creation_performance(self):
         """Test particle creation is fast enough"""
