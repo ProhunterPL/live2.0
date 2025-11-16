@@ -4,6 +4,7 @@
 
 **GPU-accelerated emergent chemistry simulation with real-time molecular discovery**
 
+[![CI Tests](https://github.com/klawi/live2.0/workflows/CI%20Tests/badge.svg)](https://github.com/klawi/live2.0/actions)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![React](https://img.shields.io/badge/react-18+-61DAFB.svg)](https://reactjs.org/)
 [![FastAPI](https://img.shields.io/badge/fastapi-0.104+-009688.svg)](https://fastapi.tiangolo.com/)

@@ -1,0 +1,47 @@
+# Live 2.0 CI/CD Dependencies (lightweight version)
+# Use this for GitHub Actions to avoid heavy packages
+
+# Core simulation
+taichi==1.6.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# API and web
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+pydantic>=2.5.0
+
+# Data handling
+msgpack>=1.0.7
+h5py>=3.10.0
+networkx>=3.0
+psutil>=5.9.0
+
+# Visualization (lighter versions)
+matplotlib>=3.7.0
+pandas>=2.0.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+
+# Testing (essential)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+hypothesis>=6.92.0
+
+# Development tools
+black>=23.0.0
+isort>=5.12.0
+mypy>=1.7.0
+
+# Chemistry - RDKit excluded (install separately if needed)
+# rdkit>=2024.0.0
+requests>=2.32.0
+Pillow>=10.4.0
+watchdog>=4.0.0
+
+# Note: RDKit can be installed separately with:
+# pip install rdkit
+# This is excluded from CI by default as it's large and not needed for core tests
+
