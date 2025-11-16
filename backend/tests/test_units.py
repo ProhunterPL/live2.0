@@ -132,7 +132,7 @@ class TestConfiguration(unittest.TestCase):
         self.assertEqual(config.grid_height, 256)
         self.assertEqual(config.grid_width, 256)
         self.assertEqual(config.mode, "open_chemistry")
-        self.assertEqual(config.max_particles, 10000)
+        self.assertEqual(config.max_particles, 500)
         self.assertTrue(config.grid_height > 0)
         self.assertTrue(config.grid_width > 0)
         self.assertTrue(config.max_particles > 0)
