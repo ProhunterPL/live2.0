@@ -46,12 +46,8 @@ def taichi_session():
 def taichi_test():
     """Test-scoped fixture for Taichi cleanup between tests"""
     yield
-    # Reset Taichi state between tests to avoid field conflicts
-    try:
-        # Clear any existing fields
-        ti.reset()
-        # Re-initialize for next test
-        ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=1)
-    except:
-        pass
+    # Note: NOT resetting Taichi between tests to avoid threading issues
+    # Taichi doesn't handle resets well in multi-threaded environments (FastAPI)
+    # Only reset at session end via taichi_session fixture
+    pass
 
