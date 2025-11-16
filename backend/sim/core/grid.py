@@ -160,16 +160,20 @@ class Grid:
     @ti.kernel
     def add_particle(self, pos: ti.template(), attributes: ti.template()) -> ti.i32:
         """Add a particle to the grid. Returns particle index or -1 if failed"""
-        if self.particle_count[None] >= self.max_particles:  # Use configured max_particles
-            return -1
+        result: ti.i32 = -1
+        if self.particle_count[None] < self.max_particles:  # Use configured max_particles
+            idx = self.particle_count[None]
+            self.particle_positions[idx] = pos
+            self.particle_attributes[idx] = attributes
+            self.particle_active[idx] = 1
+            self.particle_count[None] += 1
+            result = idx
         
-        idx = self.particle_count[None]
-        self.particle_positions[idx] = pos
-        self.particle_attributes[idx] = attributes
-        self.particle_active[idx] = 1
-        self.particle_count[None] += 1
-        
-        return idx
+        return result
+    
+    def add_particle_py(self, pos, attributes) -> int:
+        """Python wrapper for add_particle kernel"""
+        return self.add_particle(pos, attributes)
     
     @ti.kernel
     def remove_particle(self, idx: ti.i32):

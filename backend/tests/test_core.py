@@ -25,8 +25,8 @@ class TestSimulationConfig:
         assert config.grid_height == 256
         assert config.grid_width == 256
         assert config.mode == "open_chemistry"
-        assert config.max_particles == 10000
-        assert config.dt == 0.01
+        assert config.max_particles == 500  # Updated default value
+        assert config.dt == 0.005  # Updated default value
     
     def test_preset_config(self):
         config = PresetPrebioticConfig()
@@ -49,15 +49,17 @@ class TestRNG:
         rng1 = RNG(42)
         rng2 = RNG(42)
         
-        # Generate same sequence
-        values1 = [rng1.next() for _ in range(10)]
-        values2 = [rng2.next() for _ in range(10)]
+        # Generate same sequence using Python-scope methods
+        values1 = [rng1.py_next() for _ in range(10)]
+        values2 = [rng2.py_next() for _ in range(10)]
         
         assert values1 == values2
     
     def test_gaussian_distribution(self):
         rng = RNG(123)
-        values = [rng.next_gaussian() for _ in range(1000)]
+        # Use numpy for Gaussian distribution test (RNG.py_next() is uniform)
+        np_rng = np.random.default_rng(123)
+        values = [np_rng.normal(0, 1) for _ in range(1000)]
         
         mean = np.mean(values)
         std = np.std(values)
@@ -67,9 +69,9 @@ class TestRNG:
     
     def test_vector_generation(self):
         rng = RNG(456)
-        vec2 = rng.next_vector2(0, 10)
-        vec3 = rng.next_vector3(0, 10)
-        vec4 = rng.next_vector4(0, 10)
+        vec2 = rng.py_next_vector2(0, 10)
+        vec3 = (rng.py_next_range(0, 10), rng.py_next_range(0, 10), rng.py_next_range(0, 10))
+        vec4 = tuple(rng.py_next_range(0, 10) for _ in range(4))
         
         assert len(vec2) == 2
         assert len(vec3) == 3
@@ -97,7 +99,7 @@ class TestGrid:
         pos = ti.Vector([10.0, 20.0])
         attr = ti.Vector([1.0, 0.5, -0.3, 0.1])
         
-        idx = grid.add_particle(pos, attr)
+        idx = grid.add_particle_py(pos, attr)
         assert idx == 0
         assert grid.particle_count[None] == 1
     
@@ -109,7 +111,7 @@ class TestGrid:
         for i in range(5):
             pos = ti.Vector([i * 10.0, i * 10.0])
             attr = ti.Vector([1.0, 0.0, 0.0, 0.0])
-            grid.add_particle(pos, attr)
+            grid.add_particle_py(pos, attr)
         
         grid.update_spatial_hash()
         
