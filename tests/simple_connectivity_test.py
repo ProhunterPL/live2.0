@@ -4,11 +4,13 @@ Simple connectivity test for Live 2.0 backend
 Basic functionality verification for Phase 0
 """
 
+import pytest
 import requests
 import time
 
 API_BASE = "http://localhost:8001"
 
+@pytest.mark.integration
 def test_backend_connectivity():
     """Test basic backend connectivity"""
     print("="*60)
@@ -23,7 +25,7 @@ def test_backend_connectivity():
             print("   OK Root endpoint working")
         else:
             print(f"   FAIL Root endpoint returned {response.status_code}")
-            return False
+            pytest.fail(f"Root endpoint failed with status {response.status_code}")
         
         # Test 2: List active simulations
         print("2. Testing simulations list...")
@@ -34,7 +36,7 @@ def test_backend_connectivity():
             sim_ids = data['simulations']
         else:
             print(f"   FAIL Simulations list returned {response.status_code}")
-            return False
+            pytest.fail(f"Simulations list failed with status {response.status_code}")
         
         # Test 3: Create small simulation
         print("3. Testing simulation creation...")
@@ -57,7 +59,7 @@ def test_backend_connectivity():
         else:
             print(f"   FAIL Simulation creation returned {response.status_code}")
             print(f"   Response: {response.text}")
-            return False
+            pytest.fail(f"Simulation creation failed with status {response.status_code}")
         
         # Test 4: Get simulation status
         print("4. Testing status retrieval...")
@@ -67,7 +69,7 @@ def test_backend_connectivity():
             print(f"   OK Status retrieved: {data['particle_count']} particles")
         else:
             print(f"   FAIL Status retrieval returned {response.status_code}")
-            return False
+            pytest.fail(f"Status retrieval failed with status {response.status_code}")
         
         # Test 5: Start simulation (with timeout tolerance)
         print("5. Testing simulation start...")
@@ -110,15 +112,16 @@ def test_backend_connectivity():
             print(f"INFO: Found {len(sim_ids)} existing simulation(s)")
             print(f"INFO: Backend is responding correctly")
             print(f"INFO: Basic API functionality verified")
-            return True
         else:
             print("INFO: No active simulations found")
             print("INFO: Backend connectivity OK")
-            return True
+        
+        # Test passed
+        assert True
             
     except Exception as e:
         print(f"\nERROR: {e}")
-        return False
+        pytest.fail(f"Backend connectivity test failed: {e}")
 
 if __name__ == "__main__":
     success = test_backend_connectivity()

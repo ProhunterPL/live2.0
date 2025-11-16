@@ -8,6 +8,9 @@ import json
 from fastapi.testclient import TestClient
 from api.server import app
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 client = TestClient(app)
 
 class TestSimulationAPI:
