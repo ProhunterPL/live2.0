@@ -43,7 +43,10 @@ if [ -n "$PID12" ]; then
         LAST_STEP12=$(grep -o "Step [0-9]* completed" "$LOG_FILE" 2>/dev/null | tail -1 | grep -o "[0-9]*")
         LOG_SIZE12=$(ls -lh "$LOG_FILE" | awk '{print $5}')
         LOG_TIME12=$(stat -c %y "$LOG_FILE" 2>/dev/null | cut -d'.' -f1)
-        LOG_AGE_HOURS12=$(($(date +%s) - $(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)) / 3600)
+        LOG_MTIME=$(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)
+        CURRENT_TIME=$(date +%s)
+        LOG_AGE_SECONDS=$((CURRENT_TIME - LOG_MTIME))
+        LOG_AGE_HOURS12=$((LOG_AGE_SECONDS / 3600))
         
         if [ -n "$LAST_STEP12" ]; then
             PROGRESS12=$((LAST_STEP12 * 100 / 500000))
@@ -130,7 +133,7 @@ if [ -n "$PID12" ]; then
     # Analysis
     echo ""
     echo "🔍 Analysis:"
-    if [ -n "$LAST_STEP12" ] && [ "$LAST_STEP12" -ge 490000 ]; then
+    if [ -n "$LAST_STEP12" ] && [ -n "$LOG_AGE_HOURS12" ] && [ "$LAST_STEP12" -ge 490000 ]; then
         echo "   🎯 Run 12 is VERY CLOSE to completion (${LAST_STEP12}/500,000)"
         echo "   💡 Process is still running - may be in final steps or extracting results"
         echo "   💡 High CPU (${CPU12}%) suggests active work"
@@ -176,7 +179,10 @@ else
         
         LAST_STEP4=$(grep -o "Step [0-9]* completed" "$LOG_FILE" 2>/dev/null | tail -1 | grep -o "[0-9]*")
         LOG_TIME4=$(stat -c %y "$LOG_FILE" 2>/dev/null | cut -d'.' -f1)
-        LOG_AGE_HOURS4=$(($(date +%s) - $(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)) / 3600)
+        LOG_MTIME=$(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)
+        CURRENT_TIME=$(date +%s)
+        LOG_AGE_SECONDS=$((CURRENT_TIME - LOG_MTIME))
+        LOG_AGE_HOURS4=$((LOG_AGE_SECONDS / 3600))
         
         if [ -n "$LAST_STEP4" ]; then
             PROGRESS4=$((LAST_STEP4 * 100 / 500000))

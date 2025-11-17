@@ -41,7 +41,10 @@ for run_num in {1..18}; do
         [ ! -f "$LOG_FILE" ] && LOG_FILE="$RUN_DIR/simulation_restart.log"
         
         if [ -f "$LOG_FILE" ]; then
-            LOG_AGE_HOURS=$(($(date +%s) - $(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)) / 3600)
+            LOG_MTIME=$(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)
+            CURRENT_TIME=$(date +%s)
+            LOG_AGE_SECONDS=$((CURRENT_TIME - LOG_MTIME))
+            LOG_AGE_HOURS=$((LOG_AGE_SECONDS / 3600))
             
             # If log is >48h old and CPU is low, consider it stuck
             if [ "$LOG_AGE_HOURS" -ge 48 ] && (( $(echo "$CPU < 50" | bc -l) )); then

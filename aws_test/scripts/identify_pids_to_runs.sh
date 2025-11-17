@@ -24,16 +24,16 @@ for PID in "${PIDS[@]}"; do
     
     CMDLINE=$(cat "/proc/$PID/cmdline" | tr '\0' ' ')
     
-    # Extract output directory
-    OUTPUT_DIR=$(echo "$CMDLINE" | grep -oP '--output\s+\K[^\s]+' || echo "")
+    # Extract output directory using sed (more compatible than grep -P)
+    OUTPUT_DIR=$(echo "$CMDLINE" | sed -n 's/.*--output[[:space:]]\([^[:space:]]*\).*/\1/p' || echo "")
     
     if [ -z "$OUTPUT_DIR" ]; then
         echo "⚠️  PID $PID: Could not extract output directory"
         continue
     fi
     
-    # Extract run number
-    RUN_NUM=$(echo "$OUTPUT_DIR" | grep -oP 'run_\K[0-9]+' || echo "")
+    # Extract run number using sed
+    RUN_NUM=$(echo "$OUTPUT_DIR" | sed -n 's/.*run_\([0-9]*\).*/\1/p' || echo "")
     
     if [ -z "$RUN_NUM" ]; then
         echo "⚠️  PID $PID: Could not extract run number from: $OUTPUT_DIR"
@@ -69,7 +69,10 @@ for PID in "${PIDS[@]}"; do
     if [ -f "$LOG_FILE" ]; then
         LAST_STEP=$(grep -o "Step [0-9,]*" "$LOG_FILE" 2>/dev/null | tail -1 | tr -d ',' | grep -o "[0-9]*")
         LOG_TIME=$(stat -c %y "$LOG_FILE" 2>/dev/null | cut -d'.' -f1)
-        LOG_AGE_HOURS=$(($(date +%s) - $(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)) / 3600)
+        LOG_MTIME=$(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)
+        CURRENT_TIME=$(date +%s)
+        LOG_AGE_SECONDS=$((CURRENT_TIME - LOG_MTIME))
+        LOG_AGE_HOURS=$((LOG_AGE_SECONDS / 3600))
         
         if [ -n "$LAST_STEP" ]; then
             PROGRESS=$((LAST_STEP * 100 / 500000))
@@ -120,8 +123,8 @@ for PID in "${PIDS[@]}"; do
     fi
     
     CMDLINE=$(cat "/proc/$PID/cmdline" | tr '\0' ' ')
-    OUTPUT_DIR=$(echo "$CMDLINE" | grep -oP '--output\s+\K[^\s]+' || echo "")
-    RUN_NUM=$(echo "$OUTPUT_DIR" | grep -oP 'run_\K[0-9]+' || echo "")
+    OUTPUT_DIR=$(echo "$CMDLINE" | sed -n 's/.*--output[[:space:]]\([^[:space:]]*\).*/\1/p' || echo "")
+    RUN_NUM=$(echo "$OUTPUT_DIR" | sed -n 's/.*run_\([0-9]*\).*/\1/p' || echo "")
     
     if [ -n "$RUN_NUM" ]; then
         RUN_DIR="$RESULTS_DIR/run_$RUN_NUM"
@@ -139,8 +142,8 @@ for PID in "${PIDS[@]}"; do
     fi
     
     CMDLINE=$(cat "/proc/$PID/cmdline" | tr '\0' ' ')
-    OUTPUT_DIR=$(echo "$CMDLINE" | grep -oP '--output\s+\K[^\s]+' || echo "")
-    RUN_NUM=$(echo "$OUTPUT_DIR" | grep -oP 'run_\K[0-9]+' || echo "")
+    OUTPUT_DIR=$(echo "$CMDLINE" | sed -n 's/.*--output[[:space:]]\([^[:space:]]*\).*/\1/p' || echo "")
+    RUN_NUM=$(echo "$OUTPUT_DIR" | sed -n 's/.*run_\([0-9]*\).*/\1/p' || echo "")
     
     if [ -n "$RUN_NUM" ]; then
         RUN_DIR="$RESULTS_DIR/run_$RUN_NUM"
@@ -152,7 +155,10 @@ for PID in "${PIDS[@]}"; do
         [ ! -f "$LOG_FILE" ] && LOG_FILE="$RUN_DIR/simulation_restart.log"
         
         if [ -f "$LOG_FILE" ]; then
-            LOG_AGE_HOURS=$(($(date +%s) - $(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)) / 3600)
+            LOG_MTIME=$(stat -c %Y "$LOG_FILE" 2>/dev/null || echo 0)
+            CURRENT_TIME=$(date +%s)
+            LOG_AGE_SECONDS=$((CURRENT_TIME - LOG_MTIME))
+            LOG_AGE_HOURS=$((LOG_AGE_SECONDS / 3600))
             CPU=$(ps -p $PID -o %cpu= 2>/dev/null | tr -d ' ')
             
             if [ "$LOG_AGE_HOURS" -ge 24 ] && (( $(echo "$CPU < 100" | bc -l) )); then
