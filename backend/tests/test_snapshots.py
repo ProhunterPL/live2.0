@@ -206,6 +206,13 @@ class TestSnapshotAPI(unittest.TestCase):
                 return {"test": "stats"}
         
         class MockCatalog:
+            def __init__(self):
+                self.substances = {}
+                self.discovery_timeline = []
+                self.novelty_rate_history = []
+                self.total_discoveries = 0
+                self.novel_discoveries = 0
+            
             def get_catalog_stats(self):
                 return {"test": "catalog"}
         
