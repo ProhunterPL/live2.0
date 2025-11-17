@@ -344,10 +344,22 @@ class SnapshotSerializer:
             metrics = simulation.aggregator.get_aggregated_stats()
             print(f"DEBUG: Got metrics: {list(metrics.keys())}")
             
-            # Get catalog data
+            # Get catalog data (full catalog with timeline)
             print(f"DEBUG: Getting catalog stats...")
             catalog_stats = simulation.catalog.get_catalog_stats()
             print(f"DEBUG: Got catalog stats: {list(catalog_stats.keys())}")
+            
+            # Serialize full catalog including substances and timeline
+            print(f"DEBUG: Serializing catalog substances and timeline...")
+            catalog_full = {
+                'substances': {canonical_form: record.to_dict() 
+                              for canonical_form, record in simulation.catalog.substances.items()},
+                'discovery_timeline': simulation.catalog.discovery_timeline,
+                'novelty_rate_history': simulation.catalog.novelty_rate_history,
+                'total_discoveries': simulation.catalog.total_discoveries,
+                'novel_discoveries': simulation.catalog.novel_discoveries
+            }
+            print(f"DEBUG: Serialized {len(catalog_full['substances'])} substances, {len(catalog_full['discovery_timeline'])} timeline entries")
             
             # Combine all data
             print(f"DEBUG: Combining snapshot data...")
@@ -365,6 +377,7 @@ class SnapshotSerializer:
                 "novel_substances": novel_substances,
                 "metrics": metrics,
                 "catalog_stats": catalog_stats,
+                "catalog_full": catalog_full,  # Include full catalog data
                 "timestamp": time.time()
             }
             
@@ -452,9 +465,33 @@ class SnapshotSerializer:
         energy_field = np.array(snapshot_data["energy_field"])
         simulation.energy_manager.energy_system.energy_field.from_numpy(energy_field)
         
-        # Load catalog
+        # Load catalog (full restoration with timeline)
         simulation.catalog.clear()
-        # Note: Full catalog restoration would require more complex serialization
+        
+        if "catalog_full" in snapshot_data:
+            print(f"DEBUG: Restoring full catalog...")
+            catalog_data = snapshot_data["catalog_full"]
+            
+            # Restore substances
+            from sim.core.catalog import SubstanceRecord
+            for canonical_form, substance_dict in catalog_data.get('substances', {}).items():
+                try:
+                    record = SubstanceRecord.from_dict(substance_dict)
+                    simulation.catalog.substances[canonical_form] = record
+                    # Also add to graph catalog
+                    simulation.catalog.graph_catalog.add_graph(record.graph, record.timestamp)
+                except Exception as e:
+                    print(f"WARNING: Failed to restore substance {canonical_form}: {e}")
+            
+            # Restore timeline and statistics
+            simulation.catalog.discovery_timeline = catalog_data.get('discovery_timeline', [])
+            simulation.catalog.novelty_rate_history = catalog_data.get('novelty_rate_history', [])
+            simulation.catalog.total_discoveries = catalog_data.get('total_discoveries', 0)
+            simulation.catalog.novel_discoveries = catalog_data.get('novel_discoveries', 0)
+            
+            print(f"DEBUG: Restored {len(simulation.catalog.substances)} substances, {len(simulation.catalog.discovery_timeline)} timeline entries")
+        else:
+            print(f"DEBUG: No catalog_full data in snapshot, catalog will be empty")
         
         # Update metrics
         simulation.update_metrics()
