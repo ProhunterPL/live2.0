@@ -50,7 +50,8 @@ class Phase2FullRunner:
                  output_dir: str,
                  max_steps: int = 10000000,
                  seed: int = 42,
-                 force_cpu: bool = False):
+                 force_cpu: bool = False,
+                 cpu_threads: int = None):
         """
         Initialize Phase 2 runner
         
@@ -60,12 +61,14 @@ class Phase2FullRunner:
             max_steps: Maximum simulation steps
             seed: Random seed
             force_cpu: Force CPU mode (skip GPU detection)
+            cpu_threads: Number of CPU threads to use (default: all available cores)
         """
         self.config_path = Path(config_path)
         self.output_dir = Path(output_dir)
         self.max_steps = max_steps
         self.seed = seed
         self.force_cpu = force_cpu
+        self.cpu_threads = cpu_threads
         
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -243,19 +246,30 @@ class Phase2FullRunner:
         return count
     
     def initialize_taichi(self):
-        """Initialize Taichi - Try GPU first, fallback to CPU with all available cores"""
+        """Initialize Taichi - Try GPU first, fallback to CPU with specified threads"""
         logger.info("Initializing Taichi...")
         
         # Get available CPU cores
         available_cores = multiprocessing.cpu_count()
         logger.info(f"Available CPU cores: {available_cores}")
         
+        # Determine number of threads to use
+        if self.cpu_threads is not None:
+            num_threads = min(self.cpu_threads, available_cores)
+            logger.info(f"Using {num_threads} CPU threads (requested: {self.cpu_threads}, available: {available_cores})")
+        else:
+            num_threads = available_cores
+            logger.info(f"Using ALL {num_threads} CPU threads (no limit specified)")
+        
         # Force CPU mode if requested (useful for AWS instances without GPU)
         if self.force_cpu:
             logger.info("Force CPU mode enabled - skipping GPU detection")
-            ti.init(arch=ti.cpu, cpu_max_num_threads=available_cores)
-            logger.info(f"✅ Using CPU with ALL {available_cores} threads")
-            logger.info(f"   This will utilize all {available_cores} CPU cores for maximum performance")
+            ti.init(arch=ti.cpu, cpu_max_num_threads=num_threads)
+            logger.info(f"✅ Using CPU with {num_threads} threads")
+            if num_threads < available_cores:
+                logger.info(f"   Limited to {num_threads}/{available_cores} threads to allow parallel runs")
+            else:
+                logger.info(f"   This will utilize all {num_threads} CPU cores for maximum performance")
             return
         
         try:
@@ -276,20 +290,26 @@ class Phase2FullRunner:
             
             if elapsed > 0.1:  # More than 100ms = likely not using GPU
                 logger.warning(f"GPU initialization slow ({elapsed*1000:.0f}ms) - GPU may be busy!")
-                logger.warning("Falling back to CPU with all available cores...")
+                logger.warning("Falling back to CPU...")
                 ti.reset()
-                ti.init(arch=ti.cpu, cpu_max_num_threads=available_cores)
-                logger.info(f"✅ Using CPU with ALL {available_cores} threads")
+                num_threads = self.cpu_threads if self.cpu_threads is not None else available_cores
+                num_threads = min(num_threads, available_cores)
+                ti.init(arch=ti.cpu, cpu_max_num_threads=num_threads)
+                logger.info(f"✅ Using CPU with {num_threads} threads")
             else:
                 logger.info("✅ Using GPU acceleration")
                 
         except Exception as e:
             logger.warning(f"GPU not available: {e}")
-            logger.info("Falling back to CPU with all available cores...")
-            max_threads = available_cores
-            ti.init(arch=ti.cpu, cpu_max_num_threads=max_threads)
-            logger.info(f"✅ Using CPU with ALL {max_threads} threads")
-            logger.info(f"   This will utilize all {max_threads} CPU cores for maximum performance")
+            logger.info("Falling back to CPU...")
+            num_threads = self.cpu_threads if self.cpu_threads is not None else available_cores
+            num_threads = min(num_threads, available_cores)
+            ti.init(arch=ti.cpu, cpu_max_num_threads=num_threads)
+            logger.info(f"✅ Using CPU with {num_threads} threads")
+            if num_threads < available_cores:
+                logger.info(f"   Limited to {num_threads}/{available_cores} threads to allow parallel runs")
+            else:
+                logger.info(f"   This will utilize all {num_threads} CPU cores for maximum performance")
     
     def run(self) -> dict:
         """
@@ -588,7 +608,10 @@ def main():
     parser.add_argument('--dry-run', action='store_true',
                        help='Dry run (load config only, don\'t run)')
     parser.add_argument('--force-cpu', action='store_true',
-                       help='Force CPU mode (skip GPU detection, use all CPU cores)')
+                       help='Force CPU mode (skip GPU detection)')
+    parser.add_argument('--cpu-threads', type=int, default=None,
+                       help='Number of CPU threads to use (default: all available cores). '
+                            'Useful for parallel runs: e.g., --cpu-threads 12 for 5 parallel runs on 64-core system')
     
     args = parser.parse_args()
     
@@ -598,7 +621,8 @@ def main():
         output_dir=args.output,
         max_steps=args.steps,
         seed=args.seed,
-        force_cpu=args.force_cpu
+        force_cpu=args.force_cpu,
+        cpu_threads=args.cpu_threads
     )
     
     if args.dry_run:
