@@ -92,12 +92,16 @@ start_simulation() {
     
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 Starting run_${run_id} (seed ${seed})..." | tee -a "$LOG_FILE"
     
+    # Use 12 threads per run (optimal for 5 parallel runs on 64-core system)
+    CPU_THREADS=12
+    
     nohup python3 "$PROJECT_ROOT/scripts/run_phase2_full.py" \
         --config "$CONFIG_FILE" \
         --output "$output_dir" \
         --seed "$seed" \
         --steps 500000 \
         --force-cpu \
+        --cpu-threads "$CPU_THREADS" \
         >> "$output_dir/simulation.log" 2>&1 &
     
     local pid=$!

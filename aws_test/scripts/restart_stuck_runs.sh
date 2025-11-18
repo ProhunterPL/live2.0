@@ -86,6 +86,9 @@ for run_num in {1..18}; do
             
             cd "$HOME/live2.0"
             
+            # Calculate optimal threads (12 for 5 parallel runs on 64-core system)
+            CPU_THREADS=12
+            
             # Start simulation
             setsid nohup python3 scripts/run_phase2_full.py \
                 --config "$CONFIG_FILE" \
@@ -93,6 +96,7 @@ for run_num in {1..18}; do
                 --seed "$SEED" \
                 --steps 500000 \
                 --force-cpu \
+                --cpu-threads "$CPU_THREADS" \
                 >> "$RUN_DIR/simulation_restart.log" 2>&1 < /dev/null &
             
             NEW_PID=$!
