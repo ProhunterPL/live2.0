@@ -56,7 +56,7 @@ def run_single_simulation(run_number: int, seed: int, output_base: str = "result
     
     # Check if already completed
     if output_dir.exists() and (output_dir / "results.json").exists():
-        logger.info(f"⏭️  {run_id} - Already completed, skipping")
+        logger.info(f"[SKIP] {run_id} - Already completed, skipping")
         return True
     
     # Determine execution mode
@@ -71,7 +71,7 @@ def run_single_simulation(run_number: int, seed: int, output_base: str = "result
         expected_time = 90
     
     logger.info("=" * 70)
-    logger.info(f"🚀 STARTING: {run_id} (seed={seed})")
+    logger.info(f"[START] {run_id} (seed={seed})")
     logger.info("=" * 70)
     logger.info(f"Mode: {mode_str}")
     logger.info(f"Config: {HYDRO_CONFIG['config']}")
@@ -114,24 +114,24 @@ def run_single_simulation(run_number: int, seed: int, output_base: str = "result
         
         if result.returncode == 0:
             logger.info("=" * 70)
-            logger.info(f"✅ {run_id} COMPLETED in {elapsed_minutes:.1f} minutes")
+            logger.info(f"[OK] {run_id} COMPLETED in {elapsed_minutes:.1f} minutes")
             logger.info("=" * 70)
             return True
         else:
             logger.error("=" * 70)
-            logger.error(f"❌ {run_id} FAILED after {elapsed_minutes:.1f} minutes")
+            logger.error(f"[FAILED] {run_id} FAILED after {elapsed_minutes:.1f} minutes")
             logger.error(f"Return code: {result.returncode}")
             logger.error("=" * 70)
             return False
             
     except subprocess.TimeoutExpired:
-        logger.error(f"⏱️  {run_id} TIMED OUT after 4 hours")
+        logger.error(f"[TIMEOUT] {run_id} TIMED OUT after 4 hours")
         return False
     except KeyboardInterrupt:
-        logger.warning(f"\n⚠️  {run_id} INTERRUPTED by user")
+        logger.warning(f"\n[INTERRUPT] {run_id} INTERRUPTED by user")
         raise
     except Exception as e:
-        logger.error(f"💥 {run_id} CRASHED: {e}")
+        logger.error(f"[CRASH] {run_id} CRASHED: {e}")
         return False
 
 
@@ -157,7 +157,7 @@ def run_queue(start_run: int, end_run: int, output_base: str = "results/phase2b_
         expected_time_per_run = 90
     
     logger.info("\n" + "=" * 70)
-    logger.info("🌊 PHASE 2B - HYDROTHERMAL QUEUE (REVERSE ORDER)")
+    logger.info("PHASE 2B - HYDROTHERMAL QUEUE (REVERSE ORDER)")
     logger.info("=" * 70)
     logger.info(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"Mode: {mode_str}")
@@ -199,27 +199,27 @@ def run_queue(start_run: int, end_run: int, output_base: str = "results/phase2b_
         })
         
         # Progress update
-        logger.info(f"\n📊 PROGRESS: {successful} completed, {failed} failed, {skipped} skipped")
+        logger.info(f"\n[PROGRESS] {successful} completed, {failed} failed, {skipped} skipped")
     
     # Final summary
     logger.info("\n\n" + "=" * 70)
-    logger.info("🏁 HYDROTHERMAL QUEUE - FINAL SUMMARY")
+    logger.info("HYDROTHERMAL QUEUE - FINAL SUMMARY")
     logger.info("=" * 70)
     logger.info(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"Total runs: {len(run_numbers)}")
-    logger.info(f"✅ Successful: {successful}")
-    logger.info(f"❌ Failed: {failed}")
-    logger.info(f"⏭️  Skipped: {skipped}")
+    logger.info(f"[OK] Successful: {successful}")
+    logger.info(f"[FAILED] Failed: {failed}")
+    logger.info(f"[SKIP] Skipped: {skipped}")
     logger.info(f"Success rate: {100*successful/(successful+failed):.1f}%" if (successful+failed) > 0 else "N/A")
     logger.info("=" * 70)
     
     # List completed runs
-    logger.info("\n📁 COMPLETED RUNS:")
+    logger.info("\nCOMPLETED RUNS:")
     for r in results:
         if r['success']:
-            logger.info(f"  ✅ {r['run_id']} (seed={r['seed']})")
+            logger.info(f"  [OK] {r['run_id']} (seed={r['seed']})")
         else:
-            logger.info(f"  ❌ {r['run_id']} (seed={r['seed']})")
+            logger.info(f"  [FAILED] {r['run_id']} (seed={r['seed']})")
     
     logger.info("\n" + "=" * 70)
     logger.info(f"Log saved to: {log_file}")
@@ -277,38 +277,38 @@ Detected CPU cores: {CPU_CORES}
         parser.error("Run numbers must be >= 1")
     
     if args.start > 10:
-        logger.warning(f"⚠️  Run number {args.start} is > 10. Are you sure?")
+        logger.warning(f"[WARNING] Run number {args.start} is > 10. Are you sure?")
     
     # Determine execution mode
     use_cpu = not args.gpu and not args.hybrid
     use_hybrid = args.hybrid
     
     # Log execution mode
-    logger.info(f"\n🖥️  System Info:")
+    logger.info(f"\n[SYSTEM] System Info:")
     logger.info(f"   CPU Cores: {CPU_CORES}")
     if use_hybrid:
         logger.info(f"   Mode: HYBRID (GPU physics + CPU chemistry)")
-        logger.info(f"   ⚡ Expected to be FASTEST for this workload!")
+        logger.info(f"   Expected to be FASTEST for this workload!")
     elif use_cpu:
         logger.info(f"   Mode: CPU ({args.cpu_threads or CPU_CORES} threads)")
-        logger.info(f"   ⚡ Faster than GPU for chemistry-heavy simulations!")
+        logger.info(f"   Faster than GPU for chemistry-heavy simulations!")
     else:
         logger.info(f"   Mode: GPU")
-        logger.info(f"   ⚠️  Note: CPU is typically faster for this workload")
+        logger.info(f"   Note: CPU is typically faster for this workload")
     
     try:
         results = run_queue(args.start, args.end, args.output, 
                           use_cpu=use_cpu, 
                           cpu_threads=args.cpu_threads,
                           use_hybrid=use_hybrid)
-        logger.info("\n✅ Queue completed successfully!")
+        logger.info("\n[OK] Queue completed successfully!")
         return 0
     except KeyboardInterrupt:
-        logger.warning("\n\n⚠️  Queue interrupted by user (Ctrl+C)")
+        logger.warning("\n\n[INTERRUPT] Queue interrupted by user (Ctrl+C)")
         logger.info("You can restart the queue - it will skip completed runs")
         return 130
     except Exception as e:
-        logger.error(f"\n\n💥 Queue failed with error: {e}")
+        logger.error(f"\n\n[ERROR] Queue failed with error: {e}")
         import traceback
         traceback.print_exc()
         return 1

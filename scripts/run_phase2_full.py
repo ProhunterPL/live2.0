@@ -265,7 +265,7 @@ class Phase2FullRunner:
         if self.force_cpu:
             logger.info("Force CPU mode enabled - skipping GPU detection")
             ti.init(arch=ti.cpu, cpu_max_num_threads=num_threads)
-            logger.info(f"✅ Using CPU with {num_threads} threads")
+            logger.info(f"[OK] Using CPU with {num_threads} threads")
             if num_threads < available_cores:
                 logger.info(f"   Limited to {num_threads}/{available_cores} threads to allow parallel runs")
             else:
@@ -273,8 +273,8 @@ class Phase2FullRunner:
             return
         
         try:
-            # Try GPU first
-            ti.init(arch=ti.cuda)
+            # Try GPU first (with memory limit to prevent crashes)
+            ti.init(arch=ti.cuda, device_memory_fraction=0.8)
             
             # Quick test to verify GPU is actually being used
             @ti.kernel
@@ -295,9 +295,9 @@ class Phase2FullRunner:
                 num_threads = self.cpu_threads if self.cpu_threads is not None else available_cores
                 num_threads = min(num_threads, available_cores)
                 ti.init(arch=ti.cpu, cpu_max_num_threads=num_threads)
-                logger.info(f"✅ Using CPU with {num_threads} threads")
+                logger.info(f"[OK] Using CPU with {num_threads} threads")
             else:
-                logger.info("✅ Using GPU acceleration")
+                logger.info("[OK] Using GPU acceleration")
                 
         except Exception as e:
             logger.warning(f"GPU not available: {e}")
@@ -305,7 +305,7 @@ class Phase2FullRunner:
             num_threads = self.cpu_threads if self.cpu_threads is not None else available_cores
             num_threads = min(num_threads, available_cores)
             ti.init(arch=ti.cpu, cpu_max_num_threads=num_threads)
-            logger.info(f"✅ Using CPU with {num_threads} threads")
+            logger.info(f"[OK] Using CPU with {num_threads} threads")
             if num_threads < available_cores:
                 logger.info(f"   Limited to {num_threads}/{available_cores} threads to allow parallel runs")
             else:
