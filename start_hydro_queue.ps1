@@ -45,7 +45,7 @@ switch ($choice) {
         Write-Host "`n[TEST] Uruchamiam test CPU..." -ForegroundColor Green
         Write-Host "Uzywam CPU z $cpuCores rdzeniami`n" -ForegroundColor Cyan
         python scripts/run_phase2_full.py `
-            --config aws_test/configs/phase2_hydrothermal_CPU_OPTIMIZED.yaml `
+            --config aws_test/configs/phase2_hydrothermal_SUPER_LIGHT.yaml `
             --output results/test_hydro_local `
             --steps 10000 `
             --seed 42 `

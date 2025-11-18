@@ -38,10 +38,10 @@ logger = logging.getLogger(__name__)
 CPU_CORES = multiprocessing.cpu_count()
 
 HYDRO_CONFIG = {
-    'config': 'aws_test/configs/phase2_hydrothermal_CPU_OPTIMIZED.yaml',
-    'description': 'Hydrothermal Extended - CPU OPTIMIZED (500K steps)',
+    'config': 'aws_test/configs/phase2_hydrothermal_SUPER_LIGHT.yaml',
+    'description': 'Hydrothermal - SUPER LIGHT - CPU Optimized (500K steps)',
     'steps': 500000,
-    'expected_time': 45,  # minutes on CPU with all cores - optimized dt!
+    'expected_time': 30,  # minutes on CPU - fewer particles = much faster!
     'use_cpu': True,  # CPU is faster than GPU for chemistry-heavy simulations
     'cpu_threads': CPU_CORES
 }
