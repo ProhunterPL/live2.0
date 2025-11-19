@@ -1,3 +1,8 @@
+---
+date: 2025-11-18
+label: analysis
+---
+
 # 🔬 Analiza Naukowej Ważności - 1300 vs 2700 Atomów
 
 **Pytanie:** Czy wyniki z 1300 atomami (SUPER_LIGHT) będą odpowiednie do zaliczenia Phase 2B i publikacji?

@@ -1,3 +1,8 @@
+---
+date: 2025-11-18
+label: guide
+---
+
 # ✅ HYDROTHERMAL QUEUE - CPU OPTIMIZED & READY
 
 **Data:** 2025-11-18  

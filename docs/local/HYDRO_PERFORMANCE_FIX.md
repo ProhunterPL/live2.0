@@ -1,3 +1,8 @@
+---
+date: 2025-11-18
+label: fix
+---
+
 # ⚡ HYDROTHERMAL PERFORMANCE - FIXED!
 
 **Data:** 2025-11-18  

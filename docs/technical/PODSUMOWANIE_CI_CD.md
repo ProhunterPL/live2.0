@@ -1,3 +1,8 @@
+---
+date: 2025-10-13
+label: summary
+---
+
 # ✅ Podsumowanie: System CI/CD dla Live 2.0
 
 ## 🎯 Co zostało zrobione

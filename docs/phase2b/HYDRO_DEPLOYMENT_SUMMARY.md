@@ -1,3 +1,8 @@
+---
+date: 2025-11-19
+label: guide
+---
+
 # Hydrothermal Deployment - Summary 🚀
 
 **Date**: 2025-11-19  

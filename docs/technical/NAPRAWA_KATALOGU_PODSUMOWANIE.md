@@ -1,3 +1,8 @@
+---
+date: 2025-11-12
+label: fix
+---
+
 # Naprawa Katalogu - Podsumowanie
 
 ## 🔍 Problem

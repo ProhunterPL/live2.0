@@ -1,3 +1,8 @@
+---
+date: 2025-11-18
+label: guide
+---
+
 # 🚀 Quick Start - Hydrothermal Queue (CPU OPTIMIZED)
 
 ## TL;DR

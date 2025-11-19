@@ -236,13 +236,56 @@ python3 aws_test/scripts/analyze_additional_results.py
 4. **Monitor AWS costs**: Stop instances when not needed
 5. **Backup results regularly**: SCP to local before terminating instance
 
-## 📚 Documentation Locations
+## 📚 Documentation Standards & Locations
 
-- **Setup**: `README.md` (if exists)
-- **AWS deployment**: `docs/aws_test/` and `aws_test/AUTO_RESTART_GUIDE.md`
-- **Cluster fix**: `CLUSTER_DEADLOCK_FIX.md`
+### Documentation Organization Rules
+1. **All documentation files (*.md) MUST be in `docs/` directory or subdirectories**
+   - Never create .md files in project root (except README.md)
+   - Never create .md files in `aws_test/` or `scripts/`
+   - Organize by topic: `docs/aws_test/`, `docs/local/`, `docs/phase2b/`, etc.
+
+2. **Documentation Header Format (REQUIRED)**
+   Every .md file must start with this header:
+   ```markdown
+   ---
+   date: YYYY-MM-DD
+   label: [manual|fix|guide|analysis|summary|status]
+   ---
+   # Document Title
+   ```
+   
+   Labels explained:
+   - `manual`: User guides, how-to documents
+   - `fix`: Bug fixes, problem solutions
+   - `guide`: Step-by-step instructions
+   - `analysis`: Analysis reports, investigations
+   - `summary`: Session summaries, progress reports
+   - `status`: Current state, status updates
+
+3. **File Naming Conventions**
+   - Use UPPERCASE_WITH_UNDERSCORES.md for important docs
+   - Use descriptive names: `HYDROTHERMAL_QUEUE_GUIDE.md` not `guide.md`
+   - Include date in filename for session notes: `SESSION_2025_11_19.md`
+
+### Documentation Locations
+
+- **Setup**: `README.md` (project root only exception)
+- **AWS deployment**: `docs/aws_test/`
+  - AUTO_RESTART_GUIDE.md - Queue system guide
+  - CLUSTER_DEADLOCK_FIX.md - Cluster detection fix
+  - HYDRO_QUEUE_AWS_READY.md - Hydrothermal deployment
+- **Local development**: `docs/local/`
+  - HYDROTHERMAL_QUEUE_GUIDE.md - Local queue guide
+  - HYDRO_CPU_OPTIMIZED_READY.md - CPU optimization
+- **Phase-specific**: `docs/phase2b/`, `docs/phase3/`, etc.
+  - HYDRO_DEPLOYMENT_SUMMARY.md - Deployment summary
+  - SCIENTIFIC_VALIDITY_ANALYSIS.md - Scientific analysis
 - **Session notes**: `docs/sessions/` (historical context)
-- **Validation**: `docs/VALIDATION_ROADMAP.md` (requirements for publication)
+- **Technical docs**: `docs/technical/`
+  - BOTTLENECK_ANALYSIS.md - Performance analysis
+  - JAK_NAPRAWIC_CHEMIE.md - Chemistry fixes
+  - PROBLEM_NIEREALISTYCZNE_CZASTECZKI.md - Molecule issues
+- **Validation**: `docs/VALIDATION_ROADMAP.md`
 
 ## ⚡ Performance Notes
 

@@ -1,3 +1,8 @@
+---
+date: 2025-11-12
+label: fix
+---
+
 # 🔧 Cluster Detection Deadlock - Fix Deployment
 
 **Date**: 2025-11-12  

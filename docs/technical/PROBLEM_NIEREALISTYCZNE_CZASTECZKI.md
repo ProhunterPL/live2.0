@@ -1,3 +1,8 @@
+---
+date: 2025-11-12
+label: analysis
+---
+
 # Problem Nierealistycznych Cząsteczek - Analiza i Rozwiązanie
 
 ## 🔍 Objawy

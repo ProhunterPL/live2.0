@@ -1,3 +1,8 @@
+---
+date: 2025-11-12
+label: guide
+---
+
 # Jak Naprawić Nierealistyczne Cząsteczki - Przewodnik Krok po Kroku
 
 ## ✅ Dobra Wiadomość
