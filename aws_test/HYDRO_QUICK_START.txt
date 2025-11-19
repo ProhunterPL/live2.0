@@ -1,0 +1,121 @@
+╔═══════════════════════════════════════════════════════════════╗
+║   HYDROTHERMAL AWS DEPLOYMENT - QUICK START CHEAT SHEET      ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📅 Date: 2025-11-19
+⏰ Start when: Miller-Urey run_4 completes (~6 hours)
+🎯 Goal: 17 hydrothermal runs (500K steps each)
+⏱️  Expected time: 35-45 hours
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                     DEPLOYMENT (3 COMMANDS)                   ║
+╚═══════════════════════════════════════════════════════════════╝
+
+1️⃣  ssh ubuntu@<YOUR_AWS_IP>
+
+2️⃣  cd ~/live2.0 && git pull
+
+3️⃣  bash aws_test/scripts/start_hydro_queue_aws.sh
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                    MONITORING (2 COMMANDS)                    ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📊 Progress:
+    python3 ~/live2.0/aws_test/scripts/check_actual_progress.py
+
+📝 Logs:
+    tail -f logs/auto_restart_hydro_main.log
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                      VERIFICATION                             ║
+╚═══════════════════════════════════════════════════════════════╝
+
+✅ Queue running:
+    ps aux | grep auto_queue_restart_hydro | grep -v grep
+
+✅ Simulations active (expect 1-4):
+    ps aux | grep run_phase2_full | grep hydrothermal | wc -l
+
+✅ Completed runs:
+    ls results/phase2b_additional/hydrothermal_extended/*/results.json | wc -l
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                    EMERGENCY STOP                             ║
+╚═══════════════════════════════════════════════════════════════╝
+
+🛑 Kill queue:
+    pkill -f auto_queue_restart_hydro.sh
+
+🛑 Kill all simulations:
+    pkill -f 'run_phase2_full.py.*hydrothermal'
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                    TROUBLESHOOTING                            ║
+╚═══════════════════════════════════════════════════════════════╝
+
+❌ Queue won't start:
+    cat logs/auto_restart_hydro_launcher.log
+
+❌ Test config (1000 steps):
+    python3 scripts/run_phase2_full.py \
+        --config aws_test/configs/phase2_hydrothermal_AWS_OPTIMIZED.yaml \
+        --output /tmp/test --steps 1000 --seed 999 --force-cpu
+
+❌ Check disk space:
+    df -h
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                      AFTER COMPLETION                         ║
+╚═══════════════════════════════════════════════════════════════╝
+
+1️⃣  Verify all done (should show 17):
+    ls results/phase2b_additional/hydrothermal_extended/*/results.json | wc -l
+
+2️⃣  Check total size:
+    du -sh results/phase2b_additional/hydrothermal_extended/
+
+3️⃣  Download to local (run on local machine):
+    scp -r ubuntu@<AWS_IP>:~/live2.0/results/phase2b_additional/hydrothermal_extended ./aws_results/
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                        KEY INFO                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Config:     phase2_hydrothermal_AWS_OPTIMIZED.yaml
+Runs:       1-17 (seeds: 100-116)
+Parallel:   4 max
+Steps:      500,000 per run
+Runtime:    6-8 hours per run
+Total:      35-45 hours for all
+
+Monitoring: Every 5 min auto, check every few hours
+Restart:    Automatic (queue handles it)
+Output:     results/phase2b_additional/hydrothermal_extended/
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                    FULL DOCUMENTATION                         ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📖 Complete guide:     aws_test/HYDRO_QUEUE_AWS_READY.md
+📋 All commands:       aws_test/DEPLOY_HYDRO_COMMANDS.txt
+📊 Summary:            HYDRO_DEPLOYMENT_SUMMARY.md
+🛠️  Project rules:     .cursorrules
+
+
+═══════════════════════════════════════════════════════════════
+
+                    YOU'RE ALL SET! 🚀
+                Just wait for run_4 to finish,
+                 then paste the 3 commands above.
+
+═══════════════════════════════════════════════════════════════
+

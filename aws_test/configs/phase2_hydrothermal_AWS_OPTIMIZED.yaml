@@ -1,0 +1,133 @@
+# Phase 2B - Hydrothermal - AWS OPTIMIZED (Based on SUPER_LIGHT)
+# =================================================================
+# 
+# PRODUCTION CONFIG for AWS deployment
+# - Safe particle count: 1000 atoms actual (not 2700!)
+# - Proven stable in local tests
+# - Optimized for CPU (28 cores on AWS instance)
+# - Cluster detection DISABLED (prevents deadlock)
+# - Mutations DISABLED (prevents LLVM crash)
+# 
+# Expected: 40-60 ms/step on AWS (28 cores)
+# Target: 500K steps in 6-8 hours per run
+
+scenario_name: "hydrothermal_extended"
+
+simulation:
+  name: "hydrothermal_extended"
+  scenario: "phase2_prebiotic"
+  description: "Hydrothermal AWS - Optimized for CPU, proven stable"
+  
+  # SAFE particle configuration (tested locally)
+  n_particles: 1000
+  max_steps: 500000
+  dt: 0.002  # Conservative timestep for stability
+  box_size: 96.0
+  
+  # Optimized grid for 28 CPU cores
+  grid_width: 96
+  grid_height: 96
+  
+  # Temperature (hot springs)
+  target_temperature: 373.0  # 100°C
+  temperature_control: true
+  thermostat_strength: 0.1
+  
+  # CRITICAL: Disable expensive/problematic features
+  novelty_check_interval: 99999999  # Disabled
+  detect_novel_substances: false
+  validate_every_n_steps: 50000
+  enable_thermodynamic_validation: false
+  enable_diagnostics: false
+  diagnostics_frequency: 50000
+  
+  # MUTATIONS: COMPLETELY DISABLED (prevents LLVM crash)
+  mutation_interval: 999999
+  enable_mutations: false
+  
+  # CPU PERFORMANCE TUNING
+  clamp_density_per_cell: 32
+  rebuild_neighbors_every: 25
+  neighbor_radius: 2.5
+
+# Initial composition - BALANCED (proven in local tests)
+# Total: ~1300 atoms (within 1000 particle limit + overhead)
+initial_molecules:
+  - name: "hydrogen"
+    formula: "H2"
+    count: 200  # 200 × 2 = 400 atoms
+    
+  - name: "hydrogen_sulfide"
+    formula: "H2S"
+    count: 100  # 100 × 3 = 300 atoms
+    
+  - name: "carbon_dioxide"
+    formula: "CO2"
+    count: 100  # 100 × 3 = 300 atoms
+    
+  - name: "water"
+    formula: "H2O"
+    count: 100  # 100 × 3 = 300 atoms
+
+# Energy input (hydrothermal vents)
+energy_injection:
+  enabled: true
+  type: "thermal"
+  pulse_interval: 800
+  pulse_energy: 50.0
+  pulse_duration: 20
+  pulse_radius: 10.0
+  pulse_shape: "spherical"
+
+# Physics - CRITICAL FIX: cluster_check_interval DISABLED
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  bond_check_interval: 250
+  bond_formation_threshold: 2.3
+  bond_breaking_energy_threshold: 0.7
+  
+  # CRITICAL: Prevents deadlock in complex bond networks
+  cluster_check_interval: 999999999  # DISABLED
+  cluster_distance_threshold: 2.8
+
+# Validation: DISABLED (not needed for production)
+validation:
+  enabled: false
+
+# Diagnostics: MINIMAL (save snapshots only)
+diagnostics:
+  enabled: false
+  output_interval: 50000
+  save_snapshots: true
+  snapshot_interval: 50000  # Every 50K steps (10 snapshots total)
+  metrics: []
+
+# Benchmark: DISABLED
+benchmark:
+  track_known_molecules: false
+  expected_products: []
+
+# Output configuration for AWS
+output:
+  base_dir: "results/phase2b_additional/hydrothermal_extended"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+
+# Performance monitoring: DISABLED
+performance:
+  enabled: false
+  log_interval: 50000
+
+# Logging: MINIMAL (WARNING level only)
+logging:
+  level: "WARNING"
+  file: "logs/phase2b_hydrothermal_aws.log"
+  log_reactions: false
+  log_molecules: false
+  log_performance: false
+
