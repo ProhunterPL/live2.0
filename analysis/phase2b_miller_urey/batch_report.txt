@@ -1,0 +1,131 @@
+======================================================================
+PHASE 2 BATCH ANALYSIS REPORT
+======================================================================
+Generated: 2025-11-20T07:00:32.217486
+Input directory: results\phase2b_additional
+Output directory: analysis\phase2b_miller_urey
+
+OVERALL SUMMARY
+----------------------------------------------------------------------
+Total runs analyzed: 18
+  Successful: 18
+  Failed: 0
+Scenarios: miller_urey_extended
+Total unique molecules: 1011
+Total unique formulas: 521
+
+BY SCENARIO
+----------------------------------------------------------------------
+
+MILLER_UREY_EXTENDED:
+  Runs: 18
+  Unique molecules: 1011
+  Unique formulas: 521
+  Total instances: 12084
+
+  Top 10 molecules:
+     1. 3ba4ffe16dfe637510ed1c3676ec6cb0 :   3720
+     2. 3a47016fb6460775830c7b9fd43bde50 :   1898
+     3. 8a5dc9be309c81780f6428266fc77bbc :    741
+     4. ebed2b2f1ddd19051c3f8f1e6db408b8 :    648
+     5. 5144181ac27497fdfa9bdb5b8b799630 :    545
+     6. b4844a241e7c75ea7eb690acd3c4c004 :    342
+     7. 1a8155b224db54664a68f055f033253f :    331
+     8. d2601bbf36e7658df88520110518167a :    297
+     9. 139ea156f59cee45066554c3a8ae21d1 :    258
+    10. f305b805021bee80e987bb89c9ab1406 :    176
+
+INDIVIDUAL RUNS
+----------------------------------------------------------------------
+
+1. run_1
+   Scenario: miller_urey_extended
+   Molecules: 35
+   Instances: 642
+
+2. run_10
+   Scenario: miller_urey_extended
+   Molecules: 64
+   Instances: 765
+
+3. run_11
+   Scenario: miller_urey_extended
+   Molecules: 63
+   Instances: 779
+
+4. run_12
+   Scenario: miller_urey_extended
+   Molecules: 52
+   Instances: 692
+
+5. run_13
+   Scenario: miller_urey_extended
+   Molecules: 53
+   Instances: 719
+
+6. run_14
+   Scenario: miller_urey_extended
+   Molecules: 61
+   Instances: 640
+
+7. run_15
+   Scenario: miller_urey_extended
+   Molecules: 71
+   Instances: 607
+
+8. run_16
+   Scenario: miller_urey_extended
+   Molecules: 69
+   Instances: 697
+
+9. run_17
+   Scenario: miller_urey_extended
+   Molecules: 62
+   Instances: 609
+
+10. run_18
+   Scenario: miller_urey_extended
+   Molecules: 61
+   Instances: 720
+
+11. run_2
+   Scenario: miller_urey_extended
+   Molecules: 56
+   Instances: 519
+
+12. run_3
+   Scenario: miller_urey_extended
+   Molecules: 47
+   Instances: 688
+
+13. run_4
+   Scenario: miller_urey_extended
+   Molecules: 53
+   Instances: 727
+
+14. run_5
+   Scenario: miller_urey_extended
+   Molecules: 52
+   Instances: 712
+
+15. run_6
+   Scenario: miller_urey_extended
+   Molecules: 44
+   Instances: 779
+
+16. run_7
+   Scenario: miller_urey_extended
+   Molecules: 58
+   Instances: 639
+
+17. run_8
+   Scenario: miller_urey_extended
+   Molecules: 52
+   Instances: 434
+
+18. run_9
+   Scenario: miller_urey_extended
+   Molecules: 58
+   Instances: 716
+
+======================================================================
