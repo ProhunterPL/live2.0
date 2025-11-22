@@ -184,6 +184,16 @@ python3 aws_test/scripts/analyze_additional_results.py
 
 ## 🎯 When Editing Code
 
+### Before Creating New Files/Directories
+1. **Check for existing similar files**: Before creating a new script, test, or document, search the codebase for similar or identical files that can be reused or extended
+2. **Check for existing directories**: Before creating a new directory, verify if a similar or identical directory already exists that can be used
+3. **Search before creating**: Use `grep`, `glob_file_search`, or `codebase_search` to find existing similar functionality
+4. **Reuse over recreate**: Always prefer extending existing files over creating duplicates
+5. **Examples**:
+   - Before creating `analyze_X.py`, check if `analyze_results.py` or similar exists
+   - Before creating `docs/X.md`, check `docs/` for similar documentation
+   - Before creating `scripts/test_X.py`, check `tests/` and `scripts/` for existing tests
+
 ### Before Modifying Simulation Core
 1. **Check if Taichi kernel**: Cannot use Python stdlib inside `@ti.kernel`
 2. **Test locally first**: Run 1000 steps before AWS deployment

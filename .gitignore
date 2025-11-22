@@ -269,10 +269,15 @@ diagnostics/
 results/phase2b_additional/
 results/phase2b_local/
 results/phase2b_aws_results/
+aws_results/
 **/summary.txt
 **/simulation.log
+**/simulation.log.backup_*
+**/*.backup_*
 **/checkpoints/
 **/snapshots/
+**/analysis/
+**/molecule_report.txt
 
 # Security - SSH keys and credentials (NEVER commit these!)
 *.pem
