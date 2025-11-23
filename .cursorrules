@@ -43,9 +43,30 @@ live2.0/
 │       └── miller_urey_extended/
 │           └── run_X/       # Each run has: results.json, molecules.json, snapshots/, checkpoints/
 │
-└── docs/                    # Documentation
-    ├── CLUSTER_DEADLOCK_FIX.md       # Cluster detection issue & fix
-    └── aws_test/AUTO_RESTART_GUIDE.md # AWS deployment guide
+├── archive/                 # Structured archive (never delete, only move here)
+│   ├── one_off_scripts/    # Single-use / debugging scripts
+│   ├── old_docs/           # Outdated documentation, replaced by newer docs
+│   ├── experiments/        # Experimental pipelines, prototypes
+│   ├── deprecated/         # Code/configs replaced by final version
+│   ├── tmp_results/        # Temporary results not used for publication
+│   └── ARCHIVE_LOG.md      # Log of all archiving operations
+│
+└── docs/                   # Documentation
+    ├── INDEX.md            # Main documentation index
+    ├── NAVIGATION_GUIDE.md # This navigation guide
+    ├── ARCHIVE_POLICY.md   # Archive policy and rules
+    ├── sessions/           # Session summaries (chronological)
+    ├── aws_test/           # AWS deployment documentation
+    ├── technical/          # Technical documentation
+    ├── analysis/           # Analysis reports
+    ├── guides/             # User guides
+    ├── troubleshooting/    # Problem fixes and solutions
+    ├── plans/              # Plans and roadmaps
+    ├── optimization/       # Optimization and performance docs
+    ├── fixes/              # Fixes and problem solutions
+    ├── archive/            # Archive plans (executed)
+    ├── phase2b/            # Phase 2B documentation
+    └── [other subdirs]     # Additional documentation categories
 ```
 
 ## 🔥 Critical Files (Read These First!)
@@ -165,10 +186,8 @@ python3 aws_test/scripts/analyze_additional_results.py
 ## 📊 Phase 2B Status (Current)
 
 ### Active State
-- **Running**: 4 simulations (runs 5-8) at ~336K/500K steps
-- **Queue**: 12 simulations waiting (runs 2-4, 10-18)
-- **Completed**: 1 simulation (run_1)
-- **System**: Auto-restart queue managing 4 parallel max
+For current Phase 2B run status and queue details, see:
+- `docs/phase2b/PHASE2B_STATUS.md`
 
 ### Timeline
 - T+0h: Runs 5-8 active (67% done)
@@ -345,7 +364,123 @@ python3 aws_test/scripts/analyze_additional_results.py
 **Publication Goal**: Show autocatalytic cycles & novel molecule formation
 
 ---
+## 🟥 READ-ONLY ZONES (DO NOT MODIFY / DELETE DURING PHASE2B)
 
-**Last Updated**: 2025-11-12
+The following paths are considered **read-only** during Phase 2B and paper preparation:
+
+- Core simulation engine:
+  - `backend/sim/core/**`
+  - `backend/sim/chemistry/**`
+  - `backend/sim/config.py`
+  - `backend/sim/molecule_extractor.py`
+
+- Phase 2B orchestration and analysis:
+  - `scripts/run_phase2_full.py`
+  - `scripts/*phase2*.py`
+  - `aws_test/configs/phase2_*.yaml`
+  - `aws_test/configs/*SUPER_FAST*.yaml`
+  - `aws_test/scripts/**` (queue, monitoring, kill scripts)
+
+- Scientific documentation for Phase 2B and paper:
+  - `docs/phase2b/**`
+  - `docs/technical/**`
+  - `docs/VALIDATION_ROADMAP.md`
+  - `docs/SCIENTIFIC_VALIDITY_ANALYSIS.md`
+
+- Completed results (all raw data):
+  - `results/**`
+  - `phase2b_*_results/**`
+  - any `run_*/` directory containing `results.json`, `molecules.json`, `snapshots/`, `checkpoints/`
+
+⚠️ **Rules for these paths:**
+1. Do **not** delete, rename, or move files in these locations without explicit user approval.
+2. When changing code in these areas:
+   - Always show a clear `PLAN` first.
+   - Explain scientific impact and propose tests/backtests.
+3. Never perform bulk “cleanup” or refactors inside these paths as part of automatic organization.
+----
+
+
+
+## 🗂️ REPOSITORY CLEANUP & ARCHIVE POLICY
+
+Live 2.0 is a long-running scientific project. We never “hard delete” things during cleanup.
+Instead, we use a **structured archive**.
+
+### ARCHIVE structure
+
+All files and folders that are one-off, deprecated or duplicated should be moved (via `git mv`) to:
+
+- `archive/one_off_scripts/` – single-use / debugging scripts
+- `archive/old_docs/` – outdated documentation, replaced by newer docs in `docs/`
+- `archive/experiments/` – experimental pipelines, prototypes, scratch code
+- `archive/deprecated/` – code/configs replaced by final version
+- `archive/tmp_results/` – temporary result folders that are no longer needed for analysis
+- `archive/ARCHIVE_LOG.md` – log of all archiving operations
+
+### Rules for cleanup tasks
+
+When asked to “clean up”, “organize” or “remove duplicates”:
+
+1. **NEVER delete files outright.**
+   - Use `git mv` to move them into `archive/...`.
+   - Keep the original relative structure when possible (e.g. `scripts/foo.py` → `archive/one_off_scripts/scripts/foo.py`).
+
+2. **ALWAYS propose a plan first:**
+   - List all files that you consider:
+     - duplicated,
+     - one-off / debug,
+     - moved to archive.
+   - Wait for user confirmation before applying the plan.
+
+3. **Prefer marking as legacy instead of overwriting:**
+   - When you find two similar scripts:
+     - Pick ONE as the “canonical” version.
+     - Move the others to `archive/` and add a short note in the canonical file.
+
+4. **Do NOT move:**
+   - anything under `backend/sim/core/**` or `backend/sim/chemistry/**`,
+   - anything under `docs/phase2b/**` and `docs/technical/**`,
+   - any completed result run directories (`run_*/` with `results.json`).
+
+----
+
+## 🧹 LOW-PRIORITY / NO-CONTEXT PATHS
+
+When searching for context, **avoid** or treat as very low priority:
+
+- Large raw data and result trees:
+  - `results/**`
+  - `phase2b_*_results/**`
+  - any `run_*/snapshots/**`
+  - any `run_*/checkpoints/**`
+
+- Logs and metrics:
+  - `**/*.log`
+  - `logs/**`
+  - `**/metrics_*.csv`
+  - `diagnostics/**`
+
+- Cache and temporary files:
+  - `**/__pycache__/**`
+  - `.pytest_cache/**`
+  - `.mypy_cache/**`
+  - `.ruff_cache/**`
+
+Use **code and documentation** as primary sources of truth:
+
+- `backend/sim/**`
+- `aws_test/configs/**`
+- `scripts/**`
+- `docs/**`
+
+Read data files only when:
+- user explicitly asks for analysis of a specific run or dataset, or
+- you need an example record format.
+
+----
+
+
+**Last Updated**: 2025-11-23
 **Agent Context**: Use this file to understand project structure, avoid common pitfalls, and navigate the codebase efficiently.
 
