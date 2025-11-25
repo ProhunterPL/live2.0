@@ -76,6 +76,24 @@ docs/
 
 **RAZEM: 16 plików przeniesione i zorganizowane** ✅
 
+-----
+DO NOT TOUCH w trakcie phase2b”: 
+
+structure
+
+sim/core/*.py, sim/config.py, sim/run_simulation.py, sim/phase2_config.py, sim/phase2_initializer.py
+
+scripts/phase2_master*.py, scripts/run_phase2_full.py, scripts/process_phase2b_for_paper.py 
+
+structure
+
+run_phase2b_hydro_queue.py, run_phase2b_local.py, run_phase2b_* w katalogu głównym 
+
+structure
+
+Wyniki: data/rezultaty/**, data/results/**, phase2b_aws_results/**, phase2b_runs/**, phase2b_local/**
+
+Dokumenty naukowe / patentowe: docs/phase2b/**, docs/patents/**, docs/Live 2-plan walidacji naukowej.md, wniosek/**
 ---
 
 ## 📋 Utworzone Indeksy
