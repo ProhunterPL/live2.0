@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figure 4: Algorithm Flowchart</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre;
+        }
+        code {
+            background-color: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        ul, ol {
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Figure 4: Algorithm Flowchart</h1>
+<h2>Description</h2>
+<p>Complete algorithm flow for adaptive spatial hashing system.</p>
+<hr>
+<h2>Main Simulation Loop with Adaptive Hash</h2>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│                     START SIMULATION                             │
+│                  (N particles, box_size)                         │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │ Initialize    │
+                    │ α = 2.0       │
+                    │ β = 0.3       │
+                    │ s = 10.0      │  (default)
+                    └───────┬───────┘
+                            │
+                            ▼
+        ╔═══════════════════════════════════════════════════╗
+        ║           SIMULATION TIME STEP LOOP               ║
+        ╠═══════════════════════════════════════════════════╣
+        ║                                                   ║
+        ║   ┌─────────────────────────────────────┐        ║
+        ║   │  UPDATE PARTICLE POSITIONS          │        ║
+        ║   │  (integrate forces, apply dt)       │        ║
+        ║   └────────────┬────────────────────────┘        ║
+        ║                │                                  ║
+        ║                ▼                                  ║
+        ║   ┌─────────────────────────────────────┐        ║
+        ║   │  UPDATE BONDING TOPOLOGY            │        ║
+        ║   │  (form/break bonds based on dist)   │        ║
+        ║   └────────────┬────────────────────────┘        ║
+        ║                │                                  ║
+        ║                ▼                                  ║
+        ║   ┌─────────────────────────────────────┐        ║
+        ║   │  Count active particles (N)         │        ║
+        ║   │  Count total bonds (B)              │        ║
+        ║   │  Compute b̄ = B / N                  │        ║
+        ║   └────────────┬────────────────────────┘        ║
+        ║                │                                  ║
+        ║                ▼                                  ║
+        ║   ┌─────────────────────────────────────┐        ║
+        ║   │  COMPUTE OPTIMAL CELL SIZE          │◄───────╢─ PATENT
+        ║   │                                     │        ║   CLAIM 1
+        ║   │  s_new = α · √(A/N) / (1 + β·b̄)    │        ║
+        ║   │  s_new = clamp(s_new, 5.0, 25.0)   │        ║
+        ║   └────────────┬────────────────────────┘        ║
+        ║                │                                  ║
+        ║                ▼                                  ║
+        ║   ┌─────────────────────────────────────┐        ║
+        ║   │  CHECK IF REBUILD NEEDED            │◄───────╢─ PATENT
+        ║   │                                     │        ║   CLAIM 4
+        ║   │  Δs = |s_new - s_old| / s_old      │        ║
+        ║   │  rebuild = (Δs > τ) OR (step % 20) │        ║
+        ║   └────────────┬────────────────────────┘        ║
+        ║                │                                  ║
+        ║          ┌─────┴─────┐                           ║
+        ║          │           │                           ║
+        ║       NO │           │ YES                       ║
+        ║          │           │                           ║
+        ║          │           ▼                           ║
+        ║          │  ┌────────────────────────┐          ║
+        ║          │  │ REBUILD SPATIAL HASH   │◄─────────╢─ PATENT
+        ║          │  │                        │          ║   CLAIM 2
+        ║          │  │ 1. Clear grid          │          ║
+        ║          │  │ 2. For each particle:  │          ║
+        ║          │  │    cell = hash(pos, s) │          ║
+        ║          │  │    atomic_add(cell, i) │          ║
+        ║          │  │ 3. Update s_old = s_new│          ║
+        ║          │  └────────┬───────────────┘          ║
+        ║          │           │                           ║
+        ║          └───────────┤                           ║
+        ║                      │                           ║
+        ║                      ▼                           ║
+        ║          ┌────────────────────────┐             ║
+        ║          │ COMPUTE FORCES         │◄────────────╢─ O(n)
+        ║          │                        │             ║   complexity
+        ║          │ For each particle i:   │             ║
+        ║          │   cell = hash(pos[i])  │             ║
+        ║          │   For 3×3 neighbors:   │             ║
+        ║          │     For j in cell:     │             ║
+        ║          │       F += force(i,j)  │             ║
+        ║          └────────┬───────────────┘             ║
+        ║                   │                              ║
+        ║                   ▼                              ║
+        ║          ┌────────────────────────┐             ║
+        ║          │ APPLY FORCES           │             ║
+        ║          │ v += F/m × dt          │             ║
+        ║          └────────┬───────────────┘             ║
+        ║                   │                              ║
+        ║                   ▼                              ║
+        ║          ┌────────────────────────┐             ║
+        ║          │ step += 1              │             ║
+        ║          │ Continue?              │             ║
+        ║          └────────┬───────────────┘             ║
+        ║                   │                              ║
+        ╚═══════════════════╪═══════════════════════════════╝
+                            │
+                     ┌──────┴──────┐
+                     │             │
+                 YES │             │ NO
+                     │             │
+                     ▼             ▼
+              (Continue Loop)  ┌────────┐
+                               │  END   │
+                               └────────┘</code></pre>
+<hr>
+<h2>Subroutine: Compute Optimal Cell Size (PATENT CLAIM 1)</h2>
+<pre><code>┌───────────────────────────────────────────────────────────┐
+│  compute_optimal_cell_size(N, B, box_width, box_height)  │
+└──────────────────────┬────────────────────────────────────┘
+                       │
+                       ▼
+            ┌──────────────────────┐
+            │  A = width × height  │
+            │  (simulation area)   │
+            └──────────┬───────────┘
+                       │
+                       ▼
+            ┌──────────────────────┐
+            │  ρ = N / A           │
+            │  (particle density)  │
+            └──────────┬───────────┘
+                       │
+                       ▼
+            ┌──────────────────────┐
+            │  b̄ = B / N           │
+            │  (avg bonds/particle)│
+            └──────────┬───────────┘
+                       │
+                       ▼
+            ┌──────────────────────────────────┐
+            │  base = √(A / N)                 │
+            │  (characteristic spacing)        │
+            └──────────┬───────────────────────┘
+                       │
+                       ▼
+            ┌──────────────────────────────────┐
+            │  f_bond = 1 / (1 + β·b̄)         │  ◄── INNOVATION
+            │  (bonding adjustment)            │      Uses bonding
+            └──────────┬───────────────────────┘      topology!
+                       │
+                       ▼
+            ┌──────────────────────────────────┐
+            │  s_optimal = α · base · f_bond   │  ◄── PATENT
+            │                                  │      FORMULA
+            └──────────┬───────────────────────┘
+                       │
+                       ▼
+            ┌──────────────────────────────────┐
+            │  s_final = clamp(s_optimal,      │
+            │                  s_min, s_max)   │
+            └──────────┬───────────────────────┘
+                       │
+                       ▼
+            ┌──────────────────────┐
+            │  RETURN s_final      │
+            └──────────────────────┘</code></pre>
+<hr>
+<h2>Subroutine: Rebuild Spatial Hash (PATENT CLAIM 2)</h2>
+<pre><code>┌────────────────────────────────────────────────────┐
+│  rebuild_spatial_hash(positions, active, N, s)    │
+└──────────────────────┬─────────────────────────────┘
+                       │
+                       ▼
+            ┌────────────────────────┐
+            │  W = ⌈width / s⌉      │
+            │  H = ⌈height / s⌉     │  ◄── Grid dimensions
+            │  (adaptive grid size)  │      change per rebuild
+            └──────────┬─────────────┘
+                       │
+                       ▼
+            ┌────────────────────────┐
+            │  Clear all cell counts │
+            │  cell_count[*] = 0     │
+            └──────────┬─────────────┘
+                       │
+                       ▼
+        ╔══════════════════════════════════╗
+        ║  FOR i = 0 TO N-1 (PARALLEL)     ║  ◄── GPU KERNEL
+        ╠══════════════════════════════════╣
+        ║                                  ║
+        ║    ┌────────────────────────┐   ║
+        ║    │  pos = positions[i]    │   ║
+        ║    └────────┬───────────────┘   ║
+        ║             │                    ║
+        ║             ▼                    ║
+        ║    ┌────────────────────────┐   ║
+        ║    │  gx = ⌊pos.x / s⌋     │   ║
+        ║    │  gy = ⌊pos.y / s⌋     │   ║  ◄── Hash function
+        ║    │  cell = gy × W + gx   │   ║      (uses adaptive s)
+        ║    └────────┬───────────────┘   ║
+        ║             │                    ║
+        ║             ▼                    ║
+        ║    ┌────────────────────────────────┐
+        ║    │  slot = atomic_add(            │  ◄── LOCK-FREE
+        ║    │           cell_count[cell], 1) │      (GPU-safe)
+        ║    └────────┬───────────────────────┘
+        ║             │                    ║
+        ║             ▼                    ║
+        ║    ┌────────────────────────┐   ║
+        ║    │  IF slot < MAX_SLOTS   │   ║
+        ║    │    cell_list[cell][slot] = i
+        ║    └────────────────────────┘   ║
+        ║                                  ║
+        ╚══════════════════════════════════╝
+                       │
+                       ▼
+            ┌────────────────────────┐
+            │  RETURN (success)      │
+            └────────────────────────┘</code></pre>
+<hr>
+<h2>Key Decision Points</h2>
+<h3>Decision 1: When to Rebuild?</h3>
+<pre><code>Option A: Fixed interval (every 10-20 steps)
+  + Predictable overhead
+  - May rebuild unnecessarily
+
+Option B: Adaptive trigger (Δs > τ)    ◄── PATENT CLAIM 4 (chosen)
+  + Only rebuild when needed
+  + Saves computation
+  - Slightly more complex logic</code></pre>
+<h3>Decision 2: Cell Size Bounds?</h3>
+<pre><code>Why clamp to [5.0, 25.0]?
+
+s_min = 5.0:
+  - Prevents over-refinement (too many cells)
+  - Guarantees cutoff < 2×cell_size (3×3 stencil sufficient)
+  
+s_max = 25.0:
+  - Prevents under-sampling (missing interactions)
+  - Keeps grid resolution reasonable (~10×10 minimum)</code></pre>
+<h3>Decision 3: Parameters α, β?</h3>
+<pre><code>α = 2.0:  Empirically determined (tested 1.5-3.0 range)
+          - α < 2.0: Too many cells (overhead)
+          - α > 2.0: Misses interactions (inaccurate)
+
+β = 0.3:  Bonding influence (tested 0.1-0.5 range)
+          - β < 0.3: Ignores bonding effect
+          - β > 0.3: Over-reacts to bonding</code></pre>
+<hr>
+<h2>Complexity Analysis</h2>
+<pre><code>Operation                    | Complexity | Notes
+----------------------------|------------|------------------
+Compute optimal cell size   | O(1)       | Simple formula
+Clear grid                  | O(C)       | C = grid cells
+Rebuild hash (parallel)     | O(N)       | N particles
+Compute forces (3×3)        | O(N·k)     | k ≈ 9-16 neighbors
+Total per step             | O(N)       | Linear scaling ✅
+
+Comparison to alternatives:
+  All-pairs:       O(N²)     (1000× slower for N=1000)
+  Octree:          O(N log N) (10× slower)
+  Fixed hash:      O(N)      (same complexity, worse constants)
+  Adaptive hash:   O(N)      (same complexity, BETTER constants)</code></pre>
+<hr>
+<h2>Patent Claim Support</h2>
+<p>This flowchart demonstrates:</p>
+<ul>
+<li><strong>Claim 1</strong>: Complete algorithm with patent formula</li>
+<li><strong>Claim 2</strong>: GPU implementation with atomic operations</li>
+<li><strong>Claim 3</strong>: Bonding topology integration (b̄ term)</li>
+<li><strong>Claim 4</strong>: Adaptive rebuild trigger (Δs threshold)</li>
+<li><strong>Claim 5</strong>: CPU/GPU hybrid (cell size compute on CPU, rebuild on GPU)</li>
+</ul>
+        <div class="footer">
+            <p>Generated from: FIGURE_4_algorithm_flowchart.md</p>
+        </div>
+    </div>
+</body>
+</html>

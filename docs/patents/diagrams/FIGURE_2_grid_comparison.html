@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figure 2: Grid Structure Comparison (Fixed vs. Adaptive)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre;
+        }
+        code {
+            background-color: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        ul, ol {
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Figure 2: Grid Structure Comparison (Fixed vs. Adaptive)</h1>
+<h2>Description</h2>
+<p>Visual comparison of grid structures in sparse and dense particle distributions.</p>
+<hr>
+<h2>Scenario A: SPARSE SYSTEM (Early Stage, b̄ = 0.05)</h2>
+<h3>Fixed Grid (cell_size = 10.0)</h3>
+<pre><code>Box: 256×256, Grid: 26×26 cells (676 cells total)
+
+┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│         │         │ ∘       │         │         │         │
+│         │         │         │         │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│         │ ∘       │         │         │ ∘       │         │
+│         │         │         │         │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│         │         │         │ ∘       │         │         │
+│         │         │         │         │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ ∘       │         │         │         │         │ ∘       │
+│         │         │         │         │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│         │         │ ∘       │         │         │         │
+│         │         │         │         │         │         │
+└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+
+Stats:
+  Occupied cells: 78 / 676 (11.5%)
+  Avg particles/cell: 0.74
+  Wasted checks: 88.5% cells empty!</code></pre>
+<h3>Adaptive Grid (cell_size = 18.0)</h3>
+<pre><code>Box: 256×256, Grid: 14×14 cells (196 cells total)
+
+┌──────────────┬──────────────┬──────────────┬──────────────┐
+│              │              │ ∘            │              │
+│              │ ∘            │              │              │
+│              │              │              │ ∘            │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│              │              │              │              │
+│              │              │ ∘            │              │
+│ ∘            │              │              │              │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│              │ ∘            │              │ ∘            │
+│              │              │              │              │
+│              │              │              │              │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│              │              │              │              │
+│              │              │ ∘            │              │
+│              │              │              │              │
+└──────────────┴──────────────┴──────────────┴──────────────┘
+
+Stats:
+  Occupied cells: 32 / 196 (16.3%)
+  Avg particles/cell: 1.56
+  Efficiency: 71% fewer cells to check!</code></pre>
+<p><strong>Speedup in sparse systems: 1.3×</strong></p>
+<hr>
+<h2>Scenario B: DENSE SYSTEM (Late Stage, b̄ = 0.18)</h2>
+<h3>Fixed Grid (cell_size = 10.0)</h3>
+<pre><code>Box: 256×256, Grid: 26×26 cells (676 cells total)
+
+┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│         │         │ ∘∘∘     │         │         │         │
+│         │         │ ∘∘      │         │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│         │ ∘∘      │ ∘∘∘∘    │ ∘∘      │         │         │
+│         │ ∘       │ ∘∘∘     │ ∘       │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│         │ ∘∘∘     │ ∘∘∘∘∘   │ ∘∘∘     │         │         │
+│         │ ∘∘      │ ∘∘∘∘    │ ∘∘      │         │         │
+├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│         │ ∘       │ ∘∘∘     │ ∘∘      │         │         │
+│         │         │ ∘∘      │ ∘       │         │         │
+└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+
+Stats:
+  Occupied cells: 124 / 676 (18.3%)
+  Avg particles/cell: 4.03 (in occupied cells)
+  Problem: Cluster spans multiple cells → redundant checks</code></pre>
+<h3>Adaptive Grid (cell_size = 7.0)</h3>
+<pre><code>Box: 256×256, Grid: 37×37 cells (1369 cells total)
+
+┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+│     │     │     │ ∘∘  │ ∘   │     │     │     │     │
+├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
+│     │     │ ∘   │ ∘∘∘ │ ∘∘  │ ∘   │     │     │     │
+├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
+│     │ ∘∘  │ ∘∘  │ ∘∘∘ │ ∘∘∘ │ ∘∘  │ ∘   │     │     │
+├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
+│     │ ∘   │ ∘∘∘ │ ∘∘∘ │ ∘∘∘ │ ∘∘  │ ∘   │     │     │
+├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
+│     │     │ ∘∘  │ ∘∘∘ │ ∘∘  │ ∘   │     │     │     │
+├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
+│     │     │ ∘   │ ∘∘  │ ∘   │     │     │     │     │
+└─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+
+Stats:
+  Occupied cells: 287 / 1369 (21.0%)
+  Avg particles/cell: 1.74 (in occupied cells)
+  Benefit: Finer resolution → better load balancing</code></pre>
+<p><strong>Speedup in dense systems: 1.5×</strong></p>
+<hr>
+<h2>Comparison Table</h2>
+<p>| Metric | Fixed | Adaptive (Sparse) | Adaptive (Dense) | |--------|-------|-------------------|------------------| | <strong>Cell count</strong> | 676 | 196 (-71%) | 1369 (+102%) | | <strong>Occupied cells</strong> | 18% | 16% | 21% | | <strong>Avg load</strong> | 0.74 - 4.03 | 1.56 | 1.74 | | <strong>Efficiency</strong> | Baseline | <strong>Better</strong> ✅ | <strong>Better</strong> ✅ |</p>
+<h2>Key Insights</h2>
+<ol>
+<li><strong>Sparse systems</strong>: Adaptive uses fewer, larger cells → less overhead</li>
+<li><strong>Dense systems</strong>: Adaptive uses more, smaller cells → better load balance</li>
+<li><strong>No single fixed cell_size is optimal</strong> for all phases</li>
+<li><strong>Adaptive automatically finds optimum</strong> without manual tuning</li>
+</ol>
+<h2>Patent Claim Support</h2>
+<p>This figure demonstrates <strong>Claim 1</strong>, <strong>Claim 2</strong>, and <strong>Claim 3</strong>:</p>
+<ul>
+<li>Grid structure adapts to particle distribution</li>
+<li>Cell size computed from density and bonding</li>
+<li>Same algorithm handles heterogeneous systems</li>
+</ul>
+        <div class="footer">
+            <p>Generated from: FIGURE_2_grid_comparison.md</p>
+        </div>
+    </div>
+</body>
+</html>

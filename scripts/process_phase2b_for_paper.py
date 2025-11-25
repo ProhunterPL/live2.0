@@ -48,11 +48,11 @@ def run_command(cmd: list, description: str) -> bool:
         if result.stdout:
             logger.info(result.stdout)
             
-        logger.info(f"✅ {description} - COMPLETE")
+        logger.info(f"[OK] {description} - COMPLETE")
         return True
         
     except subprocess.CalledProcessError as e:
-        logger.error(f"❌ {description} - FAILED")
+        logger.error(f"[ERROR] {description} - FAILED")
         logger.error(f"Error: {e.stderr}")
         return False
 
@@ -64,10 +64,10 @@ def check_input_directory(input_dir: Path) -> bool:
     logger.info("="*80)
     
     if not input_dir.exists():
-        logger.error(f"❌ Input directory not found: {input_dir}")
+        logger.error(f"[ERROR] Input directory not found: {input_dir}")
         return False
         
-    logger.info(f"✓ Input directory exists: {input_dir}")
+    logger.info(f"[OK] Input directory exists: {input_dir}")
     
     # Check for scenario directories
     scenarios = ['miller_urey_extended', 'hydrothermal_extended', 'formamide_extended']
@@ -78,16 +78,16 @@ def check_input_directory(input_dir: Path) -> bool:
         if scenario_dir.exists():
             # Check for run directories
             runs = list(scenario_dir.glob('run_*'))
-            logger.info(f"✓ {scenario}: {len(runs)} runs found")
+            logger.info(f"[OK] {scenario}: {len(runs)} runs found")
             found_scenarios.append(scenario)
         else:
-            logger.warning(f"⚠️  {scenario}: directory not found")
+            logger.warning(f"[WARNING] {scenario}: directory not found")
             
     if len(found_scenarios) == 0:
-        logger.error("❌ No scenario directories found!")
+        logger.error("[ERROR] No scenario directories found!")
         return False
         
-    logger.info(f"\n✅ Found {len(found_scenarios)}/3 scenarios")
+    logger.info(f"\n[OK] Found {len(found_scenarios)}/3 scenarios")
     return True
 
 
@@ -126,7 +126,7 @@ def main():
     
     # Header
     print("\n" + "="*80)
-    print("🚀 PHASE 2B → PAPER 1: COMPLETE PROCESSING PIPELINE")
+    print("PHASE 2B -> PAPER 1: COMPLETE PROCESSING PIPELINE")
     print("="*80)
     print(f"\nInput:   {input_dir}")
     print(f"Data:    {data_dir}")
@@ -138,7 +138,7 @@ def main():
     
     # Check input
     if not check_input_directory(input_dir):
-        logger.error("\n❌ Input validation failed. Exiting.")
+        logger.error("\n[ERROR] Input validation failed. Exiting.")
         sys.exit(1)
         
     success = True
@@ -154,10 +154,10 @@ def main():
         success = run_command(cmd, "ANALYSIS (autocatalysis + complexity)")
         
         if not success:
-            logger.error("\n❌ Analysis failed. Cannot proceed.")
+            logger.error("\n[ERROR] Analysis failed. Cannot proceed.")
             sys.exit(1)
     else:
-        logger.info("\n⏭️  Skipping analysis (--skip-analysis)")
+        logger.info("\n[SKIP] Skipping analysis (--skip-analysis)")
         
     # Step 2: Figures
     if not args.skip_figures:
@@ -170,9 +170,9 @@ def main():
         success = run_command(cmd, "FIGURE GENERATION")
         
         if not success:
-            logger.warning("\n⚠️  Figure generation failed (continuing...)")
+            logger.warning("\n[WARNING] Figure generation failed (continuing...)")
     else:
-        logger.info("\n⏭️  Skipping figures (--skip-figures)")
+        logger.info("\n[SKIP] Skipping figures (--skip-figures)")
         
     # Step 3: Tables
     if not args.skip_tables:
@@ -185,23 +185,23 @@ def main():
         success = run_command(cmd, "TABLE GENERATION")
         
         if not success:
-            logger.warning("\n⚠️  Table generation failed (continuing...)")
+            logger.warning("\n[WARNING] Table generation failed (continuing...)")
     else:
-        logger.info("\n⏭️  Skipping tables (--skip-tables)")
+        logger.info("\n[SKIP] Skipping tables (--skip-tables)")
         
     # Summary
     elapsed = time.time() - start_time
     
     print("\n" + "="*80)
-    print("🎉 PIPELINE COMPLETE!")
+    print("PIPELINE COMPLETE!")
     print("="*80)
     print(f"\nElapsed time: {elapsed/60:.1f} minutes")
     print(f"\nGenerated outputs:")
-    print(f"  📊 Analysis data: {data_dir}/")
-    print(f"  📈 Figures:       {figures_dir}/")
-    print(f"  📋 Tables:        {tables_dir}/")
+    print(f"  Analysis data: {data_dir}/")
+    print(f"  Figures:       {figures_dir}/")
+    print(f"  Tables:        {tables_dir}/")
     
-    print(f"\n✅ Next steps:")
+    print(f"\nNext steps:")
     print(f"  1. Review outputs in {data_dir}/")
     print(f"  2. Check figures in {figures_dir}/")
     print(f"  3. Check tables in {tables_dir}/")
@@ -209,7 +209,7 @@ def main():
     print(f"  5. Fill Discussion section in manuscript_draft.tex")
     
     print("\n" + "="*80)
-    print("📝 See TIER1_IMPLEMENTATION_GUIDE.md for detailed instructions")
+    print("See TIER1_IMPLEMENTATION_GUIDE.md for detailed instructions")
     print("="*80 + "\n")
 
 

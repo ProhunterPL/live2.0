@@ -14,6 +14,8 @@ from typing import List, Dict, Tuple, Set
 from dataclasses import dataclass
 from collections import defaultdict
 import logging
+import signal
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +39,21 @@ class AutocatalysisDetector:
     Uses Johnson's algorithm for cycle detection plus catalytic edge analysis.
     """
     
-    def __init__(self, max_cycle_length: int = 8, min_amplification: float = 1.5):
+    def __init__(self, max_cycle_length: int = 6, min_amplification: float = 1.5, 
+                 max_cycles_limit: int = 2000000, cycle_timeout: int = 300):
         """
         Initialize detector.
         
         Args:
-            max_cycle_length: Maximum nodes in cycle to detect (performance)
+            max_cycle_length: Maximum nodes in cycle to detect (performance) - reduced to 6
             min_amplification: Minimum amplification to classify as autocatalytic
+            max_cycles_limit: Maximum number of cycles to find before stopping (safety)
+            cycle_timeout: Maximum seconds to spend finding cycles (default 5 min)
         """
         self.max_cycle_length = max_cycle_length
         self.min_amplification = min_amplification
+        self.max_cycles_limit = max_cycles_limit
+        self.cycle_timeout = cycle_timeout
         self.detected_cycles = []
         
     def detect_cycles_in_network(self, 
@@ -83,17 +90,49 @@ class AutocatalysisDetector:
         return autocatalytic_cycles
     
     def _find_all_cycles(self, graph: nx.DiGraph) -> List[List[str]]:
-        """Find all simple cycles up to max_cycle_length"""
+        """
+        Find all simple cycles up to max_cycle_length.
+        
+        Includes safety limits:
+        - Maximum number of cycles (max_cycles_limit)
+        - Timeout (cycle_timeout seconds)
+        - Early exit if too many cycles found
+        """
         cycles = []
+        start_time = time.time()
+        cycle_count = 0
         
         try:
             # Johnson's algorithm (built into NetworkX)
             for cycle in nx.simple_cycles(graph):
+                # Check timeout
+                elapsed = time.time() - start_time
+                if elapsed > self.cycle_timeout:
+                    logger.warning(f"Cycle detection timeout after {elapsed:.1f}s (limit: {self.cycle_timeout}s). "
+                                 f"Found {len(cycles)} cycles so far. Stopping.")
+                    break
+                
+                # Check cycle length
                 if len(cycle) <= self.max_cycle_length:
                     cycles.append(cycle)
+                    cycle_count += 1
+                    
+                    # Check limit
+                    if cycle_count >= self.max_cycles_limit:
+                        logger.warning(f"Cycle limit reached ({self.max_cycles_limit}). "
+                                     f"Stopping cycle detection to prevent hang.")
+                        break
                     
         except Exception as e:
             logger.warning(f"Cycle detection error: {e}")
+        
+        elapsed = time.time() - start_time
+        if len(cycles) >= self.max_cycles_limit:
+            logger.warning(f"Found {len(cycles)} cycles (limit reached). "
+                         f"This may indicate a very dense network. "
+                         f"Consider reducing max_cycle_length or filtering the network.")
+        else:
+            logger.info(f"Cycle detection completed in {elapsed:.1f}s")
             
         return cycles
     

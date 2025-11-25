@@ -375,6 +375,23 @@ class ComplexityAnalyzer:
             'consolidation': consolidation
         }
     
+    def _convert_to_native_types(self, obj):
+        """Convert numpy types to native Python types for JSON serialization"""
+        import numpy as np
+        
+        if isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: self._convert_to_native_types(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._convert_to_native_types(item) for item in obj]
+        else:
+            return obj
+    
     def export_for_paper(self, output_file: str):
         """Export metrics formatted for paper"""
         import json
@@ -386,6 +403,9 @@ class ComplexityAnalyzer:
             'summary': summary,
             'evolution': evolution
         }
+        
+        # Convert numpy types to native Python types
+        export_data = self._convert_to_native_types(export_data)
         
         with open(output_file, 'w') as f:
             json.dump(export_data, f, indent=2)

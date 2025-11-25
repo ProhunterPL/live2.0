@@ -203,7 +203,7 @@ class FigureGenerator:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logger.info(f"  ✓ Figure 3 saved: {output_file}")
+        logger.info(f"  [OK] Figure 3 saved: {output_file}")
         
     def generate_figure4(self):
         """
@@ -276,7 +276,7 @@ class FigureGenerator:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logger.info(f"  ✓ Figure 4 saved: {output_file}")
+        logger.info(f"  [OK] Figure 4 saved: {output_file}")
         
     def generate_figure5(self):
         """
@@ -369,7 +369,7 @@ class FigureGenerator:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logger.info(f"  ✓ Figure 5 saved: {output_file}")
+        logger.info(f"  [OK] Figure 5 saved: {output_file}")
         
     def generate_figure6(self):
         """
@@ -462,7 +462,7 @@ class FigureGenerator:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logger.info(f"  ✓ Figure 6 saved: {output_file}")
+        logger.info(f"  [OK] Figure 6 saved: {output_file}")
         
     # Helper methods for dummy data generation
     
@@ -530,8 +530,8 @@ def main():
     generator = FigureGenerator(args.data, args.output)
     generator.generate_all_figures()
     
-    print(f"\n✅ All figures generated successfully!")
-    print(f"📁 Output: {args.output}")
+    print(f"\n[OK] All figures generated successfully!")
+    print(f"Output: {args.output}")
     print(f"\nGenerated figures:")
     print(f"  - figure3_molecular_diversity.png")
     print(f"  - figure4_reaction_networks.png")

@@ -1,6 +1,10 @@
 #!/bin/bash
 # Auto Queue & Restart System - FORMAMIDE
+<<<<<<< HEAD
 # =======================================
+=======
+# ===========================================
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 # 
 # Based on successful hydrothermal auto_queue_restart_hydro.sh
 # Manages formamide simulations with automatic restart
@@ -23,6 +27,7 @@ set -e
 # Base configuration
 BASE_DIR="$HOME/live2.0"
 RESULTS_BASE="results/phase2b_additional/formamide_extended"
+<<<<<<< HEAD
 CONFIG="aws_test/configs/phase2_formamide_AWS_OPTIMIZED.yaml"
 MAX_PARALLEL=4
 CHECK_INTERVAL=300  # 5 minutes
@@ -31,6 +36,16 @@ CHECK_INTERVAL=300  # 5 minutes
 TOTAL_RUNS=8
 RUNS=($(seq 1 $TOTAL_RUNS))
 SEEDS=(100 101 102 103 104 105 106 107)  # run_1=100, run_2=101, etc.
+=======
+CONFIG="aws_test/configs/phase2_formamide_extended_SUPER_FAST.yaml"
+MAX_PARALLEL=4
+CHECK_INTERVAL=300  # 5 minutes
+
+# Run configuration - 8 runs (run_1 to run_8)
+TOTAL_RUNS=8
+RUNS=($(seq 1 $TOTAL_RUNS))
+SEEDS=(200 201 202 203 204 205 206 207)  # run_1=200, run_2=201, etc.
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 
 # Log files
 MAIN_LOG="$BASE_DIR/logs/auto_restart_formamide_main.log"
@@ -78,6 +93,7 @@ start_run() {
     log "[START] Starting run_$run_num (seed=$seed)"
     
     cd "$BASE_DIR"
+<<<<<<< HEAD
     
     nohup python3 scripts/run_phase2_full.py \
         --config "$CONFIG" \
@@ -90,6 +106,29 @@ start_run() {
     local pid=$!
     log "[PID] run_$run_num started with PID=$pid"
     echo "$pid" > "$BASE_DIR/logs/formamide_run_${run_num}.pid"
+=======
+    mkdir -p "$run_dir"
+    mkdir -p "$(dirname "$log_file")"
+    
+    # Use 16 threads per run (optimal for 4 parallel runs on 64-core system)
+    CPU_THREADS=16
+    
+    nohup python3 "$BASE_DIR/scripts/run_phase2_full.py" \
+        --config "$BASE_DIR/$CONFIG" \
+        --output "$run_dir" \
+        --seed "$seed" \
+        --steps 500000 \
+        --force-cpu \
+        --cpu-threads "$CPU_THREADS" \
+        >> "$log_file" 2>&1 &
+    
+    local pid=$!
+    log "[START] ✅ Started run_$run_num with PID $pid (seed=$seed)"
+    log_progress "run_$run_num:STARTED:$(date '+%Y-%m-%d %H:%M:%S'):PID=$pid"
+    
+    # Small delay to avoid overwhelming system
+    sleep 5
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 }
 
 get_next_run_to_start() {
@@ -100,6 +139,10 @@ get_next_run_to_start() {
         fi
     done
     echo ""
+<<<<<<< HEAD
+=======
+    return 1
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 }
 
 count_completed() {
@@ -112,6 +155,7 @@ count_completed() {
     echo "$count"
 }
 
+<<<<<<< HEAD
 count_in_progress() {
     local count=0
     for run_num in "${RUNS[@]}"; do
@@ -165,16 +209,88 @@ check_stuck_processes() {
                     log "[WARNING] run_$run_num appears stuck (no log update for ${log_age}s)"
                     log "[ACTION] Consider killing PID=$pid and restarting"
                     # Optionally auto-kill: kill -9 $pid
+=======
+check_stuck_processes() {
+    # Check for processes that haven't updated log in last hour
+    local stuck_count=0
+    for run_num in "${RUNS[@]}"; do
+        if is_run_in_progress "$run_num"; then
+            local log_file="$BASE_DIR/logs/formamide_run_${run_num}.log"
+            if [ -f "$log_file" ]; then
+                local last_update=$(stat -c %Y "$log_file" 2>/dev/null || echo 0)
+                local now=$(date +%s)
+                local age=$((now - last_update))
+                
+                # If log hasn't updated in 2 hours, consider stuck
+                if [ $age -gt 7200 ]; then
+                    log "[WARNING] run_$run_num appears stuck (log age: ${age}s)"
+                    ((stuck_count++))
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
                 fi
             fi
         fi
     done
+<<<<<<< HEAD
 }
 
 # ============================================================================
 # MAIN LOOP
 # ============================================================================
 
+=======
+    
+    if [ $stuck_count -gt 0 ]; then
+        log "[WARNING] Found $stuck_count potentially stuck processes"
+    fi
+}
+
+print_status() {
+    local running=$(get_running_count)
+    local completed=$(count_completed)
+    local pending=$((TOTAL_RUNS - completed - running))
+    
+    log "=========================================="
+    log "FORMAMIDE QUEUE STATUS"
+    log "=========================================="
+    log "Running: $running / $MAX_PARALLEL"
+    log "Completed: $completed / $TOTAL_RUNS"
+    log "Pending: $pending"
+    log "=========================================="
+    
+    # Show which runs are in each state
+    log "Completed runs:"
+    for run_num in "${RUNS[@]}"; do
+        if is_run_completed "$run_num"; then
+            log "  ✅ run_$run_num"
+        fi
+    done
+    
+    log "Running runs:"
+    for run_num in "${RUNS[@]}"; do
+        if is_run_in_progress "$run_num"; then
+            log "  🔄 run_$run_num"
+        fi
+    done
+    
+    log "Pending runs:"
+    for run_num in "${RUNS[@]}"; do
+        if ! is_run_completed "$run_num" && ! is_run_in_progress "$run_num"; then
+            log "  ⏳ run_$run_num"
+        fi
+    done
+}
+
+# ============================================================================
+# MAIN EXECUTION
+# ============================================================================
+
+cd "$BASE_DIR"
+
+# Create logs directory
+mkdir -p "$BASE_DIR/logs"
+mkdir -p "$BASE_DIR/$RESULTS_BASE"
+
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 log "=========================================="
 log "FORMAMIDE AUTO-RESTART SYSTEM"
 log "=========================================="
@@ -187,16 +303,26 @@ log "  Max parallel: $MAX_PARALLEL"
 log "  Check interval: ${CHECK_INTERVAL}s"
 log "=========================================="
 
+<<<<<<< HEAD
 # Create logs directory
 mkdir -p "$BASE_DIR/logs"
 
+=======
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 # Initial status
 print_status
 
 # Main loop
+<<<<<<< HEAD
 while true; do
     log "----------------------------------------"
     log "[CHECK] Checking queue status..."
+=======
+ITERATION=1
+while true; do
+    log "----------------------------------------"
+    log "[CHECK] Iteration $ITERATION - Checking queue status..."
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
     
     # Count running processes
     running=$(get_running_count)
@@ -237,15 +363,23 @@ while true; do
     completed=$(count_completed)
     if [ $completed -eq $TOTAL_RUNS ]; then
         log "=========================================="
+<<<<<<< HEAD
         log "🎉 ALL RUNS COMPLETED!"
         log "=========================================="
         log "Total completed: $completed / $TOTAL_RUNS"
         log "Results location: $BASE_DIR/$RESULTS_BASE/"
+=======
+        log "✅ ALL FORMAMIDE RUNS COMPLETED!"
+        log "=========================================="
+        log "Total runs: $TOTAL_RUNS"
+        log "Completed: $completed"
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
         log "=========================================="
         break
     fi
     
     # Wait before next check
+<<<<<<< HEAD
     log "[WAIT] Sleeping for ${CHECK_INTERVAL}s before next check..."
     sleep $CHECK_INTERVAL
 done
@@ -253,4 +387,12 @@ done
 log "=========================================="
 log "Auto-restart system finished"
 log "=========================================="
+=======
+    log "[WAIT] Waiting ${CHECK_INTERVAL}s before next check..."
+    sleep "$CHECK_INTERVAL"
+    ((ITERATION++))
+done
+
+log "[DONE] Formamide queue system finished"
+>>>>>>> 841e48d (koniec testów hydro, próba wycigniecia danych autokatalizy)
 

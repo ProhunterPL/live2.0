@@ -60,9 +60,36 @@ class Phase2BAnalyzer:
             'hydrothermal_extended',
             'formamide_extended'
         ]
-        self.run_ids = list(range(1, 11))  # 10 replicates each
+        # Auto-detect run_ids from available directories
+        self.run_ids = self._detect_run_ids()
         
         self.results = {}
+    
+    def _detect_run_ids(self) -> List[int]:
+        """Auto-detect all available run IDs from scenario directories"""
+        all_run_ids = set()
+        
+        for scenario in self.scenarios:
+            scenario_dir = self.input_dir / scenario
+            if scenario_dir.exists():
+                # Find all run_* directories
+                run_dirs = list(scenario_dir.glob('run_*'))
+                for run_dir in run_dirs:
+                    # Extract run ID from directory name (e.g., "run_17" -> 17)
+                    try:
+                        run_id = int(run_dir.name.split('_')[1])
+                        all_run_ids.add(run_id)
+                    except (ValueError, IndexError):
+                        continue
+        
+        if all_run_ids:
+            max_run = max(all_run_ids)
+            logger.info(f"Auto-detected {len(all_run_ids)} unique run IDs (max: {max_run})")
+            return sorted(all_run_ids)
+        else:
+            # Fallback to default if no runs found
+            logger.warning("No runs detected, using default range(1, 11)")
+            return list(range(1, 11))
         
     def run_complete_analysis(self):
         """Main analysis pipeline"""
@@ -156,19 +183,60 @@ class Phase2BAnalyzer:
         
     def analyze_autocatalysis_single_run(self, run_dir: Path, results: Dict) -> Dict:
         """Detect autocatalytic cycles in single run"""
-        # Build reaction network
-        molecules = results.get('molecules_detected', [])
-        reactions = results.get('reactions_observed', [])
+        # Try to load reaction network from file (generated from snapshots)
+        network_file = run_dir / "reaction_network.json"
         
-        G = nx.DiGraph()
-        for rxn in reactions:
-            # Parse reaction format (depends on your implementation)
-            # For now, placeholder
-            pass
+        if not network_file.exists():
+            # Fallback: try to build from results.json (may be empty)
+            logger.warning(f"Network file not found: {network_file}")
+            molecules = results.get('molecules_detected', [])
+            reactions = results.get('reactions_observed', [])
             
-        # Get abundance history
-        abundance_history = results.get('abundance_history', {})
-        molecule_names = {m['id']: m['formula'] for m in molecules}
+            G = nx.DiGraph()
+            # Build empty graph if no reactions
+            if not reactions:
+                logger.warning("No reactions found in results.json")
+                abundance_history = {}
+                molecule_names = {}
+            else:
+                # Build graph from reactions (if available)
+                for rxn in reactions:
+                    # Parse reaction format
+                    pass
+                abundance_history = results.get('abundance_history', {})
+                molecule_names = {m.get('id', ''): m.get('formula', '') for m in molecules}
+        else:
+            # Load from reaction_network.json
+            with open(network_file) as f:
+                network_data = json.load(f)
+            
+            # Build graph from edges
+            G = nx.DiGraph()
+            for edge in network_data.get('edges', []):
+                source = edge.get('source', '')
+                target = edge.get('target', '')
+                if source and target:
+                    G.add_edge(source, target)
+            
+            # Build molecule names mapping
+            molecule_names = {}
+            for mol in network_data.get('molecules', []):
+                mol_id = mol.get('id', '')
+                mol_formula = mol.get('formula', '')
+                if mol_id and mol_formula:
+                    molecule_names[mol_id] = mol_formula
+            
+            # Build abundance history from molecules (simplified - use count from molecules.json)
+            abundance_history = {}
+            molecules_file = run_dir / "molecules.json"
+            if molecules_file.exists():
+                with open(molecules_file) as f:
+                    molecules = json.load(f)
+                for mol in molecules:
+                    mol_id = mol.get('id', '')
+                    if mol_id:
+                        # Use count as abundance (simplified)
+                        abundance_history[mol_id] = [mol.get('count', 1)]
         
         # Detect cycles
         detector = AutocatalysisDetector()
