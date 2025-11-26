@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figure 1: Autocatalytic Cycle Detection Algorithm</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre;
+        }
+        code {
+            background-color: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        ul, ol {
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Figure 1: Autocatalytic Cycle Detection Algorithm</h1>
+<h2>Description</h2>
+<p>Illustrates the detection and analysis of autocatalytic cycles in prebiotic chemistry reaction networks.</p>
+<hr>
+<h2>Autocatalysis Detection Pipeline</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                    INPUT: REACTION NETWORK                      │
+│                                                                   │
+│  Directed Graph G = (V, E)                                       │
+│    V = Molecules (nodes)                                         │
+│    E = Reactions (edges: reactant → product)                     │
+│                                                                   │
+│  Example:                                                        │
+│    A → B  (reaction: A forms B)                                  │
+│    B → C  (reaction: B forms C)                                  │
+│    C → A  (reaction: C forms A)                                   │
+│                                                                   │
+│  + Abundance History: {molecule_id: [count_at_step_t]}          │
+└───────────────────────┬─────────────────────────────────────────┘
+                         │
+                         ▼
+        ╔═══════════════════════════════════════════════════╗
+        ║         STEP 1: CYCLE DETECTION                   ║
+        ║         (Johnson's Algorithm)                     ║
+        ╠═══════════════════════════════════════════════════╣
+        ║                                                   ║
+        ║   Find all simple cycles in directed graph        ║
+        ║   Maximum cycle length: 6 nodes                    ║
+        ║   Timeout: 300 seconds (safety limit)             ║
+        ║                                                   ║
+        ║   Output: List of cycles                          ║
+        ║     Cycle = [node1, node2, ..., nodeN]            ║
+        ║                                                   ║
+        ╚═══════════════════════════════════════════════════╝
+                         │
+                         ▼
+        ╔═══════════════════════════════════════════════════╗
+        ║         STEP 2: AUTOCATALYTIC FILTERING           ║
+        ║         (Amplification Check)                     ║
+        ╠═══════════════════════════════════════════════════╣
+        ║                                                   ║
+        ║   For each cycle:                                  ║
+        ║     For each molecule M in cycle:                 ║
+        ║       1. Check: M appears as both reactant        ║
+        ║          and product in cycle                      ║
+        ║       2. Calculate amplification:                 ║
+        ║          amp = abundance_late / abundance_early    ║
+        ║       3. If amp ≥ 1.5×: AUTOCATALYTIC ✅          ║
+        ║                                                   ║
+        ╚═══════════════════════════════════════════════════╝
+                         │
+                         ▼
+        ╔═══════════════════════════════════════════════════╗
+        ║         STEP 3: CYCLE CLASSIFICATION               ║
+        ║         (Type Detection)                          ║
+        ╠═══════════════════════════════════════════════════╣
+        ║                                                   ║
+        ║   Classify cycle type:                            ║
+        ║     - Direct: length=2, A + B → 2A                ║
+        ║     - Indirect: length=3-4, A→B→C→A              ║
+        ║     - Hypercycle: length>4, cross-catalysis       ║
+        ║                                                   ║
+        ╚═══════════════════════════════════════════════════╝
+                         │
+                         ▼
+        ╔═══════════════════════════════════════════════════╗
+        ║         STEP 4: METRIC CALCULATION                 ║
+        ║         (Strength & Amplification)                ║
+        ╠═══════════════════════════════════════════════════╣
+        ║                                                   ║
+        ║   For each autocatalytic cycle:                  ║
+        ║     - Amplification factor (avg across nodes)    ║
+        ║     - Catalytic strength (0-1):                  ║
+        ║         strength = 0.7×amp_score + 0.3×connectivity║
+        ║     - First detection step                        ║
+        ║                                                   ║
+        ╚═══════════════════════════════════════════════════╝
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    OUTPUT: AUTOCATALYTIC CYCLES                 │
+│                                                                   │
+│  List of AutocatalyticCycle objects:                            │
+│    - nodes: [molecule_ids]                                      │
+│    - edges: [(reactant, product)]                                │
+│    - amplification_factor: float                                  │
+│    - cycle_type: 'direct' | 'indirect' | 'hypercycle'            │
+│    - strength: float (0-1)                                       │
+│    - first_detected_step: int                                    │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+<hr>
+<h2>Example: Direct Autocatalysis</h2>
+<h3>Reaction Network</h3>
+<pre><code>Molecule A: HCN (hydrogen cyanide)
+Molecule B: H2O (water)
+
+Reaction: A + B → 2A + C
+  (HCN + H2O → 2HCN + byproduct)</code></pre>
+<h3>Cycle Detection</h3>
+<pre><code>Graph:
+  A ──→ A  (self-catalysis)
+  
+Cycle: [A]
+Type: Direct autocatalysis
+Amplification: 3.2× (A abundance increases from 10 to 32)
+Strength: 0.85</code></pre>
+<h3>Temporal Evolution</h3>
+<pre><code>Abundance of A over time:
+
+40 |                                    ●●●●●●●●●
+   |                                ●●●
+30 |                            ●●●
+   |                        ●●●
+20 |                    ●●●
+   |                ●●●
+10 |            ●●●
+   |        ●●●
+ 0 |●●●
+   |__________________________________________________|
+   0K    100K   200K   300K   400K   500K    Steps
+
+Early (0-100K):   Abundance = 10
+Late (400K-500K): Abundance = 32
+Amplification: 32/10 = 3.2× ✅</code></pre>
+<hr>
+<h2>Example: Indirect Autocatalysis (Catalytic Chain)</h2>
+<h3>Reaction Network</h3>
+<pre><code>Molecules:
+  A: Formaldehyde (HCHO)
+  B: Glycolaldehyde (C2H4O2)
+  C: Glyceraldehyde (C3H6O3)
+
+Reactions:
+  A → B  (formaldehyde forms glycolaldehyde)
+  B → C  (glycolaldehyde forms glyceraldehyde)
+  C → A  (glyceraldehyde catalyzes formaldehyde formation)</code></pre>
+<h3>Cycle Detection</h3>
+<pre><code>Graph:
+  A ──→ B ──→ C ──→ A
+  
+Cycle: [A, B, C]
+Type: Indirect autocatalysis
+Length: 3 nodes</code></pre>
+<h3>Amplification Analysis</h3>
+<pre><code>For each molecule in cycle:
+
+Molecule A (HCHO):
+  Early abundance: 5
+  Late abundance:  18
+  Amplification: 18/5 = 3.6× ✅
+
+Molecule B (C2H4O2):
+  Early abundance: 2
+  Late abundance:  8
+  Amplification: 8/2 = 4.0× ✅
+
+Molecule C (C3H6O3):
+  Early abundance: 1
+  Late abundance:  5
+  Amplification: 5/1 = 5.0× ✅
+
+Average amplification: (3.6 + 4.0 + 5.0) / 3 = 4.2×
+Cycle strength: 0.78</code></pre>
+<h3>Network Visualization</h3>
+<pre><code>Reaction Network Graph:
+
+    ┌─────────┐
+    │   A     │ (HCHO)
+    │ (HCHO)  │
+    └────┬────┘
+         │
+         │ A → B
+         ▼
+    ┌─────────┐
+    │   B     │ (C2H4O2)
+    │(C2H4O2) │
+    └────┬────┘
+         │
+         │ B → C
+         ▼
+    ┌─────────┐
+    │   C     │ (C3H6O3)
+    │(C3H6O3) │
+    └────┬────┘
+         │
+         │ C → A (catalyzes)
+         │
+         └──────┐
+                │
+         ┌──────┴──────┐
+         │  CYCLE     │ ◄── AUTOCATALYTIC
+         │  DETECTED  │
+         └────────────┘</code></pre>
+<hr>
+<h2>Example: Hypercycle (Cross-Catalysis)</h2>
+<h3>Reaction Network</h3>
+<pre><code>Molecules: A, B, C, D, E
+
+Reactions:
+  A → B  (A catalyzes B formation)
+  B → C  (B catalyzes C formation)
+  C → D  (C catalyzes D formation)
+  D → E  (D catalyzes E formation)
+  E → A  (E catalyzes A formation)
+  
+  + Cross-catalytic edges:
+    A → C  (A also helps C)
+    B → E  (B also helps E)
+    C → A  (C also helps A)</code></pre>
+<h3>Cycle Detection</h3>
+<pre><code>Primary cycle: [A, B, C, D, E]
+Length: 5 nodes
+
+Cross-catalytic edges:
+  A → C (additional catalysis)
+  B → E (additional catalysis)
+  C → A (feedback loop)
+
+Type: Hypercycle (multiple catalytic interactions)</code></pre>
+<h3>Hypercycle Structure</h3>
+<pre><code>Complex Network:
+
+        ┌─── A ───┐
+        │         │
+        │    ┌────┴────┐
+        │    │         │
+        ▼    ▼         │
+        B ──→ C ◄──────┘ (cross-catalysis)
+        │    │
+        │    │
+        ▼    ▼
+        D ──→ E
+        │    │
+        └────┘
+        
+Primary cycle: A→B→C→D→E→A
+Cross-catalysis: A→C, B→E, C→A
+Result: Hypercycle (multiple feedback loops)</code></pre>
+<hr>
+<h2>Amplification Detection Algorithm</h2>
+<h3>Temporal Analysis</h3>
+<pre><code>For molecule M in cycle:
+
+┌───────────────────────────────────────────────────────────┐
+│  STEP 1: Extract abundance history                         │
+│    history = abundance_history[M]                           │
+│    history = [count_0, count_1, ..., count_T]              │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────────────────┐
+│  STEP 2: Divide into early and late periods               │
+│    early_period = history[0 : T//3]                       │
+│    late_period  = history[2*T//3 : T]                     │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────────────────┐
+│  STEP 3: Calculate mean abundances                        │
+│    early_mean = mean(early_period)                         │
+│    late_mean  = mean(late_period)                          │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────────────────┐
+│  STEP 4: Compute amplification factor                     │
+│    if early_mean > 0:                                      │
+│      amplification = late_mean / early_mean                 │
+│    else:                                                   │
+│      amplification = 0 (not detected)                      │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────────────────┐
+│  STEP 5: Classify as autocatalytic                        │
+│    if amplification ≥ 1.5:                                │
+│      return AUTOCATALYTIC ✅                               │
+│    else:                                                   │
+│      return NOT AUTOCATALYTIC ❌                           │
+└───────────────────────────────────────────────────────────┘</code></pre>
+<h3>Amplification Threshold</h3>
+<pre><code>Minimum amplification: 1.5× (configurable)
+
+Rationale:
+  - 1.0× = No growth (not autocatalytic)
+  - 1.5× = Moderate growth (autocatalytic)
+  - 2.0× = Strong growth (highly autocatalytic)
+  - 5.0× = Very strong growth (exceptional)
+
+Example classifications:
+  Amplification 1.2× → NOT autocatalytic (below threshold)
+  Amplification 1.8× → AUTOCATALYTIC ✅
+  Amplification 4.5× → AUTOCATALYTIC ✅ (strong)</code></pre>
+<hr>
+<h2>Cycle Classification Logic</h2>
+<h3>Decision Tree</h3>
+<pre><code>┌───────────────────────────────────────────────────────────┐
+│  Classify Cycle Type                                       │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │  Cycle length = 2?   │
+            └───────┬───────────────┘
+                    │
+            ┌───────┴───────┐
+            │               │
+          YES              NO
+            │               │
+            ▼               ▼
+    ┌──────────────┐  ┌──────────────────┐
+    │   DIRECT     │  │  Cycle length   │
+    │  AUTOCATALYSIS│  │  ≤ 4?           │
+    │              │  └──────┬───────────┘
+    │  A + B → 2A  │         │
+    └──────────────┘    ┌────┴────┐
+                        │         │
+                      YES        NO
+                        │         │
+                        ▼         ▼
+                ┌──────────┐  ┌──────────────┐
+                │ INDIRECT │  │ Check cross- │
+                │          │  │ catalysis    │
+                │ A→B→C→A  │  └──────┬───────┘
+                └──────────┘         │
+                              ┌──────┴──────┐
+                              │             │
+                            High          Low
+                            │             │
+                            ▼             ▼
+                    ┌──────────────┐  ┌──────────┐
+                    │  HYPERCYCLE  │  │ INDIRECT │
+                    │              │  │          │
+                    │ Multiple     │  │ A→B→C→A  │
+                    │ feedback     │  │          │
+                    │ loops        │  │          │
+                    └──────────────┘  └──────────┘</code></pre>
+<h3>Classification Criteria</h3>
+<pre><code>Direct Autocatalysis:
+  - Cycle length = 2 nodes
+  - Example: A + B → 2A
+  - Simplest form of self-replication
+
+Indirect Autocatalysis:
+  - Cycle length = 3-4 nodes
+  - Example: A → B → C → A
+  - Catalytic chain with feedback
+
+Hypercycle:
+  - Cycle length > 4 nodes OR
+  - Multiple cross-catalytic edges
+  - Example: A→B→C→D→E→A with A→C, B→E
+  - Most complex, highest catalytic strength</code></pre>
+<hr>
+<h2>Catalytic Strength Calculation</h2>
+<h3>Formula</h3>
+<pre><code>strength = 0.7 × amp_score + 0.3 × connectivity
+
+where:
+  amp_score = normalized amplification (0-1)
+    = min(1.0, (amplification - 1.0) / 10.0)
+  
+  connectivity = internal_edges / max_possible_edges
+    = edges_within_cycle / (n × (n-1))</code></pre>
+<h3>Example Calculation</h3>
+<pre><code>Cycle: [A, B, C]
+Amplification: 4.2×
+
+Step 1: Calculate amp_score
+  amp_score = min(1.0, (4.2 - 1.0) / 10.0)
+           = min(1.0, 0.32)
+           = 0.32
+
+Step 2: Calculate connectivity
+  Internal edges: 3 (A→B, B→C, C→A)
+  Max possible: 3 × 2 = 6
+  connectivity = 3/6 = 0.5
+
+Step 3: Calculate strength
+  strength = 0.7 × 0.32 + 0.3 × 0.5
+           = 0.224 + 0.15
+           = 0.374
+
+Result: strength = 0.374 (moderate)</code></pre>
+<hr>
+<h2>Performance Characteristics</h2>
+<h3>Algorithm Complexity</h3>
+<pre><code>Operation                    | Complexity | Notes
+----------------------------|------------|------------------
+Johnson's cycle detection   | O((V+E)(C+1)) | C = cycles found
+Amplification check         | O(V × T)   | V = nodes, T = time steps
+Cycle classification        | O(V²)      | Check cross-edges
+Strength calculation        | O(V)       | Simple aggregation
+Total                       | O((V+E)(C+1) + V×T) | Dominated by cycle detection
+
+Optimizations:
+  - Max cycle length: 6 (prevents exponential explosion)
+  - Timeout: 300s (safety limit)
+  - Cycle limit: 2M (prevents memory issues)</code></pre>
+<h3>Scalability</h3>
+<pre><code>Network Size | Cycles Found | Detection Time | Memory
+-------------|--------------|----------------|--------
+100 nodes    | ~50          | 0.5s          | 10 MB
+500 nodes    | ~500         | 5s            | 50 MB
+1000 nodes   | ~2000        | 30s           | 200 MB
+5000 nodes   | ~50000       | 300s (timeout)| 2 GB
+
+For very large networks (>1000 nodes):
+  - Consider filtering network first
+  - Reduce max_cycle_length to 4
+  - Use parallel processing</code></pre>
+<hr>
+<h2>Patent Claim Support</h2>
+<p>This figure demonstrates <strong>Patent 2 - Autocatalysis Detection</strong>:</p>
+<h3>Patent 2, Claim 1: Cycle Detection Algorithm</h3>
+<ul>
+<li>Johnson's algorithm for finding all cycles in directed graph</li>
+<li>Maximum cycle length constraint (performance)</li>
+<li>Timeout mechanism (safety)</li>
+</ul>
+<h3>Patent 2, Claim 2: Autocatalytic Filtering</h3>
+<ul>
+<li>Amplification detection using temporal abundance analysis</li>
+<li>Minimum amplification threshold (1.5×)</li>
+<li>Net production calculation</li>
+</ul>
+<h3>Patent 2, Claim 3: Cycle Classification</h3>
+<ul>
+<li>Direct, indirect, and hypercycle types</li>
+<li>Cross-catalytic edge detection</li>
+<li>Cycle length-based classification</li>
+</ul>
+<h3>Patent 2, Claim 4: Catalytic Strength Metric</h3>
+<ul>
+<li>Combined amplification and connectivity score</li>
+<li>Normalized strength (0-1 scale)</li>
+<li>Temporal stability analysis</li>
+</ul>
+<h3>Patent 2, Claim 5: Real-Time Detection</h3>
+<ul>
+<li>Works on simulation snapshots</li>
+<li>Tracks abundance history over time</li>
+<li>Detects cycles as they emerge</li>
+</ul>
+<hr>
+<h2>Key Innovations Summary</h2>
+<ol>
+<li>✅ <strong>Temporal amplification analysis</strong> - Uses abundance history, not just topology</li>
+<li>✅ <strong>Multi-type classification</strong> - Direct, indirect, hypercycle detection</li>
+<li>✅ <strong>Catalytic strength metric</strong> - Quantifies cycle importance</li>
+<li>✅ <strong>Scalable algorithm</strong> - Handles networks up to 1000+ nodes</li>
+<li>✅ <strong>Safety mechanisms</strong> - Timeout and cycle limits prevent hangs</li>
+<li>✅ <strong>Real-time detection</strong> - Works on evolving networks during simulation</li>
+</ol>
+        <div class="footer">
+            <p>Generated from: FIGURE_1_autocatalytic.md</p>
+        </div>
+    </div>
+</body>
+</html>

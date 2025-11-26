@@ -181,9 +181,9 @@ Theory: Speedup ∝ log(N) due to grid optimization
 
 ## Patent Claim Support
 
-This figure demonstrates **Claim 1**, **Claim 4**, and **Claim 5**:
-- Measurable performance improvement (1.28-1.55× speedup)
-- Adaptive rebuild strategy reduces overhead
-- Scaling benefits for larger systems
-- CPU/GPU hybrid optimization
+This figure demonstrates **Patent 1 - Spatial Hashing**:
+- **Claim 1**: Measurable performance improvement (1.28-1.55× speedup)
+- **Claim 4**: Adaptive rebuild strategy reduces overhead
+- **Claim 5**: Scaling benefits for larger systems
+- **Claim 5**: CPU/GPU hybrid optimization
 

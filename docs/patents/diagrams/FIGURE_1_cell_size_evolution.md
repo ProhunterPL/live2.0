@@ -61,8 +61,8 @@ where:
 
 ## Patent Claim Support
 
-This figure demonstrates **Claim 1** and **Claim 6**:
-- Adaptive cell size based on system state
-- Phase-dependent optimization parameter
-- Continuous adaptation without manual intervention
+This figure demonstrates **Patent 1 - Spatial Hashing**:
+- **Claim 1**: Adaptive cell size based on system state
+- **Claim 1**: Phase-dependent optimization parameter
+- **Claim 1**: Continuous adaptation without manual intervention
 

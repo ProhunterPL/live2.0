@@ -138,8 +138,8 @@ Stats:
 
 ## Patent Claim Support
 
-This figure demonstrates **Claim 1**, **Claim 2**, and **Claim 3**:
-- Grid structure adapts to particle distribution
-- Cell size computed from density and bonding
-- Same algorithm handles heterogeneous systems
+This figure demonstrates **Patent 1 - Spatial Hashing**:
+- **Claim 1**: Grid structure adapts to particle distribution
+- **Claim 1**: Cell size computed from density and bonding
+- **Claim 2**: Same algorithm handles heterogeneous systems
 
