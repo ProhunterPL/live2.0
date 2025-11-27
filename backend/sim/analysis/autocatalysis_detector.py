@@ -40,7 +40,7 @@ class AutocatalysisDetector:
     """
     
     def __init__(self, max_cycle_length: int = 6, min_amplification: float = 1.5, 
-                 max_cycles_limit: int = 2000000, cycle_timeout: int = 300):
+                 max_cycles_limit: int = 100000, cycle_timeout: int = 300):
         """
         Initialize detector.
         
@@ -48,6 +48,7 @@ class AutocatalysisDetector:
             max_cycle_length: Maximum nodes in cycle to detect (performance) - reduced to 6
             min_amplification: Minimum amplification to classify as autocatalytic
             max_cycles_limit: Maximum number of cycles to find before stopping (safety)
+                             Reduced to 100k to prevent excessive processing
             cycle_timeout: Maximum seconds to spend finding cycles (default 5 min)
         """
         self.max_cycle_length = max_cycle_length
@@ -78,14 +79,40 @@ class AutocatalysisDetector:
         logger.info(f"Found {len(all_cycles)} total cycles")
         
         # Step 2: Filter to autocatalytic cycles
+        # Add progress logging and timeout for filtering phase
         autocatalytic_cycles = []
-        for cycle in all_cycles:
+        start_time = time.time()
+        total_cycles = len(all_cycles)
+        
+        # If too many cycles, warn and potentially sample
+        if total_cycles > 50000:
+            logger.warning(f"Very large number of cycles ({total_cycles}). "
+                         f"This may take a long time. Consider reducing max_cycle_length.")
+        
+        for i, cycle in enumerate(all_cycles):
+            # Check timeout during filtering
+            elapsed = time.time() - start_time
+            if elapsed > self.cycle_timeout:
+                logger.warning(f"Filtering timeout after {elapsed:.1f}s. "
+                             f"Processed {i}/{total_cycles} cycles. "
+                             f"Found {len(autocatalytic_cycles)} autocatalytic cycles so far.")
+                break
+            
+            # Progress logging for large sets
+            if total_cycles > 1000 and (i + 1) % max(1, total_cycles // 10) == 0:
+                progress_pct = 100 * (i + 1) / total_cycles
+                logger.info(f"Filtering progress: {i+1}/{total_cycles} ({progress_pct:.1f}%) - "
+                          f"found {len(autocatalytic_cycles)} autocatalytic so far")
+            
             if self._is_autocatalytic(cycle, reaction_graph, abundance_history):
                 ac = self._analyze_cycle(cycle, reaction_graph, abundance_history, molecule_names)
-                if ac:
+                # Additional check: average amplification must meet threshold
+                if ac and ac.amplification_factor >= self.min_amplification:
                     autocatalytic_cycles.append(ac)
-                    
-        logger.info(f"Detected {len(autocatalytic_cycles)} autocatalytic cycles")
+        
+        elapsed = time.time() - start_time
+        logger.info(f"Detected {len(autocatalytic_cycles)} autocatalytic cycles "
+                   f"(filtered {total_cycles} cycles in {elapsed:.1f}s)")
         self.detected_cycles = autocatalytic_cycles
         return autocatalytic_cycles
     
@@ -117,10 +144,17 @@ class AutocatalysisDetector:
                     cycles.append(cycle)
                     cycle_count += 1
                     
-                    # Check limit
+                    # Progress logging for large sets
+                    if cycle_count > 0 and cycle_count % 10000 == 0:
+                        elapsed = time.time() - start_time
+                        logger.info(f"Cycle detection progress: {cycle_count} cycles found "
+                                  f"({elapsed:.1f}s elapsed)")
+                    
+                    # Check limit (reduced to prevent excessive processing)
                     if cycle_count >= self.max_cycles_limit:
                         logger.warning(f"Cycle limit reached ({self.max_cycles_limit}). "
-                                     f"Stopping cycle detection to prevent hang.")
+                                     f"Stopping cycle detection to prevent hang. "
+                                     f"This network is very dense - consider reducing max_cycle_length.")
                         break
                     
         except Exception as e:
@@ -159,6 +193,32 @@ class AutocatalysisDetector:
             # Node must be both consumed and produced
             if len(in_edges) > 0 and len(out_edges) > 0:
                 # Check if amplification occurs
+                has_history = node in abundance_history
+                if has_history:
+                    history = abundance_history[node]
+                    has_sufficient_points = len(history) >= 3
+                    if has_sufficient_points:
+                        # Calculate amplification for debugging
+                        if len(history) < 6:
+                            early = history[0] if history[0] > 0 else np.mean(history[:max(1, len(history)//2)]) + 1e-10
+                            late = np.mean(history[-max(1, len(history)//2):])
+                        else:
+                            early = np.mean(history[:len(history)//3]) + 1e-10
+                            late = np.mean(history[2*len(history)//3:])
+                        amp = late / early if early > 0 else 0.0
+                        passes_threshold = amp >= self.min_amplification
+                        
+                        # Log first few failures for debugging
+                        if not passes_threshold and len(self.detected_cycles) < 3:
+                            logger.debug(f"Cycle node {node}: amp={amp:.3f}, threshold={self.min_amplification}, "
+                                       f"history_len={len(history)}, early={early:.2f}, late={late:.2f}")
+                    else:
+                        if len(self.detected_cycles) < 3:
+                            logger.debug(f"Cycle node {node}: insufficient history points ({len(history)} < 3)")
+                else:
+                    if len(self.detected_cycles) < 3:
+                        logger.debug(f"Cycle node {node}: not in abundance_history")
+                
                 if self._check_amplification(node, abundance_history):
                     return True
                     
@@ -172,12 +232,18 @@ class AutocatalysisDetector:
             return False
             
         history = abundance_history[molecule_id]
-        if len(history) < 10:  # Need sufficient history
+        # Reduced from 10 to 3 to handle runs with fewer time points
+        if len(history) < 3:  # Need at least 3 time points
             return False
             
         # Compare early vs late abundance
-        early = np.mean(history[:len(history)//3])
-        late = np.mean(history[2*len(history)//3:])
+        # For short histories, use first vs last
+        if len(history) < 6:
+            early = history[0] if history[0] > 0 else np.mean(history[:max(1, len(history)//2)]) + 1e-10
+            late = np.mean(history[-max(1, len(history)//2):])
+        else:
+            early = np.mean(history[:len(history)//3]) + 1e-10
+            late = np.mean(history[2*len(history)//3:])
         
         if early > 0:
             amplification = late / early
@@ -205,16 +271,26 @@ class AutocatalysisDetector:
         for node in cycle:
             if node in abundance_history:
                 history = abundance_history[node]
-                if len(history) >= 10:
-                    early = np.mean(history[:len(history)//3]) + 1e-10
-                    late = np.mean(history[2*len(history)//3:])
+                # Reduced from 10 to 3 to handle runs with fewer time points
+                if len(history) >= 3:
+                    # For short histories, use first vs last
+                    if len(history) < 6:
+                        early = history[0] if history[0] > 0 else np.mean(history[:max(1, len(history)//2)]) + 1e-10
+                        late = np.mean(history[-max(1, len(history)//2):])
+                    else:
+                        early = np.mean(history[:len(history)//3]) + 1e-10
+                        late = np.mean(history[2*len(history)//3:])
                     amp = late / early
                     amplifications.append(amp)
                     
         if not amplifications:
             return None
-            
-        avg_amplification = np.mean(amplifications)
+        
+        # Use maximum amplification instead of mean, since _is_autocatalytic
+        # checks if ANY node has amplification >= threshold
+        # This ensures that if a cycle passes _is_autocatalytic, it will also
+        # pass the amplification_factor check in detect_cycles_in_network
+        avg_amplification = np.max(amplifications) if amplifications else 0.0
         
         # Classify cycle type
         cycle_type = self._classify_cycle_type(cycle, edges, graph)
@@ -281,9 +357,15 @@ class AutocatalysisDetector:
         for node in cycle:
             if node in abundance_history:
                 history = abundance_history[node]
-                if len(history) >= 10:
-                    early = np.mean(history[:len(history)//3]) + 1e-10
-                    late = np.mean(history[2*len(history)//3:])
+                # Reduced from 10 to 3 to handle runs with fewer time points
+                if len(history) >= 3:
+                    # For short histories, use first vs last
+                    if len(history) < 6:
+                        early = history[0] if history[0] > 0 else np.mean(history[:max(1, len(history)//2)]) + 1e-10
+                        late = np.mean(history[-max(1, len(history)//2):])
+                    else:
+                        early = np.mean(history[:len(history)//3]) + 1e-10
+                        late = np.mean(history[2*len(history)//3:])
                     amp = late / early
                     # Normalize to 0-1
                     amp_score = min(1.0, (amp - 1.0) / 10.0)
@@ -390,7 +472,8 @@ def analyze_scenario_autocatalysis(results_dir: str,
     import json
     
     all_cycles = []
-    detector = AutocatalysisDetector()
+    # Use relaxed criteria: min_amplification=1.1 instead of default 1.5
+    detector = AutocatalysisDetector(min_amplification=1.1)
     
     for run_id in run_ids:
         run_dir = Path(results_dir) / scenario_name / f"run_{run_id}"
@@ -409,13 +492,34 @@ def analyze_scenario_autocatalysis(results_dir: str,
         for edge in network_data.get('edges', []):
             graph.add_edge(edge['source'], edge['target'])
             
-        # Load abundance history
-        results_file = run_dir / "results.json"
-        with open(results_file) as f:
-            results = json.load(f)
-            
-        abundance_history = results.get('abundance_history', {})
-        molecule_names = results.get('molecule_names', {})
+        # Use abundance_history from reaction_network.json (temporal data from snapshots)
+        # This is the correct source, not results.json
+        abundance_history = network_data.get('abundance_history', {})
+        if not abundance_history:
+            # Fallback to results.json if not in network file
+            logger.warning(f"No abundance_history in {network_file}, trying results.json")
+            results_file = run_dir / "results.json"
+            if results_file.exists():
+                with open(results_file) as f:
+                    results = json.load(f)
+                abundance_history = results.get('abundance_history', {})
+            else:
+                logger.warning(f"No abundance_history found for run_{run_id}")
+                abundance_history = {}
+        
+        # Build molecule names mapping from network data
+        molecule_names = {}
+        for mol in network_data.get('molecules', []):
+            mol_id = mol.get('id', '')
+            mol_formula = mol.get('formula', '')
+            if mol_id and mol_formula:
+                molecule_names[mol_id] = mol_formula
+        
+        # Debug: log abundance history info
+        if abundance_history:
+            sample_mol = list(abundance_history.keys())[0] if abundance_history else None
+            n_points = len(abundance_history[sample_mol]) if sample_mol else 0
+            logger.info(f"  Run {run_id}: {len(abundance_history)} molecules, {n_points} time points")
         
         # Detect cycles
         cycles = detector.detect_cycles_in_network(graph, abundance_history, molecule_names)

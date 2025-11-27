@@ -226,20 +226,27 @@ class Phase2BAnalyzer:
                 if mol_id and mol_formula:
                     molecule_names[mol_id] = mol_formula
             
-            # Build abundance history from molecules (simplified - use count from molecules.json)
-            abundance_history = {}
-            molecules_file = run_dir / "molecules.json"
-            if molecules_file.exists():
-                with open(molecules_file) as f:
-                    molecules = json.load(f)
-                for mol in molecules:
-                    mol_id = mol.get('id', '')
-                    if mol_id:
-                        # Use count as abundance (simplified)
-                        abundance_history[mol_id] = [mol.get('count', 1)]
+            # Use abundance_history from reaction_network.json (temporal data from snapshots)
+            abundance_history = network_data.get('abundance_history', {})
+            if not abundance_history:
+                # Fallback: try to build from molecules.json (single point, not ideal)
+                logger.warning(f"No abundance_history in {network_file}, using molecules.json as fallback")
+                abundance_history = {}
+                molecules_file = run_dir / "molecules.json"
+                if molecules_file.exists():
+                    with open(molecules_file) as f:
+                        molecules = json.load(f)
+                    for mol in molecules:
+                        mol_id = mol.get('id', '')
+                        if mol_id:
+                            # Use count as abundance (simplified, single point)
+                            abundance_history[mol_id] = [mol.get('count', 1)]
+            else:
+                logger.info(f"Using abundance_history from {network_file} ({len(abundance_history)} molecules, {len(list(abundance_history.values())[0]) if abundance_history else 0} time points)")
         
-        # Detect cycles
-        detector = AutocatalysisDetector()
+        # Detect cycles with relaxed criteria (min_amplification = 1.1 instead of 1.5)
+        # Use longer timeout for full analysis (10 minutes) to handle dense networks
+        detector = AutocatalysisDetector(min_amplification=1.1, cycle_timeout=600)
         cycles = detector.detect_cycles_in_network(G, abundance_history, molecule_names)
         
         # Export
