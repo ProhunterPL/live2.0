@@ -302,9 +302,10 @@ For questions about:
 - **Data analysis**: Check docs/PHASE3_ANALYSIS_GUIDE.md
 - **Figures**: Check scripts/README.md
 - **AWS pipeline**: Check docs/AWS_RESULTS_PIPELINE.md
+- **Publication strategy**: Check PUBLICATION_STRATEGY.md (includes Polish media strategy)
 
 ---
 
-**Last updated**: October 16, 2025  
+**Last updated**: January 23, 2025  
 **Status**: READY FOR DATA - Manuscript structure complete, waiting for AWS results
 
