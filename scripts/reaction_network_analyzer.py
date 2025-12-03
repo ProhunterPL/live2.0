@@ -206,7 +206,10 @@ class ReactionNetworkAnalyzer:
     
     def _load_from_snapshots(self, snapshot_dir: Path):
         """Load reactions from snapshot files"""
+        # Try both naming conventions
         snapshot_files = sorted(snapshot_dir.glob("snapshot_*.json"))
+        if not snapshot_files:
+            snapshot_files = sorted(snapshot_dir.glob("step_*.json"))
         
         if not snapshot_files:
             return
@@ -225,6 +228,8 @@ class ReactionNetworkAnalyzer:
                 
                 # Extract current molecules
                 curr_molecules = set()
+                
+                # Try direct 'molecules' field first
                 if 'molecules' in data:
                     for mol in data['molecules']:
                         formula = mol.get('formula', '')
@@ -236,6 +241,53 @@ class ReactionNetworkAnalyzer:
                                 formula=formula,
                                 name=mol.get('name'),
                                 num_atoms=len(mol.get('atoms', [])),
+                                first_seen=step
+                            ))
+                
+                # If no molecules field, try to extract from bonds/attributes
+                elif 'bonds' in data and data.get('bonds'):
+                    from collections import defaultdict
+                    
+                    bonds = data.get('bonds', [])
+                    if bonds:
+                        # Build graph of connected particles
+                        graph = defaultdict(set)
+                        for bond in bonds:
+                            if len(bond) >= 2:
+                                i, j = bond[0], bond[1]
+                                graph[i].add(j)
+                                graph[j].add(i)
+                        
+                        # Find connected components (molecules)
+                        visited = set()
+                        components = []
+                        
+                        for node in graph:
+                            if node not in visited:
+                                component = []
+                                stack = [node]
+                                while stack:
+                                    n = stack.pop()
+                                    if n not in visited:
+                                        visited.add(n)
+                                        component.append(n)
+                                        stack.extend(graph[n])
+                                if len(component) >= 2:  # At least 2 atoms for a molecule
+                                    components.append(component)
+                        
+                        # Create molecule signatures (simplified: use size + bond pattern)
+                        for component in components:
+                            size = len(component)
+                            bond_count = sum(len(graph[n]) for n in component) // 2
+                            
+                            # Create a simple formula-like identifier
+                            formula = f"MOL_{size}_{bond_count}"
+                            curr_molecules.add(formula)
+                            
+                            # Add molecule to network
+                            self.network.add_molecule(Molecule(
+                                formula=formula,
+                                num_atoms=size,
                                 first_seen=step
                             ))
                 

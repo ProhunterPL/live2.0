@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="formula" for="node" attr.name="formula" attr.type="string"/>
+  <key id="name" for="node" attr.name="name" attr.type="string"/>
+  <key id="reaction" for="edge" attr.name="reaction" attr.type="string"/>
+  <graph id="G" edgedefault="directed">
+    <node id="n0">
+      <data key="formula">MOL_3_2</data>
+    </node>
+    <node id="n1">
+      <data key="formula">MOL_2_1</data>
+    </node>
+    <node id="n2">
+      <data key="formula">MOL_3_3</data>
+    </node>
+    <node id="n3">
+      <data key="formula">MOL_4_4</data>
+    </node>
+    <node id="n4">
+      <data key="formula">MOL_4_3</data>
+    </node>
+    <node id="n5">
+      <data key="formula">MOL_5_5</data>
+    </node>
+    <node id="n6">
+      <data key="formula">MOL_4_5</data>
+    </node>
+    <node id="n7">
+      <data key="formula">MOL_5_4</data>
+    </node>
+    <node id="n8">
+      <data key="formula">MOL_9_8</data>
+    </node>
+    <node id="n9">
+      <data key="formula">MOL_7_9</data>
+    </node>
+    <node id="n10">
+      <data key="formula">MOL_8_12</data>
+    </node>
+    <node id="n11">
+      <data key="formula">MOL_13_20</data>
+    </node>
+    <node id="n12">
+      <data key="formula">MOL_5_6</data>
+    </node>
+    <node id="n13">
+      <data key="formula">MOL_10_15</data>
+    </node>
+    <node id="n14">
+      <data key="formula">MOL_6_6</data>
+    </node>
+    <node id="n15">
+      <data key="formula">MOL_6_10</data>
+    </node>
+    <node id="n16">
+      <data key="formula">MOL_9_17</data>
+    </node>
+    <node id="n17">
+      <data key="formula">MOL_6_5</data>
+    </node>
+    <node id="n18">
+      <data key="formula">MOL_6_7</data>
+    </node>
+    <node id="n19">
+      <data key="formula">MOL_5_8</data>
+    </node>
+    <node id="n20">
+      <data key="formula">MOL_5_7</data>
+    </node>
+    <node id="n21">
+      <data key="formula">MOL_7_8</data>
+    </node>
+    <node id="n22">
+      <data key="formula">MOL_8_10</data>
+    </node>
+    <node id="n23">
+      <data key="formula">MOL_4_6</data>
+    </node>
+    <node id="n24">
+      <data key="formula">MOL_15_28</data>
+    </node>
+    <node id="n25">
+      <data key="formula">MOL_7_10</data>
+    </node>
+    <node id="n26">
+      <data key="formula">MOL_12_14</data>
+    </node>
+    <node id="n27">
+      <data key="formula">MOL_7_7</data>
+    </node>
+    <node id="n28">
+      <data key="formula">MOL_10_14</data>
+    </node>
+    <node id="n29">
+      <data key="formula">MOL_10_13</data>
+    </node>
+    <node id="n30">
+      <data key="formula">MOL_8_11</data>
+    </node>
+    <node id="n31">
+      <data key="formula">MOL_6_12</data>
+    </node>
+    <node id="n32">
+      <data key="formula">MOL_8_13</data>
+    </node>
+    <node id="n33">
+      <data key="formula">MOL_9_15</data>
+    </node>
+    <node id="n34">
+      <data key="formula">MOL_9_14</data>
+    </node>
+    <node id="n35">
+      <data key="formula">MOL_6_8</data>
+    </node>
+    <node id="n36">
+      <data key="formula">MOL_9_16</data>
+    </node>
+    <node id="n37">
+      <data key="formula">MOL_9_13</data>
+    </node>
+    <node id="n38">
+      <data key="formula">MOL_6_9</data>
+    </node>
+    <node id="n39">
+      <data key="formula">MOL_14_27</data>
+    </node>
+    <node id="n40">
+      <data key="formula">MOL_9_10</data>
+    </node>
+    <node id="n41">
+      <data key="formula">MOL_13_17</data>
+    </node>
+    <node id="n42">
+      <data key="formula">MOL_7_13</data>
+    </node>
+    <node id="n43">
+      <data key="formula">MOL_7_6</data>
+    </node>
+  </graph>
+</graphml>

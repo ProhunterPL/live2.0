@@ -470,7 +470,7 @@ We classified molecules as "novel" if they were: (1) not in PubChem (>100M compo
 
 Novel molecules comprised a substantial fraction of total species detected. They appeared later in simulations: median first detection at 100,000 steps, suggesting they arise from multi-step synthesis pathways rather than direct combination of starting materials (Figure \ref{fig:novel}A).
 
-The top 5 novel molecules by complexity score are shown in Table \ref{tab:novel_molecules} and Figure \ref{fig:novel}B. These molecules represent multi-step synthesis products with complex bonding patterns, demonstrating the capacity of prebiotic chemistry to generate molecular diversity beyond simple dimerization.
+The top 5 novel molecules by complexity score are shown in Table \ref{tab:novel_molecules} and Figure \ref{fig:novel}B. These molecules represent multi-step synthesis products with complex bonding patterns, demonstrating the capacity of prebiotic chemistry to generate molecular diversity beyond simple dimerization. Representative molecular structures of key hub molecules detected across all scenarios are shown in Figure \ref{fig:structures}. Representative molecular structures of key hub molecules detected across all scenarios are shown in Figure \ref{fig:structures}.
 
 We reconstructed formation pathways by reverse-tracing reaction networks from novel molecules to starting materials. Analysis of reaction networks revealed multi-step pathways with intermediate molecules serving as branch points leading to multiple novel species (Figure \ref{fig:novel}C).
 
@@ -562,7 +562,7 @@ We thank collaborators for helpful discussions. Simulations were performed on Am
 \section{Data and Code Availability}
 % ==============================================================================
 
-All simulation data, analysis code, and visualization scripts are publicly available at \url{https://github.com/ProhunterPL/live2.0} (DOI: [Zenodo DOI - to be assigned]). Raw simulation outputs are deposited at Zenodo (DOI: [data DOI - to be assigned]).
+All simulation data, analysis code, and visualization scripts are publicly available at \url{https://github.com/ProhunterPL/live2.0}. Raw simulation outputs are deposited at Zenodo (DOI: [data DOI - to be assigned after deposit creation]).
 
 
 % ==============================================================================
@@ -643,6 +643,15 @@ All simulation data, analysis code, and visualization scripts are publicly avail
     (D) Scenario specificity.
     }
     \label{fig:novel}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/molecular_structures_panel.png}
+    \caption{\textbf{Example molecular structures detected in simulations.}
+    Top 5 hub molecules with verified PubChem Compound IDs: formaldehyde (CID: 712), hydrogen cyanide (CID: 768), ammonia (CID: 222), glycolaldehyde (CID: 756), and formic acid (CID: 284). Structures rendered using RDKit 2D visualization with all atoms (including hydrogens) visible.
+    }
+    \label{fig:structures}
 \end{figure}
 
 
