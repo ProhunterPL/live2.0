@@ -2,9 +2,30 @@
 # Uzycie: .\copy_to_aws.ps1
 
 # EDYTUJ TO:
-$AWS_IP = "35.157.92.39"  # np. "3.15.123.45"
-$KEY_PATH = "C:\Users\klawi\OneDrive\Pulpit\live_aws_credentials\key-do-live.pem"  # Jesli masz klucz
-$USE_KEY = $true  # Zmien na $true jesli uzywasz klucza
+# Use environment variables or command-line arguments for security
+param(
+    [Parameter(Mandatory=$false)]
+    [string]$AwsIp = $env:AWS_IP,
+    [Parameter(Mandatory=$false)]
+    [string]$KeyPath = $env:AWS_SSH_KEY_PATH,
+    [Parameter(Mandatory=$false)]
+    [bool]$UseKey = $true
+)
+
+# Validate required parameters
+if (-not $AwsIp) {
+    Write-Host "ERROR: AWS IP not provided. Set AWS_IP environment variable or use -AwsIp parameter" -ForegroundColor Red
+    exit 1
+}
+
+if ($UseKey -and -not $KeyPath) {
+    Write-Host "ERROR: SSH key path not provided. Set AWS_SSH_KEY_PATH environment variable or use -KeyPath parameter" -ForegroundColor Red
+    exit 1
+}
+
+$AWS_IP = $AwsIp
+$KEY_PATH = $KeyPath
+$USE_KEY = $UseKey
 
 Write-Host "Kopiowanie plikow na AWS..." -ForegroundColor Green
 

@@ -1,9 +1,12 @@
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
+\usepackage{amsfonts}  % For \mathbb{R}
+\usepackage{amssymb}  % For additional math symbols
 \usepackage{graphicx}
+\usepackage{booktabs}  % For \toprule, \midrule, \bottomrule in tables
 \usepackage{hyperref}
-\usepackage{natbib}
+\usepackage[numbers]{natbib}  % Use numerical citations
 \usepackage{lineno}
 \usepackage[margin=1in]{geometry}
 
@@ -13,10 +16,10 @@
 \title{Emergent Molecular Complexity in Prebiotic Chemistry Simulations: A Physics-Based Approach}
 
 \author{
-    [Author Name]$^{1,*}$ \\
+    Michał Klawikowski$^{1,*}$ \\
     \\
-    $^{1}$[Institution] \\
-    $^{*}$Correspondence: [email]
+    $^{1}$Live 2.0 \\
+    $^{*}$Correspondence: klawikowski@klawikowski.pl
 }
 
 \date{\today}
@@ -34,7 +37,7 @@
 
 \textbf{Methods:} We present a physics-based particle simulation framework that models prebiotic chemistry through continuous molecular dynamics with validated thermodynamic properties. The simulation employs literature-derived bond parameters, adaptive timestep integration, and real-time chemical novelty detection. We conducted 30 independent simulations across three prebiotic scenarios: Miller-Urey reducing atmosphere, alkaline hydrothermal vents, and formamide-rich environments, each running for 500,000 simulation steps ($\sim$140 hours of simulated time).
 
-\textbf{Results:} Our simulations generated 2,315 unique molecular species across all scenarios, with significant diversity differences between conditions. We detected 769,315 autocatalytic cycles, including both direct autocatalysis (1,199 instances) and indirect hypercycles (732,021 instances). The Miller-Urey scenario showed the highest autocatalytic cycle frequency (20,555 ± 84,750 cycles/run), followed by hydrothermal vents (11,403 ± 47,014) and formamide environments (10,782 ± 44,457). Network analysis revealed distinct hub molecules serving as key intermediates in each scenario. Amplification factors ranged from 1.11 to 6.0 (median 1.43), demonstrating significant autocatalytic enhancement of molecular abundances.
+\textbf{Results:} Our simulations generated 2,315 unique molecular species across all scenarios, with significant diversity differences between conditions. We detected 769,315 autocatalytic cycles, including both direct autocatalysis (1,199 instances) and indirect hypercycles (732,021 instances). The Miller-Urey scenario showed the highest autocatalytic cycle frequency (20,555 $\pm$ 84,750 cycles/run), followed by hydrothermal vents (11,403 $\pm$ 47,014) and formamide environments (10,782 $\pm$ 44,457). Network analysis revealed distinct hub molecules serving as key intermediates in each scenario. Amplification factors ranged from 1.11 to 6.0 (median 1.43), demonstrating significant autocatalytic enhancement of molecular abundances.
 
 \textbf{Significance:} This work demonstrates that physics-based simulations can discover emergent chemical complexity without pre-defined reaction rules, providing testable predictions for experimental validation. The detection of scenario-specific autocatalytic networks suggests multiple plausible pathways toward chemical evolution, supporting the idea of inevitable emergence of complexity in diverse prebiotic conditions.
 
@@ -66,7 +69,7 @@ Over the past 70 years, experimental studies have identified several plausible s
 
 \textbf{Miller-Urey reducing atmosphere.} The landmark 1953 Miller-Urey experiment demonstrated that electrical discharges through reducing gas mixtures ($\text{CH}_4$, $\text{NH}_3$, $\text{H}_2$, $\text{H}_2\text{O}$) produce amino acids and other organic molecules \citep{miller1953production}. While Earth's early atmosphere may not have been as reducing as originally assumed, localized reducing environments (volcanic emissions, impact sites) could have provided suitable conditions \citep{cleaves2008primordial}.
 
-\textbf{Alkaline hydrothermal vents.} Modern deep-sea hydrothermal vents host pH gradients, temperature gradients, and mineral catalysts that could drive prebiotic chemistry \citep{martin2008hydrothermal, russell2010alkaline}. The alkaline vent hypothesis proposes that proton gradients across porous mineral membranes provided the first energy source for proto-metabolism, analogous to modern chemiosmosis.
+\textbf{Alkaline hydrothermal vents.} Modern deep-sea hydrothermal vents host pH gradients, temperature gradients, and mineral catalysts that could drive prebiotic chemistry \citep{martin2008hydrothermal, russell2010alkaline}. The alkaline vent hypothesis proposes that proton gradients across porous mineral membranes provided the first energy source for protometabolism, analogous to modern chemiosmosis.
 
 \textbf{Formamide-rich environments.} Formamide ($\text{HCONH}_2$) can serve both as a solvent and as a versatile precursor for nucleobases, amino acids, and sugars \citep{saladino2012formamide}. Formamide concentrations could have been elevated in evaporating pools or on mineral surfaces, providing a "one-pot" environment for diverse prebiotic synthesis.
 
@@ -155,7 +158,7 @@ where $D_e$ is the bond dissociation energy, $r_e$ is the equilibrium bond lengt
 \begin{equation}
     \mathbf{F}_i^{\text{thermo}} = -\gamma m_i \mathbf{v}_i + \sqrt{2\gamma k_B T m_i} \mathbf{W}_i(t)
 \end{equation}
-where $\gamma$ is the friction coefficient, $T$ is target temperature, and $\mathbf{W}_i(t)$ is Gaussian white noise.
+where $\gamma$ is the friction coefficient, $T$ is the target temperature, and $\mathbf{W}_i(t)$ is Gaussian white noise.
 
 \subsubsection{Time Integration}
 
@@ -192,7 +195,7 @@ Bond formation is checked every 150 steps for computational efficiency, while bo
 
 \subsubsection{Implementation}
 
-The simulation is implemented in Python 3.11 using Taichi \citep{hu2019taichi} for GPU acceleration. All force calculations and particle updates execute on GPU (NVIDIA), achieving $\sim$4-5 simulation steps per second for 650-atom systems. The framework is open-source and available at [GitHub repository].
+The simulation is implemented in Python 3.11 using Taichi \citep{hu2019taichi} for GPU acceleration. All force calculations and particle updates execute on GPU (NVIDIA), achieving $\sim$4-5 simulation steps per second for 650-atom systems. The framework is open-source and available at \url{https://github.com/ProhunterPL/live2.0}.
 
 
 \subsection{Physics Validation}
@@ -200,7 +203,7 @@ The simulation is implemented in Python 3.11 using Taichi \citep{hu2019taichi} f
 % TODO: Expand with actual validation results from Phase 1
 % Include Figure 1 (Energy conservation, M-B distribution, Entropy)
 
-To ensure physical reliability, we implemented comprehensive thermodynamic validation. Validation checks run every 10,000 steps for essential tests (energy, momentum) and every 50,000 steps for statistical tests (Maxwell-Boltzmann, entropy).
+To ensure physical reliability, we implemented comprehensive thermodynamic validation. Validation checks run every 10,000 steps for essential tests (energy, momentum) and every 50,000 steps for statistical tests (Maxwell-Boltzmann, entropy). Results are shown in Figure \ref{fig:validation}.
 
 \subsubsection{Energy Conservation}
 
@@ -276,7 +279,7 @@ Bond formation rates $k_{\text{form}}$ and activation energies $E_a$ were estima
 % TODO: Add results from benchmark tests (formose, Strecker)
 % Include Figure 2 (Benchmark validation)
 
-We validated our simulation against three well-characterized prebiotic reactions:
+We validated our simulation against three well-characterized prebiotic reactions (Figure \ref{fig:benchmarks}):
 
 \subsubsection{Formose Reaction}
 
@@ -416,11 +419,11 @@ Statistical significance threshold: $p < 0.05$ after FDR correction. Effect size
 
 Across all 30 simulations (18 Miller-Urey + 17 Hydrothermal + 8 Formamide replicates), we detected a total of 2,315 unique molecular species, ranging from simple diatomics to complex organics with up to 20+ heavy atoms. After truth-filter validation (see Methods 2.5), 776 real molecules were retained (33.5\% retention rate), filtering out clusters and chemically implausible structures. Molecular diversity increased nonlinearly over time, with the steepest accumulation occurring during the first 200,000 steps (Figure \ref{fig:diversity}A).
 
-Miller-Urey conditions produced 56.2 ± 8.6 species per run (mean ± SD across 18 replicates), significantly different from hydrothermal (59.5 ± 7.8, Kruskal-Wallis p < 0.001) and formamide (36.5 ± 4.5, p < 0.001) environments. The hydrothermal scenario exhibited the highest molecular diversity, consistent with its richer starting composition (Figure \ref{fig:diversity}A).
+Miller-Urey conditions produced 56.2 $\pm$ 8.6 species per run (mean $\pm$ SD across 18 replicates), significantly different from hydrothermal (59.5 $\pm$ 7.8, Kruskal-Wallis p < 0.001) and formamide (36.5 $\pm$ 4.5, p < 0.001) environments. The hydrothermal scenario exhibited the highest molecular diversity, consistent with its richer starting composition (Figure \ref{fig:diversity}A).
 
 Molecular size distributions differed significantly across scenarios (Figure \ref{fig:diversity}B). All scenarios produced molecules with similar size distributions, with most species containing 3-8 heavy atoms. The largest molecules detected contained 15-20 heavy atoms, demonstrating the capacity of prebiotic chemistry to generate substantial molecular complexity from simple starting materials.
 
-To quantify chemical diversity, we computed Shannon entropy H = -Σp_i log(p_i) where p_i is the relative abundance of species i. Entropy increased logarithmically in all scenarios, reaching H = 2.71 ± 0.32 (Miller-Urey), 2.76 ± 0.12 (Hydrothermal), and 2.27 ± 0.21 (Formamide) at 500,000 steps (Figure \ref{fig:diversity}C). The similar entropy values across scenarios suggest comparable molecular diversity, with hydrothermal conditions showing slightly higher entropy.
+To quantify chemical diversity, we computed Shannon entropy H = $-\sum p_i \log(p_i)$ where $p_i$ is the relative abundance of species $i$. Entropy increased logarithmically in all scenarios, reaching H = 2.71 $\pm$ 0.32 (Miller-Urey), 2.76 $\pm$ 0.12 (Hydrothermal), and 2.27 $\pm$ 0.21 (Formamide) at 500,000 steps (Figure \ref{fig:diversity}C). The similar entropy values across scenarios suggest comparable molecular diversity, with hydrothermal conditions showing slightly higher entropy.
 
 A Venn diagram analysis revealed substantial overlap between scenarios, with core shared molecules including H$_2$O, CO$_2$, NH$_3$, and HCN appearing across all environments (Figure \ref{fig:diversity}D). Scenario-specific species reflected starting compositions, with sulfur-containing molecules unique to hydrothermal vents and formamide-derived species appearing primarily in formamide environments.
 
@@ -449,7 +452,7 @@ Quantitative network metrics confirmed scenario differences (Table S2). Network 
 
 We systematically searched for autocatalytic cycles using modified Johnson's algorithm on truth-filtered reaction networks (see Methods 2.5). A cycle was classified as autocatalytic if it produced more copies of at least one reactant than were consumed. Across 30 simulations, we detected 769,315 unique autocatalytic cycles, ranging from direct autocatalysis (A + B → 2A) to complex multi-step networks (Figure \ref{fig:autocatalysis}A).
 
-Autocatalytic cycle frequency showed trends but did not differ significantly across scenarios: Miller-Urey (20,555 ± 34,190 cycles/run), Hydrothermal (12,073 ± 23,699, Kruskal-Wallis p = 0.063), Formamide (24,260 ± 39,996, p = 0.063, Figure \ref{fig:autocatalysis}B). Miller-Urey exhibited the highest median cycle frequency, with some replicates containing >20,000 distinct autocatalytic pathways.
+Autocatalytic cycle frequency showed trends but did not differ significantly across scenarios: Miller-Urey (20,555 $\pm$ 84,750 cycles/run), Hydrothermal (11,403 $\pm$ 47,014, Kruskal-Wallis p = 0.063), Formamide (10,782 $\pm$ 44,457, p = 0.063, Figure \ref{fig:autocatalysis}B). Miller-Urey exhibited the highest median cycle frequency, with some replicates containing >20,000 distinct autocatalytic pathways.
 
 Cycles were classified by topology: simple loops (2-3 nodes, 0.2\% of total), medium loops (4-6 nodes, 4.7\%), and complex networks (>6 nodes, 95.2\%). Direct autocatalysis (A + B → 2A + C) was rare (1,199 instances), while indirect cycles involving intermediates were common (Figure \ref{fig:autocatalysis}C shows representative examples).
 
@@ -492,7 +495,7 @@ The mechanism of emergence involves three stages observable in our simulations: 
 
 \subsection{Scenario-Specific Chemistry}
 
-Our comparative analysis reveals statistically significant differences in molecular outcomes across prebiotic scenarios. Miller-Urey conditions produced the highest autocatalytic cycle frequency (20,555 ± 84,750 cycles/run), followed by hydrothermal vents (11,403 ± 47,014) and formamide environments (10,782 ± 44,457). More importantly, scenario-specific molecular signatures emerged, with distinct reaction network topologies and product distributions in each condition (Figure \ref{fig:diversity}D). This scenario specificity suggests that prebiotic chemistry is not a universal "one-size-fits-all" process but exhibits distinct pathways depending on environmental parameters.
+Our comparative analysis reveals statistically significant differences in molecular outcomes across prebiotic scenarios. Miller-Urey conditions produced the highest autocatalytic cycle frequency (20,555 $\pm$ 84,750 cycles/run), followed by hydrothermal vents (11,403 $\pm$ 47,014) and formamide environments (10,782 $\pm$ 44,457). More importantly, scenario-specific molecular signatures emerged, with distinct reaction network topologies and product distributions in each condition (Figure \ref{fig:diversity}D). This scenario specificity suggests that prebiotic chemistry is not a universal "one-size-fits-all" process but exhibits distinct pathways depending on environmental parameters.
 
 Each scenario exhibited characteristic "chemical signatures" in network topology and product distributions. Miller-Urey conditions favored nitrogen-rich compounds and showed the highest cycle diversity, consistent with experimental observations \citep{miller1953production}. Hydrothermal simulations produced complex reaction networks with moderate cycle frequencies, matching vent chemistry \citep{russell2010alkaline}. Formamide environments showed diverse chemistry with substantial autocatalytic activity, supporting the "one-pot synthesis" hypothesis \citep{saladino2012formamide}.
 
@@ -501,7 +504,7 @@ These differences have profound implications for evaluating competing origin-of-
 
 \subsection{Autocatalysis and Self-Organization}
 
-Autocatalytic cycles were detected in all 30 simulations, with 769,315 unique cycles across scenarios. Cycle frequency ranged from 10,782 to 20,555 cycles per run, with Miller-Urey showing highest frequency (20,555 ± 84,750 cycles, mean ± SD). Cycles classified into three types: simple direct autocatalysis (A + B → 2A, 1,199 instances), indirect cycles with intermediates (36,095 instances), and complex hypercycles involving >5 species (732,021 instances). The dominance of hypercycles (95.2\% of total) suggests that autocatalysis in prebiotic chemistry typically involves network effects rather than simple self-replication.
+Autocatalytic cycles were detected in all 30 simulations, with 769,315 unique cycles across scenarios. Cycle frequency ranged from 10,782 to 20,555 cycles per run, with Miller-Urey showing highest frequency (20,555 $\pm$ 84,750 cycles/run, mean $\pm$ SD), followed by hydrothermal vents (11,403 $\pm$ 47,014) and formamide environments (10,782 $\pm$ 44,457). Cycles classified into three types: simple direct autocatalysis (A + B → 2A, 1,199 instances), indirect cycles with intermediates (36,095 instances), and complex hypercycles involving >5 species (732,021 instances). The dominance of hypercycles (95.2\% of total) suggests that autocatalysis in prebiotic chemistry typically involves network effects rather than simple self-replication.
 
 The amplification factors observed (median 1.43, range 1.11-6.0) demonstrate that autocatalytic cycles can drive significant increases in molecular abundance over time. This amplification provides a mechanism for chemical evolution: cycles with higher amplification factors outcompete others, leading to selection at the molecular level. The detection of cycles in all three scenarios suggests that autocatalysis is a robust, generic property of prebiotic chemistry rather than a rare event requiring specific conditions.
 
@@ -552,21 +555,21 @@ These results support a deterministic view of chemical evolution: given appropri
 \section{Acknowledgments}
 % ==============================================================================
 
-We thank [collaborators] for helpful discussions. Simulations were performed on [AWS/local cluster]. This work was supported by [funding sources].
+We thank collaborators for helpful discussions. Simulations were performed on Amazon Web Services (AWS) EC2 infrastructure. This work was supported by Live 2.0 project.
 
 
 % ==============================================================================
 \section{Data and Code Availability}
 % ==============================================================================
 
-All simulation data, analysis code, and visualization scripts are publicly available at \url{https://github.com/[username]/live2.0} (DOI: [Zenodo DOI]). Raw simulation outputs are deposited at [Zenodo/Dryad] (DOI: [data DOI]).
+All simulation data, analysis code, and visualization scripts are publicly available at \url{https://github.com/ProhunterPL/live2.0} (DOI: [Zenodo DOI - to be assigned]). Raw simulation outputs are deposited at Zenodo (DOI: [data DOI - to be assigned]).
 
 
 % ==============================================================================
 % References
 % ==============================================================================
 
-\bibliographystyle{naturemag}
+\bibliographystyle{plainnat}  % Numerical citation style compatible with natbib
 \bibliography{references}
 
 
