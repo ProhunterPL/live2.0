@@ -5,16 +5,56 @@ PHASE 2 MOLECULE EXTRACTION REPORT
 SUMMARY
 ----------------------------------------------------------------------
 Results directory: results\phase2b_additional\miller_urey_extended\run_1
-Unique molecules: 0
-Total instances: 0
+Unique molecules: 35
+Total instances: 642
 
 TOP 20 MOLECULES (by occurrence)
 ----------------------------------------------------------------------
+ 1. 3bac2dea32a574e9d97917dc8ea8480a :    399 instances
+ 2. d41316288e6b8bab957f3b304df0b032 :     67 instances
+ 3. 68a20d134ccf997b149622d5476cb4cb :     39 instances
+ 4. 587cb5cab7263a3059f63c5445cefff9 :     31 instances
+ 5. 1982ca8a9a60126ed2679ca190b6d31e :     27 instances
+ 6. e61fd79a2b966e7634e920aa963e23da :     11 instances
+ 7. c045439172215f49e0bef8c3d26c6b61 :      9 instances
+ 8. 36939361029dd1dc24a1c5ae90150f4b :      7 instances
+ 9. 993c75715b055600d830d97056e45976 :      7 instances
+10. 67c11359b085287ba5ae5b06b7b7ec6d :      7 instances
+11. e671352d467d5abdc7b70d4f952a268b :      4 instances
+12. fa51f33987b055a59119e681e9ce160a :      3 instances
+13. 29e26218b9662ab1f09f534283c863cf :      3 instances
+14. d5b43095b402ff568376a493d69c47f6 :      3 instances
+15. 8c040954771079d58f7f41471670bbe2 :      2 instances
+16. ff7ecba39f5b4d7ed0b971be11263bf0 :      2 instances
+17. fb125970b2027c44ecb6536cf6aa8843 :      2 instances
+18. ab59e32aa3fae5826279d1e05377d1ff :      2 instances
+19. cfe386902f8c79d228e8ae628079945e :      1 instances
+20. a5d4be0cd1be4bd6c48cae45e65a4ab9 :      1 instances
 
 SIZE DISTRIBUTION (atoms per molecule)
 ----------------------------------------------------------------------
+ 0 atoms:    642 ██████████████████████████████████████████████████
 
 COMPLEXITY DISTRIBUTION (bonds per molecule)
 ----------------------------------------------------------------------
+ 0 bonds:     38 ████
+ 1 bonds:    426 ██████████████████████████████████████████████████
+ 2 bonds:     46 █████
+ 3 bonds:     68 ███████
+ 4 bonds:     14 █
+ 5 bonds:     18 ██
+ 6 bonds:      9 █
+ 7 bonds:      4 
+ 8 bonds:      1 
+10 bonds:      4 
+11 bonds:      5 
+26 bonds:      1 
+28 bonds:      1 
+47 bonds:      1 
+55 bonds:      1 
+76 bonds:      2 
+81 bonds:      1 
+87 bonds:      1 
+89 bonds:      1 
 
 ======================================================================

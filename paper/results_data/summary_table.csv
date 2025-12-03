@@ -1,3 +1,4 @@
 Scenario,Runs,Total Cycles,Cycles/Run (mean),Amplification (mean)
-Miller Urey Extended,18,369824,20545.8,1.54
-Hydrothermal Extended,17,171568,9531.6,1.31
+Miller Urey Extended,18,369986,20554.8,1.55
+Hydrothermal Extended,17,205247,11402.6,1.33
+Formamide Extended,8,194082,10782.3,1.57

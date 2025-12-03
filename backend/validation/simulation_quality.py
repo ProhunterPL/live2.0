@@ -118,11 +118,25 @@ class SimulationQualityFilter:
                 data = json.load(f)
             
             # Extract relevant metrics
-            metrics['final_step'] = data.get('final_step', data.get('step', 0))
-            metrics['max_steps'] = data.get('max_steps', data.get('simulation', {}).get('max_steps', 0))
+            # Try multiple paths for final_step
+            final_step = (
+                data.get('final_step') or
+                data.get('step') or
+                data.get('final_state', {}).get('step', 0)
+            )
+            
+            # Try multiple paths for max_steps
+            max_steps = (
+                data.get('max_steps') or
+                data.get('configuration', {}).get('max_steps', 0) or
+                data.get('simulation', {}).get('max_steps', 0)
+            )
+            
+            metrics['final_step'] = final_step
+            metrics['max_steps'] = max_steps
             metrics['completion_rate'] = (
-                metrics['final_step'] / metrics['max_steps'] 
-                if metrics['max_steps'] > 0 else 0.0
+                final_step / max_steps 
+                if max_steps > 0 else 0.0
             )
             
             # Check for stability metrics

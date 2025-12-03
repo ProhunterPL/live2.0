@@ -85,7 +85,7 @@ def parse_step_times(log_file, num_samples=5):
 
 def check_progress(results_dir="results/phase2b_additional", target_steps=500000):
     """Check progress of all Phase 2B simulations"""
-    results_dir = Path(results_dir).expanduser()
+    results_dir = Path(results_dir)
     
     print("=" * 80)
     print("🔍 PHASE 2B PROGRESS CHECK")

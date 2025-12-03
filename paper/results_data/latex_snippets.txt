@@ -1,5 +1,5 @@
 
 % Results Section 3.3 - Autocatalytic Cycles
-Across 30 simulations, we detected 541392 unique autocatalytic cycles. 
-Cycle frequency ranged from 9531.555555555555 to 20545.777777777777 cycles per run, 
+Across 30 simulations, we detected 769315 unique autocatalytic cycles. 
+Cycle frequency ranged from 10782.333333333334 to 20554.777777777777 cycles per run, 
 with formamide showing highest frequency.

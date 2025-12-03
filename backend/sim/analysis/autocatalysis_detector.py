@@ -478,7 +478,32 @@ def analyze_scenario_autocatalysis(results_dir: str,
     for run_id in run_ids:
         run_dir = Path(results_dir) / scenario_name / f"run_{run_id}"
         
-        # Load reaction network
+        # Try to load existing cycles file first (faster, avoids re-detection)
+        cycles_file = run_dir / "autocatalytic_cycles.json"
+        if cycles_file.exists():
+            try:
+                with open(cycles_file) as f:
+                    cycles_data = json.load(f)
+                
+                # Convert JSON data back to AutocatalyticCycle objects
+                for cycle_data in cycles_data:
+                    cycle = AutocatalyticCycle(
+                        nodes=[],  # Not stored in JSON, but not needed for aggregation
+                        edges=[],  # Not stored in JSON, but not needed for aggregation
+                        amplification_factor=cycle_data.get('amplification', 0.0),
+                        cycle_type=cycle_data.get('type', 'indirect'),
+                        strength=cycle_data.get('strength', 0.0),
+                        first_detected_step=cycle_data.get('first_step', 0),
+                        molecules=cycle_data.get('molecules', [])
+                    )
+                    all_cycles.append(cycle)
+                
+                logger.info(f"  Run {run_id}: Loaded {len(cycles_data)} cycles from file")
+                continue
+            except Exception as e:
+                logger.warning(f"Failed to load cycles from {cycles_file}: {e}, detecting from scratch...")
+        
+        # Fallback: detect cycles from scratch if file doesn't exist
         network_file = run_dir / "reaction_network.json"
         if not network_file.exists():
             logger.warning(f"Network file not found: {network_file}")

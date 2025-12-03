@@ -28,7 +28,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 import seaborn as sns
-from matplotlib_venn import venn3
+try:
+    from matplotlib_venn import venn3
+    HAS_VENN = True
+except ImportError:
+    HAS_VENN = False
+    logger.warning("matplotlib_venn not available, Venn diagrams will be skipped")
 import networkx as nx
 from typing import Dict, List
 

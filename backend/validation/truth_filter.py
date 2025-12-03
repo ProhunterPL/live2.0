@@ -195,19 +195,34 @@ class TruthFilter:
             
             for line in reversed(lines[-100:]):  # Check last 100 lines
                 if 'energy' in line.lower() and 'drift' in line.lower():
-                    # Try to extract number
+                    # Try to extract number (look for percentage or small decimal)
                     import re
-                    match = re.search(r'([\d.]+)', line)
+                    # Look for percentage: "X.XX%" or "X.XX %"
+                    match = re.search(r'([\d.]+)\s*%', line)
+                    if match:
+                        energy_drift = float(match.group(1)) / 100.0
+                        if energy_drift < 1.0:  # Sanity check: drift should be < 1.0
+                            break
+                    # Look for small decimal: "0.XXXX" or "X.XXe-X"
+                    match = re.search(r'(0\.\d+|[\d.]+e-?\d+)', line)
                     if match:
                         energy_drift = float(match.group(1))
-                        break
+                        if energy_drift < 1.0:  # Sanity check
+                            break
                 
                 if 'momentum' in line.lower() and 'drift' in line.lower():
                     import re
-                    match = re.search(r'([\d.]+)', line)
+                    # Same pattern matching for momentum
+                    match = re.search(r'([\d.]+)\s*%', line)
+                    if match:
+                        momentum_drift = float(match.group(1)) / 100.0
+                        if momentum_drift < 1.0:
+                            break
+                    match = re.search(r'(0\.\d+|[\d.]+e-?\d+)', line)
                     if match:
                         momentum_drift = float(match.group(1))
-                        break
+                        if momentum_drift < 1.0:
+                            break
             
             details['energy_drift'] = energy_drift
             details['momentum_drift'] = momentum_drift

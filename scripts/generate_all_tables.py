@@ -97,13 +97,13 @@ class TableGenerator:
             label="tab:hub_molecules"
         )
         
-        with open(latex_file, 'w') as f:
+        with open(latex_file, 'w', encoding='utf-8') as f:
             f.write(latex_table)
         logger.info(f"  ✓ LaTeX saved: {latex_file}")
         
         # Save as Markdown (for review)
         md_file = self.output_dir / 'table5_hub_molecules.md'
-        with open(md_file, 'w') as f:
+        with open(md_file, 'w', encoding='utf-8') as f:
             f.write("# Table 5: Hub Molecules\n\n")
             f.write(df.to_markdown(index=False))
         logger.info(f"  ✓ Markdown saved: {md_file}")
@@ -138,13 +138,13 @@ class TableGenerator:
             label="tab:novel_molecules"
         )
         
-        with open(latex_file, 'w') as f:
+        with open(latex_file, 'w', encoding='utf-8') as f:
             f.write(latex_table)
         logger.info(f"  ✓ LaTeX saved: {latex_file}")
         
         # Save as Markdown
         md_file = self.output_dir / 'table6_novel_molecules.md'
-        with open(md_file, 'w') as f:
+        with open(md_file, 'w', encoding='utf-8') as f:
             f.write("# Table 6: Top Novel Molecules\n\n")
             f.write(df.to_markdown(index=False))
         logger.info(f"  ✓ Markdown saved: {md_file}")
@@ -197,7 +197,7 @@ class TableGenerator:
             label="tab:network_metrics_supp"
         )
         
-        with open(latex_file, 'w') as f:
+        with open(latex_file, 'w', encoding='utf-8') as f:
             f.write(latex_table)
         logger.info(f"  ✓ LaTeX saved: {latex_file}")
         

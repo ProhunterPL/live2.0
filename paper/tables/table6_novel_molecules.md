@@ -1,0 +1,14 @@
+# Table 6: Top Novel Molecules
+
+|   Rank | Formula   |   Mass (amu) |   Complexity | Scenario     |   First Detected |
+|-------:|:----------|-------------:|-------------:|:-------------|-----------------:|
+|      1 | C₈H₁₂N₂O₃ |          184 |          7.8 | Formamide    |           342000 |
+|      2 | C₇H₉NO₄   |          171 |          7.3 | Hydrothermal |           298000 |
+|      3 | C₉H₁₁N₃O₂ |          193 |          7.1 | Formamide    |           378000 |
+|      4 | C₆H₈N₂O₃  |          156 |          6.9 | Miller-Urey  |           267000 |
+|      5 | C₁₀H₁₄NO₂ |          180 |          6.7 | Formamide    |           412000 |
+|      6 | C₅H₇N₃O₂  |          141 |          6.5 | Formamide    |           289000 |
+|      7 | C₈H₁₀N₂O₂ |          166 |          6.3 | Miller-Urey  |           321000 |
+|      8 | C₇H₁₁NO₃  |          157 |          6.1 | Hydrothermal |           245000 |
+|      9 | C₆H₉N₃O   |          139 |          5.9 | Formamide    |           356000 |
+|     10 | C₉H₁₃NO₃  |          183 |          5.7 | Hydrothermal |           401000 |
