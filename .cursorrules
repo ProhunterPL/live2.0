@@ -527,8 +527,52 @@ Read data files only when:
 - you need an example record format.
 
 ----
+## TRUTH-FILTER 2.0 – rules for molecule validation
+
+Goal: Implement a robust truth-filter for detected molecules that:
+- enforces basic chemistry (valence, charge, connectivity),
+- accounts for the limitations of our MD model (Morse + LJ, no quantum aromaticity),
+- assigns each molecule a validity label: ACCEPT / FLAG / REJECT,
+- provides a transparent list of reasons and a confidence score.
+
+When implementing or modifying code under:
+- `backend/sim/analysis/molecule_validator.py`
+- `backend/sim/analysis/truth_filter.py`
+- `backend/sim/analysis/matcher_v2/*`
+
+follow these rules:
+
+1. Always run: valence check → charge/connectivity → ring/strain check → aromaticity policy → model-compat heuristics → DB cross-check → temporal stability.
+
+2. Hard REJECT if:
+   - any atom violates basic valence (C>4, N>4, O>2, H>1),
+   - |total_charge| > 2,
+   - the graph has more than one connected component.
+
+3. FLAG (but do not reject) if:
+   - there is any aromatic ring (our model does not support aromatic stabilization),
+   - there are highly strained or multi-heteroatom small rings,
+   - the molecule appears only once in a single snapshot ("transient singleton").
+
+4. Use a confidence score (0–1). Start from 0.8 after valence pass and adjust:
+   - +0.1 for simple, non-aromatic, low-strain molecules that are persistent,
+   - -0.2 for high-strain rings or complex multi-ring systems,
+   - -0.3 for aromatic rings,
+   - +0.1 if matched to a known compound, -0.0 if not.
+
+5. Final mapping:
+   - REJECT: any hard error OR confidence < 0.4,
+   - FLAG: no hard errors but any of {AROMATIC_UNSUPPORTED_BY_MODEL, HIGH_STRAIN_RING, TRANSIENT_SINGLETON},
+   - ACCEPT: everything else.
+
+6. For FLAGGED molecules:
+   - keep them in the database,
+   - mark them clearly in exports/figures as "putative / tentative",
+   - never base the main scientific claims solely on flagged molecules.
+
+Always log `validity`, `reasons`, and `confidence` together with SMILES and formula in the analysis JSON.
 
 
-**Last Updated**: 2025-11-23
+**Last Updated**: 2025-12-04
 **Agent Context**: Use this file to understand project structure, avoid common pitfalls, and navigate the codebase efficiently.
 

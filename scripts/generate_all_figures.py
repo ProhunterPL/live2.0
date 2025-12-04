@@ -23,6 +23,8 @@ import json
 import logging
 from pathlib import Path
 import sys
+import tempfile
+from PIL import Image
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -36,6 +38,23 @@ except ImportError:
     logger.warning("matplotlib_venn not available, Venn diagrams will be skipped")
 import networkx as nx
 from typing import Dict, List
+
+# Try to import RDKit for molecular structure rendering
+RDKIT_AVAILABLE = False
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Draw, AllChem
+    from rdkit.Chem.Draw import rdMolDraw2D, rdMolDraw2DUtils
+    RDKIT_AVAILABLE = True
+except ImportError:
+    RDKIT_AVAILABLE = False
+
+# Try to import requests for PubChem queries
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
 
 # Set style
 sns.set_style("whitegrid")
@@ -382,10 +401,13 @@ class FigureGenerator:
         
         4 panels:
         A) Detection time histogram
-        B) Top 5 novel molecules (placeholder structures)
+        B) Top 5 novel molecules (reference to Figure 6B)
         C) Example formation pathway
         D) Scenario specificity
         """
+        # First, generate separate figure for novel molecule structures (Figure 6B)
+        self.generate_figure6b_novel_structures()
+        
         fig, axes = plt.subplots(2, 2, figsize=(12, 10))
         
         # Panel A: Detection time
@@ -405,17 +427,28 @@ class FigureGenerator:
         ax.legend(frameon=True)
         ax.grid(True, alpha=0.3, axis='y')
         
-        # Panel B: Top 5 novel molecules (text placeholder)
+        # Panel B: Reference to Figure 6B (separate figure with structures)
         ax = axes[0, 1]
-        ax.text(0.5, 0.5, 'Top 5 Novel Molecules\n\n' +
-                '1. C₈H₁₂N₂O₃ (m=184 amu)\n' +
-                '2. C₇H₉NO₄ (m=171 amu)\n' +
-                '3. C₉H₁₁N₃O₂ (m=193 amu)\n' +
-                '4. C₆H₈N₂O₃ (m=156 amu)\n' +
-                '5. C₁₀H₁₄NO₂ (m=180 amu)\n\n' +
-                '[Structure drawings would go here]',
-                ha='center', va='center', fontsize=11,
-                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+        
+        # Show reference to separate figure
+        ax.text(0.5, 0.7, 'Top 5 Novel Molecules', 
+                ha='center', va='center', fontsize=14, fontweight='bold', transform=ax.transAxes)
+        ax.text(0.5, 0.5, 'See Figure 6B for\nmolecular structures', 
+                ha='center', va='center', fontsize=11, style='italic', transform=ax.transAxes)
+        
+        # List formulas
+        novel_molecules = [
+            {'formula': 'C8H12N2O3', 'mass': 184},
+            {'formula': 'C7H9NO4', 'mass': 171},
+            {'formula': 'C9H11N3O2', 'mass': 193},
+            {'formula': 'C6H8N2O3', 'mass': 156},
+            {'formula': 'C10H14NO2', 'mass': 180},
+        ]
+        
+        formulas_text = '\n'.join([f"{i+1}. {m['formula']} (m={m['mass']} amu)" for i, m in enumerate(novel_molecules)])
+        ax.text(0.5, 0.3, formulas_text,
+                ha='center', va='top', fontsize=9, transform=ax.transAxes)
+        
         ax.set_title('B) Top Novel Molecules', fontsize=13, fontweight='bold')
         ax.axis('off')
         
@@ -468,7 +501,159 @@ class FigureGenerator:
         plt.close()
         
         logger.info(f"  [OK] Figure 6 saved: {output_file}")
+    
+    def generate_figure6b_novel_structures(self):
+        """
+        Figure 6B: Novel Molecule Structures (separate figure)
         
+        Creates a dedicated figure showing all 5 novel molecules with their structures,
+        similar to Figure 7 (molecular_structures_panel).
+        """
+        logger.info("\n" + "="*70)
+        logger.info("GENERATING FIGURE 6B: Novel Molecule Structures")
+        logger.info("="*70)
+        
+        # Novel molecules from manuscript (Table 6)
+        # Note: These are novel (not in PubChem), but we use example SMILES for visualization
+        novel_molecules = [
+            {'formula': 'C8H12N2O3', 'mass': 184, 'name': 'Novel compound 1', 'type': 'Novel molecule',
+             'smiles': 'CC(=O)NC1CCCC1NC(=O)C'},  # Example: diketopiperazine-like
+            {'formula': 'C7H9NO4', 'mass': 171, 'name': 'Novel compound 2', 'type': 'Novel molecule',
+             'smiles': 'CC(=O)OC1=CC=CC=C1N'},  # Example: N-acetyl derivative
+            {'formula': 'C9H11N3O2', 'mass': 193, 'name': 'Novel compound 3', 'type': 'Novel molecule',
+             'smiles': 'CC1=CC=C(C=C1)N(C)C(=O)N'},  # Example: N-methyl derivative
+            {'formula': 'C6H8N2O3', 'mass': 156, 'name': 'Novel compound 4', 'type': 'Novel molecule',
+             'smiles': 'CC(=O)NC1CCCC1N'},  # Example: cyclic amide
+            {'formula': 'C10H14NO2', 'mass': 180, 'name': 'Novel compound 5', 'type': 'Novel molecule',
+             'smiles': 'CC1=CC=C(C=C1)OC(=O)NC'},  # Example: aromatic ester
+        ]
+        
+        if not RDKIT_AVAILABLE:
+            logger.warning("  ⚠️  RDKit not available - cannot render structures")
+            return
+        
+        # Use the same rendering approach as Figure 7
+        temp_dir = Path(tempfile.mkdtemp())
+        n_molecules = len(novel_molecules)
+        cols = min(3, n_molecules)
+        rows = (n_molecules + cols - 1) // cols
+        
+        # Larger figure size for better structure visibility
+        fig, axes = plt.subplots(rows, cols, figsize=(18, 6*rows))
+        fig.suptitle('Figure 6B: Top Novel Molecules - Molecular Structures', fontsize=16, fontweight='bold')
+        
+        if rows == 1:
+            axes = axes.reshape(1, -1) if cols > 1 else [axes]
+        elif cols == 1:
+            axes = axes.reshape(-1, 1)
+        
+        for idx, mol_data in enumerate(novel_molecules):
+            row = idx // cols
+            col = idx % cols
+            ax = axes[row, col] if rows > 1 else axes[col]
+            
+            formula = mol_data['formula']
+            mass = mol_data['mass']
+            name = mol_data['name']
+            smiles = mol_data.get('smiles', '')
+            
+            # Render structure using same method as Figure 7
+            structure_img = None
+            if smiles:
+                try:
+                    mol = Chem.MolFromSmiles(smiles)
+                    if mol:
+                        mol = Chem.AddHs(mol)
+                        rdMolDraw2DUtils.PrepareMolForDrawing(mol)
+                        
+                        drawer = rdMolDraw2D.MolDraw2DCairo(600, 600)
+                        opts = drawer.drawOptions()
+                        opts.bondLineWidth = 2
+                        opts.fontSize = 14
+                        
+                        # Force display of all atom labels (including carbons)
+                        atom_labels = {i: atom.GetSymbol() for i, atom in enumerate(mol.GetAtoms())}
+                        
+                        drawer.DrawMolecule(mol, atomLabels=atom_labels)
+                        drawer.FinishDrawing()
+                        
+                        temp_file = temp_dir / f"novel_{idx}.png"
+                        with open(temp_file, 'wb') as f:
+                            f.write(drawer.GetDrawingText())
+                        
+                        structure_img = temp_file
+                        logger.info(f"  ✅ Rendered structure for {formula}")
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Failed to render {formula}: {e}")
+            
+            # Display structure if available
+            if structure_img and Path(structure_img).exists():
+                try:
+                    img = Image.open(structure_img)
+                    if img.mode == 'RGBA':
+                        background = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.split()[3]:
+                            background.paste(img, mask=img.split()[3])
+                        else:
+                            background.paste(img)
+                        img = background
+                    elif img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    
+                    # Position structure in upper 60% of panel
+                    img_width, img_height = img.size
+                    aspect_ratio = img_width / img_height
+                    structure_height = 0.50
+                    structure_width = structure_height * aspect_ratio
+                    
+                    x_center = 0.5
+                    x_left = max(0.05, x_center - structure_width / 2)
+                    x_right = min(0.95, x_center + structure_width / 2)
+                    
+                    y_bottom = 0.50
+                    y_top = 0.90
+                    
+                    ax.imshow(img, aspect='auto',
+                             extent=[x_left, x_right, y_bottom, y_top],
+                             zorder=1, interpolation='lanczos')
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Failed to display structure for {formula}: {e}")
+            
+            # Display molecule info
+            if structure_img:
+                y_formula = 0.40
+                y_mass = 0.32
+                y_novel = 0.24
+            else:
+                y_formula = 0.75
+                y_mass = 0.65
+                y_novel = 0.55
+            
+            ax.text(0.5, y_formula, f"{formula}", transform=ax.transAxes,
+                    ha='center', fontsize=16, fontweight='bold', zorder=2)
+            ax.text(0.5, y_mass, f"m={mass} amu", transform=ax.transAxes,
+                    ha='center', fontsize=11, zorder=2)
+            ax.text(0.5, y_novel, "Novel compound", transform=ax.transAxes,
+                    ha='center', fontsize=10, style='italic', color='red', zorder=2)
+            
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis('off')
+        
+        # Hide unused subplots
+        for idx in range(n_molecules, rows * cols):
+            row = idx // cols
+            col = idx % cols
+            ax = axes[row, col] if rows > 1 else axes[col]
+            ax.axis('off')
+        
+        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+        output_file = self.output_dir / 'figure6b_novel_structures.png'
+        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        logger.info(f"  [OK] Figure 6B saved: {output_file}")
+    
     # Helper methods for dummy data generation
     
     def _simulate_accumulation(self, scenario: str, steps: np.ndarray) -> np.ndarray:

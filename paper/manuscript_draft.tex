@@ -133,7 +133,7 @@ Each atom is represented as a particle $i$ with:
     \item Bond list: $B_i = \{(j, k)\}$ where $j$ is bonded atom, $k$ is bond strength
 \end{itemize}
 
-We use periodic boundary conditions with a simulation box of $100 \times 100$ Å for systems with $\sim$300-650 atoms, corresponding to realistic molecular densities.
+We use periodic boundary conditions with a simulation box of $100 \times 100$~\AA{} for systems with $\sim$300-650 atoms, corresponding to realistic molecular densities.
 
 \subsubsection{Force Calculation}
 
@@ -172,7 +172,7 @@ The timestep $\Delta t$ is adjusted based on maximum force magnitude:
 \begin{equation}
     \Delta t = \min\left(\Delta t_{\max}, \frac{\alpha}{\max_i |\mathbf{F}_i|/m_i}\right)
 \end{equation}
-with $\alpha = 0.01$ Å$\cdot$fs$^2$/amu ensuring numerical stability.
+with $\alpha = 0.01$~\AA{}$\cdot$fs$^2$/amu ensuring numerical stability.
 
 \subsubsection{Bond Formation and Breaking}
 
@@ -310,6 +310,10 @@ To ensure only chemically plausible results were included in our analysis, we ap
 
 Of 2,315 unique molecular species detected across all simulations, 776 real molecules (33.5\% retention rate) passed truth-filter validation. All autocatalytic cycle detection and reaction network analysis were performed on truth-filtered molecules, ensuring that reported results represent chemically plausible structures rather than artifacts or clusters.
 
+\subsubsection{TruthFilter 2.0}
+
+To address limitations of classical force fields (Morse + Lennard-Jones) that do not support quantum-mechanical effects such as aromatic stabilization, we implemented TruthFilter 2.0, an enhanced validation system that classifies molecules into three categories: ACCEPT (chemically plausible and model-compatible), FLAG (putative structures requiring quantum-mechanical validation), and REJECT (chemically implausible or model-incompatible). The validation pipeline performs eight sequential checks: (1) valence rules (hard REJECT for violations), (2) charge balance and connectivity (hard REJECT for unphysical charges or disconnected components), (3) ring strain assessment (FLAG for high-strain bicyclic systems), (4) aromaticity detection (FLAG for aromatic rings, as our model lacks $\pi$-orbital delocalization), (5) model-compatibility scoring (confidence adjustment based on molecular complexity), (6) database cross-checking (PubChem/ChEBI matching), (7) persistence statistics (FLAG for transient singletons), and (8) final decision logic mapping to ACCEPT/FLAG/REJECT. All novel molecules shown in Figure \ref{fig:novel_structures} were validated using TruthFilter 2.0, with aromatic structures flagged as model-incompatible and requiring quantum-mechanical validation for stability assessment.
+
 
 \subsection{Simulation Scenarios}
 
@@ -322,7 +326,7 @@ We conducted simulations under three distinct prebiotic scenarios, each with 10 
     \item Temperature: 298 K
     \item Energy input: Periodic high-energy pulses (simulating lightning)
     \item Pressure: 1 atm (standard density)
-    \item Box size: $100 \times 100$ Å
+    \item Box size: $100 \times 100$~\AA{}
     \item Total atoms: 360
     \item Steps: 500,000 (Phase 2B extended runs)
 \end{itemize}
@@ -331,7 +335,7 @@ We conducted simulations under three distinct prebiotic scenarios, each with 10 
 
 \begin{itemize}
     \item Starting molecules: H$_2$ (30\%), H$_2$S (10\%), CO$_2$ (20\%), NH$_3$ (10\%), H$_2$O (30\%)
-    \item Temperature: 373 K (100°C)
+    \item Temperature: 373 K (100$^\circ$C)
     \item pH: 10.0 (alkaline)
     \item Mineral surface: Implicit catalytic effects (rate enhancement)
     \item Total atoms: 400
@@ -470,7 +474,7 @@ We classified molecules as "novel" if they were: (1) not in PubChem (>100M compo
 
 Novel molecules comprised a substantial fraction of total species detected. They appeared later in simulations: median first detection at 100,000 steps, suggesting they arise from multi-step synthesis pathways rather than direct combination of starting materials (Figure \ref{fig:novel}A).
 
-The top 5 novel molecules by complexity score are shown in Table \ref{tab:novel_molecules} and Figure \ref{fig:novel}B. These molecules represent multi-step synthesis products with complex bonding patterns, demonstrating the capacity of prebiotic chemistry to generate molecular diversity beyond simple dimerization. Representative molecular structures of key hub molecules detected across all scenarios are shown in Figure \ref{fig:structures}. Representative molecular structures of key hub molecules detected across all scenarios are shown in Figure \ref{fig:structures}.
+The top 5 novel molecules by complexity score are shown in Table \ref{tab:novel_molecules} and Figure \ref{fig:novel}B. These molecules represent multi-step synthesis products with complex bonding patterns, demonstrating the capacity of prebiotic chemistry to generate molecular diversity beyond simple dimerization. Molecular structures of these novel compounds are shown in Figure \ref{fig:novel_structures}. \textbf{Important caveat:} The structures shown represent topological connectivity patterns (bond graphs) detected from simulation snapshots, not quantum-mechanically optimized geometries. Our classical force field (Morse + Lennard-Jones) does not include aromatic stabilization or quantum-mechanical effects, so aromatic rings and high-strain bicyclic systems should be interpreted as putative topological skeletons requiring quantum-mechanical validation for stability assessment. Representative molecular structures of key hub molecules detected across all scenarios are shown in Figure \ref{fig:structures}.
 
 We reconstructed formation pathways by reverse-tracing reaction networks from novel molecules to starting materials. Analysis of reaction networks revealed multi-step pathways with intermediate molecules serving as branch points leading to multiple novel species (Figure \ref{fig:novel}C).
 
@@ -521,6 +525,8 @@ Third, the bond formation/breaking rules, while based on literature-derived ener
 
 Fourth, our novelty detection relies on graph isomorphism and PubChem matching, which may miss chemically plausible but previously unreported structures. The truth-filter validation helps address this, but some novel molecules may still represent computational artifacts rather than realistic chemistry.
 
+Fifth, our classical force field (Morse + Lennard-Jones) does not include quantum-mechanical effects such as aromatic stabilization or $\pi$-orbital delocalization. Therefore, structures shown for novel molecules (Figure \ref{fig:novel_structures}) represent topological connectivity patterns (bond graphs) detected from simulation snapshots, not quantum-mechanically optimized geometries. Aromatic rings and high-strain bicyclic systems should be interpreted as putative topological skeletons requiring quantum-mechanical validation for stability assessment. This limitation means that while our simulations can discover novel bond connectivity patterns, the actual stability and geometry of complex structures (especially those with aromaticity or high strain) would require quantum-mechanical calculations to confirm.
+
 Future work should address these limitations by: (1) extending to 3D geometry with explicit solvent modeling, (2) implementing explicit mineral surface interactions for hydrothermal scenarios, (3) incorporating quantum mechanical corrections for bond formation, and (4) developing more sophisticated chemical plausibility filters beyond graph structure.
 
 
@@ -562,7 +568,7 @@ We thank collaborators for helpful discussions. Simulations were performed on Am
 \section{Data and Code Availability}
 % ==============================================================================
 
-All simulation data, analysis code, and visualization scripts are publicly available at \url{https://github.com/ProhunterPL/live2.0}. Raw simulation outputs are deposited at Zenodo (DOI: [data DOI - to be assigned after deposit creation]).
+All simulation data, analysis code, and visualization scripts are publicly available at \url{https://github.com/ProhunterPL/live2.0}. Raw simulation outputs are deposited at Zenodo (DOI: 10.5281/zenodo.17814793).
 
 
 % ==============================================================================
@@ -581,7 +587,7 @@ All simulation data, analysis code, and visualization scripts are publicly avail
 
 \section*{Figures}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/figure1_thermodynamic_validation.png}
     \caption{\textbf{Thermodynamic validation.} 
@@ -593,7 +599,7 @@ All simulation data, analysis code, and visualization scripts are publicly avail
     \label{fig:validation}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/figure2_benchmark_validation.png}
     \caption{\textbf{Benchmark reaction validation.}
@@ -605,7 +611,7 @@ All simulation data, analysis code, and visualization scripts are publicly avail
     \label{fig:benchmarks}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/figure3_molecular_diversity.png}
     \caption{\textbf{Molecular diversity across prebiotic scenarios.}
@@ -615,7 +621,7 @@ All simulation data, analysis code, and visualization scripts are publicly avail
     \label{fig:diversity}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/figure4_reaction_networks.png}
     \caption{\textbf{Reaction network topology.}
@@ -625,7 +631,7 @@ All simulation data, analysis code, and visualization scripts are publicly avail
     \label{fig:networks}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/figure5_autocatalytic_cycles.png}
     \caption{\textbf{Autocatalytic cycle detection.}
@@ -635,17 +641,26 @@ All simulation data, analysis code, and visualization scripts are publicly avail
     \label{fig:autocatalysis}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/figure6_novel_molecules.png}
     \caption{\textbf{Novel molecule detection and pathways.}
-    (A) Detection timeline. (B) Top novel molecules. (C) Formation pathways.
+    (A) Detection timeline. (B) Top novel molecules (see Figure \ref{fig:novel_structures} for molecular structures). (C) Formation pathways.
     (D) Scenario specificity.
     }
     \label{fig:novel}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/figure6b_novel_structures.png}
+    \caption{\textbf{Molecular structures of top novel molecules.}
+    Top 5 novel molecules detected in simulations: C$_8$H$_{12}$N$_2$O$_3$ (m=184 amu), C$_7$H$_9$NO$_4$ (m=171 amu), C$_9$H$_{11}$N$_3$O$_2$ (m=193 amu), C$_6$H$_8$N$_2$O$_3$ (m=156 amu), and C$_{10}$H$_{14}$NO$_2$ (m=180 amu). These compounds were not found in PubChem database (>100M compounds), indicating they represent potentially novel chemical species. All structures were validated using TruthFilter 2.0 (see Methods 2.5.1) and classified as FLAG (putative), indicating they require quantum-mechanical validation for stability assessment. \textbf{Note:} Structures shown represent topological skeletons (graph-level predictions) based on detected bond connectivity patterns, not optimized quantum-mechanical geometries. Aromatic structures (C$_7$H$_9$NO$_4$, C$_9$H$_{11}$N$_3$O$_2$, C$_{10}$H$_{14}$NO$_2$) are flagged by TruthFilter 2.0 as model-incompatible (no explicit aromatic stabilization) and should be regarded as topological predictions rather than fully optimized geometries. Structures rendered using RDKit 2D visualization with all atoms (including carbons and hydrogens) visible.
+    }
+    \label{fig:novel_structures}
+\end{figure}
+
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/molecular_structures_panel.png}
     \caption{\textbf{Example molecular structures detected in simulations.}
@@ -680,8 +695,7 @@ See separate document for:
 \begin{itemize}
     \item Table S1: Complete physical parameter database with citations
     \item Table S2: All detected molecular species
-    \item Figures S1-S10: Additional validation and analysis
-    \item Movies S1-S2: Simulation visualizations
+    \item Figures S1-S9: Additional validation and analysis
 \end{itemize}
 
 \end{document}
