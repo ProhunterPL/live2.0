@@ -1,5 +1,5 @@
 ---
-date: 2025-01-23
+date: 2025-12-04
 status: submitted
 journal: Origins of Life and Evolution of Biospheres
 ---
@@ -8,7 +8,7 @@ journal: Origins of Life and Evolution of Biospheres
 
 ## Submission Details
 
-**Date**: 2025-01-23  
+**Date**: 2025-12-04  
 **Journal**: Origins of Life and Evolution of Biospheres  
 **Submission ID**: `5a16c805-7ec9-4f82-9233-6bb6bb857971`  
 **Manuscript Title**: "Emergent Molecular Complexity in Prebiotic Chemistry Simulations: A Physics-Based Approach"  
@@ -70,5 +70,5 @@ journal: Origins of Life and Evolution of Biospheres
 
 ---
 
-**Last Updated**: 2025-01-23
+**Last Updated**: 2025-12-04
 
