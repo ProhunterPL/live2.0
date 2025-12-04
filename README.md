@@ -327,11 +327,24 @@ If you use LIVE 2.0 in your research, please cite:
 ```bibtex
 @software{live2_simulator,
   title={LIVE 2.0: Open-Ended Prebiotic Chemistry Simulator},
-  author={Your Name},
+  author={Klawikowski, Michał},
   year={2025},
-  url={https://github.com/yourusername/live2.0}
+  url={https://github.com/ProhunterPL/live2.0},
+  doi={10.5281/zenodo.17814793}
 }
 ```
+
+## 📄 Publication
+
+**Manuscript submitted** (2025-01-23) to *Origins of Life and Evolution of Biospheres*:
+
+> **"Emergent Molecular Complexity in Prebiotic Chemistry Simulations: A Physics-Based Approach"**
+
+**Status**: Under peer review  
+**Submission ID**: `5a16c805-7ec9-4f82-9233-6bb6bb857971`  
+**Data & Code**: [GitHub](https://github.com/ProhunterPL/live2.0) | [Zenodo](https://zenodo.org/record/17814793)
+
+For manuscript details, see [`paper/`](paper/) directory.
 
 ## 🔬 Scientific Background
 
