@@ -209,7 +209,7 @@ Manuskrypt został przesłany do międzynarodowego czasopisma. Teraz planujemy:
 
 ### 4.1 Dla Publikacji w Polsce
 
-**Teraz (2025-01-23)**:
+**Teraz (2025-12-04)**:
 - ✅ Manuscript submitted
 - ⏳ Monitorowanie statusu submission
 - ⏳ Przygotowanie do review
@@ -278,6 +278,6 @@ Manuskrypt został przesłany do międzynarodowego czasopisma. Teraz planujemy:
 
 ---
 
-**Ostatnia aktualizacja**: 2025-01-23  
+**Ostatnia aktualizacja**: 2025-12-04  
 **Status**: Plan gotowy do wdrożenia
 
