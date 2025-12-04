@@ -1,0 +1,53 @@
+Dear Editor,
+
+We are pleased to submit our manuscript entitled “Emergent Molecular Complexity in Prebiotic Chemistry Simulations: A Physics-Based Approach” for consideration in Origins of Life and Evolution of Biospheres.
+
+Context and Significance
+
+The origin of life remains one of the most fundamental open questions in science: how did complex organic molecules emerge from simple precursors under early Earth conditions? Existing computational approaches suffer from a key trade-off—ab initio quantum chemical methods are too computationally expensive for open-ended discovery, whereas abstract reaction network models cannot capture physical realism or predict genuinely novel chemistry.
+
+Our work addresses this gap by introducing a physics-based particle simulation framework that combines the realism of molecular dynamics with the exploratory capacity required to discover emergent chemistry. The framework requires no predefined reaction rules: bonds form and break dynamically based on physically validated parameters, enabling spontaneous generation of new chemistry. Across 30 independent simulations representing three widely studied prebiotic environments (Miller–Urey, alkaline hydrothermal vents, and formamide-rich conditions), we observe 2,315 unique molecular species and 769,315 autocatalytic cycles, providing quantitative insight into the emergence of chemical self-organization.
+
+Key Contributions
+
+Novel Computational Framework
+We present the first physics-based particle simulation system capable of discovering emergent chemical complexity without predefined reaction rules, rigorously validated against experimental benchmarks (formose reaction, Strecker synthesis, and HCN polymerization).
+
+Autocatalytic Network Discovery
+We detect extensive autocatalytic behavior across all prebiotic scenarios (769,315 cycles), with amplification factors ranging from 1.11 to 6.0, demonstrating how chemical systems can self-amplify and organize far from equilibrium.
+
+Scenario-Specific Chemistry
+Our simulations uncover distinct molecular diversity patterns, reaction network topologies, and hub molecules in each scenario. These chemical signatures provide clear, testable predictions for laboratory experiments and support the existence of multiple plausible, environment-dependent pathways toward chemical evolution.
+
+Detection of Novel Molecular Species
+We report five potentially novel molecular structures not found in PubChem (>100 million entries), validated using our TruthFilter 2.0 system, which accounts for limitations of classical force fields and ensures chemical plausibility.
+
+Suitability for Origins of Life and Evolution of Biospheres
+
+This manuscript is well aligned with the journal’s scope for several reasons:
+
+Direct relevance to the origin of life — Our simulations model chemically realistic prebiotic environments and provide quantitative predictions about how molecular complexity emerges before biological evolution.
+
+Interdisciplinary innovation — The work bridges computational chemistry, systems chemistry, artificial life, and origins research, offering a new methodological tool for the community.
+
+Empirical testability — The model generates experimentally testable predictions regarding molecular species, network motifs, and autocatalytic behavior, consistent with the journal’s emphasis on connecting theory with experiment.
+
+Methodological contribution — The physics-based emergent-chemistry framework represents a methodological advance with potential for broad adoption in origins-of-life research.
+
+Astrobiological relevance — The scenario-specific chemical signatures have implications for understanding chemical evolution not only on early Earth but also in extraterrestrial environments.
+
+Data and Code Availability
+
+All simulation code, analysis pipelines, and visualization scripts are openly available at:
+https://github.com/ProhunterPL/live2.0
+
+Raw simulation outputs are archived on Zenodo (DOI: 10.5281/zenodo.17814793), ensuring full transparency and reproducibility.
+
+We believe this work provides a significant contribution to origins-of-life research by demonstrating how physically grounded simulations can give rise to emergent chemical diversity, autocatalytic organization, and novel molecular species. We hope that it will be of strong interest to the readers of Origins of Life and Evolution of Biospheres.
+
+Thank you for your consideration.
+
+Sincerely,
+Michał Klawikowski
+Corresponding Author
+klawikowski@klawikowski.pl
