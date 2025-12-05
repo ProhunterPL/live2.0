@@ -247,6 +247,10 @@ jspm_packages/
 *.swo
 *~
 
+# Cursor editor configuration (contains project-specific rules and strategies)
+.cursor/
+.cursorrules
+
 # OS
 .DS_Store
 .DS_Store?

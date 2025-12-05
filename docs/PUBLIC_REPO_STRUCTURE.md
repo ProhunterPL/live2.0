@@ -54,7 +54,12 @@ The following types of files are intentionally excluded from the public reposito
 - `paper/QUANTUM_AI_EXPANSION_ANALYSIS.md` - Expansion analysis
 - `paper/WORK_PLAN.md` - Work plans
 
-### 6. Sensitive Information
+### 6. Editor Configuration (Project-Specific)
+- `.cursor/` - Cursor editor rules and project-specific configurations
+- `.cursorrules` - Cursor editor rules file
+- These contain project strategies, architecture decisions, and development workflows
+
+### 7. Sensitive Information
 - SSH keys (`.pem`, `.key` files)
 - Environment files (`.env`)
 - Hardcoded IP addresses or credentials in scripts
