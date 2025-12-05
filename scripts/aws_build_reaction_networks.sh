@@ -39,7 +39,7 @@ if [ "$SUCCESS_COUNT" -eq 17 ]; then
     echo "       --output paper/results_data"
     echo ""
     echo "2. Or download results locally (optional):"
-    echo "   scp -r ubuntu@63.178.224.65:~/live2.0/results/phase2b_additional/hydrothermal_extended/run_*/reaction_network.json \\"
+    echo "   scp -r -i <your-key.pem> ubuntu@<AWS_IP>:~/live2.0/results/phase2b_additional/hydrothermal_extended/run_*/reaction_network.json \\"
     echo "       results/phase2b_additional/hydrothermal_extended/"
     exit 0
 else

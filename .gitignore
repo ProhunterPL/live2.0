@@ -279,6 +279,29 @@ aws_results/
 **/analysis/
 **/molecule_report.txt
 
+# Work-in-progress / temporary files (should not be in public repo)
+AWS_*.txt
+*DEPLOY*.txt
+*DEPLOY*.sh
+HYDRO_*.txt
+structure.txt
+docs_structure.txt
+*.backup
+*_backup.py
+aws_minimal_setup.txt
+monitor_aws_runs.sh
+run_aws_production.sh
+setup_aws_instance.sh
+test_aws_instance.sh
+
+# Local PowerShell scripts (keep archive/ ones for reference, but remove from tracking)
+# Note: archive/ scripts are OK to keep in repo for historical reference
+
+# AWS test results (duplicates, should not be in public repo)
+aws_test/results/
+aws_test/results_*/
+aws_test/run_phase2b_master.py.backup
+
 # Security - SSH keys and credentials (NEVER commit these!)
 *.pem
 *.key

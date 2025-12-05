@@ -6,10 +6,21 @@ from pathlib import Path
 
 def ssh_command(cmd):
     """Run SSH command"""
+    # Get credentials from environment variables
+    aws_ip = os.getenv("AWS_IP")
+    key_path = os.getenv("AWS_SSH_KEY_PATH")
+    
+    if not aws_ip:
+        print("ERROR: AWS_IP environment variable not set")
+        return ""
+    if not key_path:
+        print("ERROR: AWS_SSH_KEY_PATH environment variable not set")
+        return ""
+    
     full_cmd = [
-        "ssh", "-i", r"D:\OneDrive\Pulpit\live_aws_credentials\key-do-live.pem",
+        "ssh", "-i", key_path,
         "-o", "StrictHostKeyChecking=no",
-        "ubuntu@63.178.224.65",
+        f"ubuntu@{aws_ip}",
         cmd
     ]
     try:

@@ -58,10 +58,19 @@ def download_formamide(host, key_path, local_dir="results/phase2b_additional"):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="63.178.224.65")
-    parser.add_argument("--key", default=r"D:\OneDrive\Pulpit\live_aws_credentials\key-do-live.pem")
+    parser.add_argument("--host", default=os.getenv("AWS_IP", ""), 
+                       help="AWS instance IP (or set AWS_IP env var)")
+    parser.add_argument("--key", default=os.getenv("AWS_SSH_KEY_PATH", ""),
+                       help="SSH key path (or set AWS_SSH_KEY_PATH env var)")
     parser.add_argument("--local-dir", default="results/phase2b_additional")
     args = parser.parse_args()
+    
+    if not args.host:
+        print("ERROR: AWS IP not provided. Use --host or set AWS_IP environment variable")
+        sys.exit(1)
+    if not args.key:
+        print("ERROR: SSH key path not provided. Use --key or set AWS_SSH_KEY_PATH environment variable")
+        sys.exit(1)
     
     download_formamide(args.host, args.key, args.local_dir)
 
