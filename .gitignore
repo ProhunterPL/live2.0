@@ -302,6 +302,17 @@ aws_test/results/
 aws_test/results_*/
 aws_test/run_phase2b_master.py.backup
 
+# Strategic plans and future publications (sensitive - not for public repo)
+docs/plans/
+docs/wniosek/
+docs/LIVE2_QUANTUM_AI_EXPANSION.md
+docs/VALIDATION_ROADMAP.md
+docs/phase3/PAPER2_OUTLINE.md
+paper/POST_SUBMISSION_PLAN.md
+paper/QUANTUM_AI_EXPANSION_ANALYSIS.md
+paper/WORK_PLAN.md
+paper/ADD_MISSING_FIGURES_PLAN.md
+
 # Security - SSH keys and credentials (NEVER commit these!)
 *.pem
 *.key

@@ -24,7 +24,7 @@ This repository was made public as part of the paper submission process and is l
 
 ## 🚫 What is NOT in the Public Repository
 
-The following types of files are intentionally excluded from the public repository:
+The following types of files are intentionally excluded from the public repository to protect strategic information, future research directions, and competitive advantages:
 
 ### 1. Work-in-Progress Files
 - `AWS_*.txt` - AWS deployment notes (may contain IP addresses, commands)
@@ -44,7 +44,17 @@ The following types of files are intentionally excluded from the public reposito
 - `*.backup` - Backup copies of scripts
 - `*_backup.py` - Backup Python files
 
-### 5. Sensitive Information
+### 5. Strategic Plans and Future Publications
+- `docs/plans/` - All strategic development plans and roadmaps
+- `docs/wniosek/` - Grant proposals and funding applications
+- `docs/LIVE2_QUANTUM_AI_EXPANSION.md` - Future expansion plans
+- `docs/VALIDATION_ROADMAP.md` - Validation roadmap
+- `docs/phase3/PAPER2_OUTLINE.md` - Future publication outlines
+- `paper/POST_SUBMISSION_PLAN.md` - Post-submission strategy
+- `paper/QUANTUM_AI_EXPANSION_ANALYSIS.md` - Expansion analysis
+- `paper/WORK_PLAN.md` - Work plans
+
+### 6. Sensitive Information
 - SSH keys (`.pem`, `.key` files)
 - Environment files (`.env`)
 - Hardcoded IP addresses or credentials in scripts
