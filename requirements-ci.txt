@@ -42,6 +42,18 @@ requests>=2.32.0
 Pillow>=10.4.0
 watchdog>=4.0.0
 
+# Billing and subscriptions (required for billing tests)
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+psycopg2-binary>=2.9.0  # PostgreSQL driver
+stripe>=7.0.0  # Stripe payment processing
+bcrypt>=4.0.0  # Password hashing
+python-jose[cryptography]>=3.3.0  # JWT tokens
+passlib[bcrypt]>=1.7.4  # Password hashing utilities
+redis>=5.0.0  # Redis client
+python-dotenv>=1.0.0  # Load environment variables from .env file
+boto3>=1.28.0  # AWS S3 and S3-compatible storage
+
 # Note: RDKit can be installed separately with:
 # pip install rdkit
 # This is excluded from CI by default as it's large and not needed for core tests
