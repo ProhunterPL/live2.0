@@ -1,0 +1,385 @@
+{
+  "total_runs_expected": 43,
+  "total_runs_found": 43,
+  "scenarios": {
+    "miller_urey_extended": {
+      "expected": 18,
+      "found": 18,
+      "runs": [
+        {
+          "run_id": "run_1",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_10",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_11",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_12",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_13",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_14",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_15",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_16",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_17",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_18",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_2",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_3",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_4",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_5",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_6",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_7",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_8",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_9",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        }
+      ],
+      "cycles_count": 0,
+      "runs_with_cycles": 18
+    },
+    "hydrothermal_extended": {
+      "expected": 17,
+      "found": 17,
+      "runs": [
+        {
+          "run_id": "run_1",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_10",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_11",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_12",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_13",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_14",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_15",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_16",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_17",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_2",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_3",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_4",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_5",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_6",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_7",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_8",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_9",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": true,
+          "has_snapshots": true,
+          "cycles_count": 0
+        }
+      ],
+      "cycles_count": 0,
+      "runs_with_cycles": 17
+    },
+    "formamide_extended": {
+      "expected": 8,
+      "found": 8,
+      "runs": [
+        {
+          "run_id": "run_1",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_2",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_3",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_4",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_5",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_6",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_7",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        },
+        {
+          "run_id": "run_8",
+          "has_results_json": true,
+          "has_molecules_json": true,
+          "has_cycles_json": false,
+          "has_snapshots": true,
+          "cycles_count": 0
+        }
+      ],
+      "cycles_count": 0,
+      "runs_with_cycles": 0
+    }
+  },
+  "autocatalytic_cycles": {
+    "total": 0,
+    "by_scenario": {
+      "miller_urey_extended": 0,
+      "hydrothermal_extended": 0
+    },
+    "runs_with_cycles": 35,
+    "runs_without_cycles": 8
+  },
+  "missing_files": [],
+  "incomplete_runs": []
+}
