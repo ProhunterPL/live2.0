@@ -26,6 +26,10 @@ import multiprocessing
 # Setup logging to file with rotation (max 5MB)
 from logging.handlers import RotatingFileHandler
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create logs directory if it doesn't exist
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -202,6 +206,14 @@ class Live2Server:
     
     def setup_routes(self):
         """Setup API routes"""
+        
+        # Mount API v1 (Synthetic Data as a Service)
+        try:
+            from backend.api.v1.main import app as v1_app
+            self.app.mount("/api/v1", v1_app)
+            logger.info("Mounted API v1 at /api/v1")
+        except Exception as e:
+            logger.warning(f"Failed to mount API v1: {e}")
         
         @self.app.get("/")
         async def root():

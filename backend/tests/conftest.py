@@ -9,7 +9,12 @@ import os
 import sys
 
 # Add backend to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+backend_dir = os.path.join(os.path.dirname(__file__), '..')
+sys.path.insert(0, backend_dir)
+# Also add parent directory (project root) for absolute imports
+project_root = os.path.join(backend_dir, '..')
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 def pytest_configure(config):
     """Configure pytest with Taichi initialization"""
