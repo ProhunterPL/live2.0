@@ -4,7 +4,7 @@ Async job processor for API v1.
 Handles long-running operations like dataset generation.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from enum import Enum
 import uuid
 import asyncio
@@ -133,6 +133,45 @@ class JobProcessor:
             )
         
         return json.loads(job_data)
+    
+    async def list_user_jobs(self, user_id: str, limit: int = 20) -> List[Dict]:
+        """
+        List all jobs for a user.
+        
+        Args:
+            user_id: User ID
+            limit: Maximum number of jobs to return
+        
+        Returns:
+            List of job status dicts
+        """
+        jobs = []
+        
+        # Scan all job keys (job:*)
+        cursor = 0
+        while True:
+            cursor, keys = self.redis.scan(cursor, match="job:*", count=100)
+            
+            for key in keys:
+                try:
+                    job_data = self.redis.get(key)
+                    if job_data:
+                        job_dict = json.loads(job_data)
+                        # Filter by user_id
+                        if job_dict.get("user_id") == user_id:
+                            jobs.append(job_dict)
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Failed to parse job data from {key}: {e}")
+                    continue
+            
+            if cursor == 0:
+                break
+        
+        # Sort by created_at (newest first)
+        jobs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        # Limit results
+        return jobs[:limit]
     
     async def _process_jobs(self):
         """Background task to process queued jobs."""

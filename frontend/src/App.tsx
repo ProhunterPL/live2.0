@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Play, Pause, Square, RotateCcw } from 'lucide-react'
+import { Play, Pause, Square, RotateCcw, Database } from 'lucide-react'
 import HeatmapCanvas from './components/HeatmapCanvas'
 import Controls from './components/Controls'
 import GraphPreview from './components/GraphPreview'
 import PerformancePanel from './components/PerformancePanel'
 import NoveltyPanel from './components/NoveltyPanel'
+import APIv1Jobs from './components/APIv1Jobs'
 import { SimulationAPI } from './lib/api.ts'
 import { WebSocketClient } from './lib/ws.ts'
 import type { SimulationData, SimulationStatus, Metrics } from './lib/types.ts'
@@ -520,82 +521,100 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          <label htmlFor="mode-select" className="text-sm text-gray-300">Mode:</label>
-          <select
-            id="mode-select"
-            value={mode}
-            onChange={(e) => setMode(e.target.value as any)}
-            className="text-sm px-2 py-1 border border-white/20 rounded bg-white/10 text-white"
-            aria-label="Simulation mode selection"
-          >
-            <option value="open_chemistry">Open Chemistry</option>
-            <option value="preset_prebiotic">Preset Prebiotic</option>
-          </select>
-          
           <button
-            className="btn btn-primary"
-            onClick={status?.is_running ? (status?.is_paused ? resumeSimulation : pauseSimulation) : (simulationId ? () => startSimulation(simulationId) : initializeSimulation)}
-            disabled={false}
+            className={`btn ${view === 'api-v1' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setView(view === 'api-v1' ? 'simulation' : 'api-v1')}
+            title="Toggle between Simulation and API v1 Jobs view"
           >
-            {status?.is_running ? (status?.is_paused ? <Play size={16} /> : <Pause size={16} />) : <Play size={16} />}
-            {status?.is_running ? (status?.is_paused ? 'Resume' : 'Pause') : (simulationId ? 'Start' : 'Create & Start')}
+            <Database size={16} />
+            {view === 'api-v1' ? 'Simulation' : 'API v1 Jobs'}
           </button>
           
-          <button
-            className="btn btn-danger"
-            onClick={stopSimulation}
-            disabled={!simulationId}
-          >
-            <Square size={16} />
-            Stop
-          </button>
-          
-          <button
-            className="btn btn-secondary"
-            onClick={resetSimulation}
-            disabled={!simulationId}
-          >
-            <RotateCcw size={16} />
-            Reset
-          </button>
+          {view === 'simulation' && (
+            <>
+              <label htmlFor="mode-select" className="text-sm text-gray-300">Mode:</label>
+              <select
+                id="mode-select"
+                value={mode}
+                onChange={(e) => setMode(e.target.value as any)}
+                className="text-sm px-2 py-1 border border-white/20 rounded bg-white/10 text-white"
+                aria-label="Simulation mode selection"
+              >
+                <option value="open_chemistry">Open Chemistry</option>
+                <option value="preset_prebiotic">Preset Prebiotic</option>
+              </select>
+              
+              <button
+                className="btn btn-primary"
+                onClick={status?.is_running ? (status?.is_paused ? resumeSimulation : pauseSimulation) : (simulationId ? () => startSimulation(simulationId) : initializeSimulation)}
+                disabled={false}
+              >
+                {status?.is_running ? (status?.is_paused ? <Play size={16} /> : <Pause size={16} />) : <Play size={16} />}
+                {status?.is_running ? (status?.is_paused ? 'Resume' : 'Pause') : (simulationId ? 'Start' : 'Create & Start')}
+              </button>
+              
+              <button
+                className="btn btn-danger"
+                onClick={stopSimulation}
+                disabled={!simulationId}
+              >
+                <Square size={16} />
+                Stop
+              </button>
+              
+              <button
+                className="btn btn-secondary"
+                onClick={resetSimulation}
+                disabled={!simulationId}
+              >
+                <RotateCcw size={16} />
+                Reset
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      <main className="main-content">
-        <aside className="sidebar">
-          <Controls
-            simulationId={simulationId}
-            status={status}
-            onStatusUpdate={updateStatus}
-            availableSpecies={availableSpecies}
-            selectedSubstance={selectedSubstance}
-            onSubstanceChange={setSelectedSubstance}
-            runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
-          />
-          
-          <PerformancePanel
-            simulationId={simulationId}
-            performanceData={performanceData}
-          />
-          
-          <GraphPreview
-            data={simulationData}
-            selectedSubstance={selectedSubstance}
-            onSubstanceSelect={setSelectedSubstance}
-          />
-          
-          {/* Novelty Panel with PubChem Matcher */}
-          {simulationId && (
-            <div className="mt-6">
-              <NoveltyPanel
-                simulationId={simulationId}
-                onSubstanceSelect={setSelectedSubstance}
-              />
-            </div>
-          )}
-        </aside>
+      {view === 'api-v1' ? (
+        <main className="main-content" style={{ padding: '2rem' }}>
+          <APIv1Jobs apiBaseUrl="http://localhost:8001" />
+        </main>
+      ) : (
+        <main className="main-content">
+          <aside className="sidebar">
+            <Controls
+              simulationId={simulationId}
+              status={status}
+              onStatusUpdate={updateStatus}
+              availableSpecies={availableSpecies}
+              selectedSubstance={selectedSubstance}
+              onSubstanceChange={setSelectedSubstance}
+              runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
+            />
+            
+            <PerformancePanel
+              simulationId={simulationId}
+              performanceData={performanceData}
+            />
+            
+            <GraphPreview
+              data={simulationData}
+              selectedSubstance={selectedSubstance}
+              onSubstanceSelect={setSelectedSubstance}
+            />
+            
+            {/* Novelty Panel with PubChem Matcher */}
+            {simulationId && (
+              <div className="mt-6">
+                <NoveltyPanel
+                  simulationId={simulationId}
+                  onSubstanceSelect={setSelectedSubstance}
+                />
+              </div>
+            )}
+          </aside>
 
-        <div className="canvas-container">
+          <div className="canvas-container">
           <HeatmapCanvas
             data={simulationData}
             selectedSubstance={selectedSubstance}
@@ -660,7 +679,8 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-      </footer>
+        </footer>
+      )}
     </div>
   )
 }

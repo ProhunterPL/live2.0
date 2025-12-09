@@ -2,8 +2,8 @@
 Job status endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Dict, List
 
 from backend.api.v1.models.responses import JobStatusResponse
 from backend.api.v1.auth import verify_api_key, User
@@ -11,6 +11,36 @@ from backend.api.v1.dependencies import get_job_processor
 from backend.api.v1.jobs import JobProcessor
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+@router.get("", response_model=List[JobStatusResponse])
+async def list_jobs(
+    limit: int = Query(10, ge=1, le=100),
+    user: User = Depends(verify_api_key),
+    job_processor: JobProcessor = Depends(get_job_processor)
+):
+    """
+    List all jobs for the authenticated user.
+    
+    Returns list of jobs sorted by creation date (newest first).
+    """
+    try:
+        jobs_data = await job_processor.list_user_jobs(user.id, limit=limit)
+        
+        return [
+            JobStatusResponse(
+                job_id=job["job_id"],
+                status=job["status"],
+                progress=job.get("progress", 0),
+                result_url=job.get("result_url"),
+                error=job.get("error"),
+                created_at=job.get("created_at", ""),
+                completed_at=job.get("completed_at")
+            )
+            for job in jobs_data
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list jobs: {str(e)}")
 
 
 @router.get("/{job_id}", response_model=JobStatusResponse)

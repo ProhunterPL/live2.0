@@ -18,7 +18,7 @@
 \author{
     Michał Klawikowski$^{1,*}$ \\
     \\
-    $^{1}$Live 2.0 \\
+    $^{1}$Independent Researcher, Pruszcz Gdański, Poland \\
     $^{*}$Correspondence: klawikowski@klawikowski.pl
 }
 
@@ -237,8 +237,6 @@ Entropy $S = S_{\text{config}} + S_{\text{kinetic}}$ must increase:
 \end{equation}
 This was satisfied in $>99$\% of timesteps. Small violations ($<0.01k_B$) were attributed to statistical fluctuations and finite sampling, consistent with expected behavior in finite systems (Figure 1D).
 
-[Table 1: Summary of thermodynamic validation results]
-
 
 \subsection{Parameters from Literature}
 
@@ -248,7 +246,7 @@ All physical parameters were derived from experimental data and theoretical calc
 
 Lennard-Jones parameters ($\epsilon$, $\sigma$) were taken from the Universal Force Field (UFF) \citep{rappe1992uff}, which provides parameters for all elements based on atomic properties. For elements not in UFF, we used OPLS force field parameters \citep{jorgensen1996opls}.
 
-[Table 2 or Table S1: Complete list of VDW parameters with sources]
+Complete van der Waals parameters are provided in Table S1 (Supplementary Information).
 
 \subsubsection{Bond Parameters}
 
@@ -267,7 +265,7 @@ The Morse parameter $a$ was calculated from vibrational frequency $\omega_e$:
 \end{equation}
 where $\mu$ is the reduced mass.
 
-[Table S1: Complete bond parameter database (35 bond types)]
+Complete bond parameters are provided in Table S1 (Supplementary Information).
 
 \subsubsection{Reaction Rates}
 
@@ -292,8 +290,6 @@ Strecker synthesis produces amino acids from aldehydes, HCN, and ammonia \citep{
 \subsubsection{HCN Polymerization}
 
 HCN polymerizes to form oligomers and eventually adenine \citep{oro1960adenine}. We tracked oligomer formation from HCN monomers in formamide-rich environments. Our simulations captured HCN polymerization pathways leading to dimers, trimers, and higher oligomers, consistent with experimental observations of HCN chemistry in prebiotic conditions (Figure 2C, detailed results in Section 3.2).
-
-[Table 3: Benchmark reaction validation summary]
 
 
 \subsection{Truth-Filter Validation}
@@ -351,8 +347,6 @@ We conducted simulations under three distinct prebiotic scenarios, each with 10 
     \item Total atoms: 360
     \item Steps: 500,000 (Phase 2B extended runs)
 \end{itemize}
-
-[Table 4: Complete scenario parameters]
 
 
 \subsection{Computational Infrastructure and Statistical Analysis}
@@ -446,7 +440,7 @@ Hub molecules with highest degree centrality are shown in Table \ref{tab:hub_mol
 
 Degree distributions followed power-law-like behavior (Figure \ref{fig:networks}D), suggesting scale-free network properties. Network topology varied by scenario, with each environment producing distinct connectivity patterns reflecting starting molecular compositions and reaction pathways.
 
-Quantitative network metrics confirmed scenario differences (Table S2). Network analysis revealed distinct hub molecules and connectivity patterns in each scenario, with scenario-specific molecules serving as key intermediates in reaction networks.
+Quantitative network metrics confirmed scenario differences (see Table S2, Supplementary Information). Network analysis revealed distinct hub molecules and connectivity patterns in each scenario, with scenario-specific molecules serving as key intermediates in reaction networks.
 
 
 \subsection{Autocatalytic Cycles}
@@ -714,8 +708,7 @@ All simulation data, analysis code, and visualization scripts are publicly avail
 See separate document for:
 \begin{itemize}
     \item Table S1: Complete physical parameter database with citations
-    \item Table S2: All detected molecular species
-    \item Figures S1-S9: Additional validation and analysis
+    \item Table S2: Complete network metrics for all 30 simulations
 \end{itemize}
 
 \end{document}
