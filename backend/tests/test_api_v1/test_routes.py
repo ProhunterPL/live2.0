@@ -4,7 +4,7 @@ Integration tests for API v1 routes.
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 
 from backend.api.v1.main import app
 from backend.api.v1.auth import User
