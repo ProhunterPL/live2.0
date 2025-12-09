@@ -10,6 +10,8 @@ import asyncio
 import json
 import time
 import logging
+import sys
+import os
 from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,14 +27,17 @@ import multiprocessing
 
 # Setup logging to file with rotation (max 5MB)
 from logging.handlers import RotatingFileHandler
-import os
 from dotenv import load_dotenv
+
+# Add project root to sys.path for imports (must be before backend.api.v1 imports)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Create logs directory if it doesn't exist
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 logs_dir = os.path.join(project_root, 'logs')
 os.makedirs(logs_dir, exist_ok=True)
 
