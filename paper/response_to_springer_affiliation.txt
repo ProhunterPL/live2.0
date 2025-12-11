@@ -1,0 +1,25 @@
+Dear Editorial Team,
+
+Thank you for your email regarding the author affiliation in the submission system.
+
+I have updated the author affiliation in the system to match the manuscript. As an independent researcher, I added the affiliation as follows:
+
+**Steps I completed in the submission system:**
+1. In the Authors tab → Affiliated Institutions section, I selected "Add manually"
+2. I filled in the required details:
+   - Institution Name: Independent Researcher
+   - Country: Poland
+   - City: Pruszcz Gdański
+3. I selected "Add Institution"
+4. In the Author's information section, I selected "Independent Researcher" as the Primary Affiliation
+
+The manuscript already contains the correct affiliation: "Independent Researcher, Pruszcz Gdański, Poland" (as updated in the previous revision).
+
+The system update has been completed.
+
+Thank you for your guidance.
+
+Best regards,
+Michał Klawikowski
+Independent Researcher
+

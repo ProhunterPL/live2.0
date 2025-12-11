@@ -58,7 +58,9 @@ journal: Origins of Life and Evolution of Biospheres
 1. ✅ Submission completed
 2. ⏳ Monitor journal system for status updates
 3. ⏳ Prepare for potential reviewer comments
-4. ⏳ Consider ArXiv preprint (optional)
+4. ✅ ArXiv preprint prepared (ready for submission)
+   - `manuscript_arxiv.tex` - Version for arXiv (no line numbers)
+   - `ARXIV_SUBMISSION_GUIDE.md` - Step-by-step submission instructions
 
 ## Notes
 
