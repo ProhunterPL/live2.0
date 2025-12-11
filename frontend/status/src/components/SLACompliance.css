@@ -1,0 +1,29 @@
+.sla-metrics {
+  margin: 16px 0;
+}
+
+.violations, .warnings {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.violations {
+  background: #fee;
+  border-left: 3px solid #ef4444;
+}
+
+.warnings {
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+}
+
+.violations ul, .warnings ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+}
+
+.violations li, .warnings li {
+  margin: 4px 0;
+  font-size: 14px;
+}

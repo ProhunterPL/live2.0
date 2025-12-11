@@ -49,6 +49,7 @@ file_handler = RotatingFileHandler(
     backupCount=3
 )
 
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,  # Changed from DEBUG to INFO
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -58,6 +59,14 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Setup Sentry error tracking (if configured)
+try:
+    from backend.monitoring.config import setup_sentry
+    setup_sentry()
+    logger.info("Sentry error tracking initialized")
+except Exception as e:
+    logger.debug(f"Sentry not configured or failed to initialize: {e}")
 
 # Set level for all loggers
 logging.getLogger().setLevel(logging.INFO)  # Changed from DEBUG to INFO
@@ -196,8 +205,26 @@ class Live2Server:
         self.default_config = SimulationConfig()
     
     def setup_middleware(self):
-        """Setup CORS and Security headers middleware"""
-        # Add Security headers middleware first
+        """Setup CORS, Security headers, and Monitoring middleware"""
+        # Add Monitoring middleware first (to track all requests)
+        try:
+            from backend.monitoring.middleware import ResponseTimeMiddleware
+            from backend.monitoring.metrics.response_time import ResponseTimeTracker
+            from backend.monitoring.metrics.error_rate import ErrorRateTracker
+            
+            response_time_tracker = ResponseTimeTracker()
+            error_rate_tracker = ErrorRateTracker()
+            
+            self.app.add_middleware(
+                ResponseTimeMiddleware,
+                response_time_tracker=response_time_tracker,
+                error_rate_tracker=error_rate_tracker
+            )
+            logger.info("Monitoring middleware initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize monitoring middleware: {e}")
+        
+        # Add Security headers middleware
         self.app.add_middleware(SecurityHeadersMiddleware)
         
         # Add CORS middleware
@@ -220,6 +247,14 @@ class Live2Server:
         except Exception as e:
             logger.warning(f"Failed to mount API v1: {e}")
         
+        # Mount Status Page API
+        try:
+            from backend.monitoring.status.api import router as status_router
+            self.app.include_router(status_router)
+            logger.info("Mounted Status Page API at /status")
+        except Exception as e:
+            logger.warning(f"Failed to mount Status Page API: {e}")
+        
         @self.app.get("/")
         async def root():
             return {"message": "Live 2.0 Simulation API", "version": "1.0.0"}
@@ -233,9 +268,48 @@ class Live2Server:
             # Get simulation count
             active_simulations = len([s for s in self.simulations.values() if s.is_running])
             
+            # Check database connection
+            db_healthy = False
+            try:
+                from backend.billing.database import get_db
+                db = next(get_db())
+                db.execute("SELECT 1")
+                db_healthy = True
+            except:
+                pass
+            
+            # Check Redis connection
+            redis_healthy = False
+            try:
+                import redis
+                r = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=int(os.getenv("REDIS_PORT", 6379)))
+                r.ping()
+                redis_healthy = True
+            except:
+                pass
+            
+            overall_healthy = db_healthy and redis_healthy
+            
+            # Track health check for uptime monitoring
+            try:
+                from backend.monitoring.metrics.uptime import UptimeTracker
+                uptime_tracker = UptimeTracker()
+                # Track for all tiers (use "default" as fallback)
+                uptime_tracker.record_health_check("default", overall_healthy)
+            except Exception as e:
+                logger.debug(f"Failed to track health check: {e}")
+            
             return {
-                "status": "healthy",
-                "memory_percent": memory.percent,
+                "status": "healthy" if overall_healthy else "degraded",
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "checks": {
+                    "database": "healthy" if db_healthy else "unhealthy",
+                    "redis": "healthy" if redis_healthy else "unhealthy"
+                },
+                "system": {
+                    "memory_percent": memory.percent,
+                    "memory_available_gb": memory.available / (1024**3)
+                },
                 "active_simulations": active_simulations,
                 "total_simulations": len(self.simulations)
             }
