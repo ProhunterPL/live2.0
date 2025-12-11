@@ -23,7 +23,7 @@ try:
     PARQUET_AVAILABLE = True
 except ImportError:
     PARQUET_AVAILABLE = False
-    logger.warning("pandas/pyarrow not available, Parquet export disabled")
+    logger.debug("pandas/pyarrow not available, Parquet export disabled (optional)")
 
 try:
     import networkx as nx

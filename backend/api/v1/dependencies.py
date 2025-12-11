@@ -3,8 +3,15 @@ FastAPI dependencies for API v1.
 """
 
 from functools import lru_cache
-import redis
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import redis
+
+try:
+    import redis
+except ImportError:
+    redis = None  # type: ignore
 
 from backend.api.v1.config import (
     REDIS_HOST, REDIS_PORT, REDIS_DB_JOBS, REDIS_DB_USAGE,
@@ -15,17 +22,32 @@ from backend.api.v1.jobs import JobProcessor
 from backend.api.v1.storage import StorageManager
 
 # Global instances (singleton pattern)
-_redis_jobs: Optional[redis.Redis] = None
-_redis_usage: Optional[redis.Redis] = None
+_redis_jobs: Optional["redis.Redis"] = None
+_redis_usage: Optional["redis.Redis"] = None
 _rate_limiter: Optional[RateLimiter] = None
 _job_processor: Optional[JobProcessor] = None
 _storage_manager: Optional[StorageManager] = None
 
 
-def get_redis_jobs() -> redis.Redis:
+def get_redis_jobs() -> "redis.Redis":
     """Get Redis client for jobs (singleton)."""
     global _redis_jobs
     if _redis_jobs is None:
+        if redis is None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug("Redis module not available (optional). API v1 will work but jobs and rate limiting may fail.")
+            # Return a mock Redis client that will fail gracefully
+            class MockRedis:
+                def get(self, *args, **kwargs): return None
+                def setex(self, *args, **kwargs): pass
+                def lpush(self, *args, **kwargs): pass
+                def brpop(self, *args, **kwargs): return None
+                def incrby(self, *args, **kwargs): pass
+                def expire(self, *args, **kwargs): pass
+                def ping(self): raise Exception("Redis not available")
+            _redis_jobs = MockRedis()  # type: ignore
+            return _redis_jobs
         try:
             redis_kwargs = {
                 "host": REDIS_HOST,
@@ -59,10 +81,23 @@ def get_redis_jobs() -> redis.Redis:
     return _redis_jobs
 
 
-def get_redis_usage() -> redis.Redis:
+def get_redis_usage() -> "redis.Redis":
     """Get Redis client for usage tracking (singleton)."""
     global _redis_usage
     if _redis_usage is None:
+        if redis is None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Redis module not available. API v1 will work but rate limiting may fail.")
+            # Return a mock Redis client that will fail gracefully
+            class MockRedis:
+                def get(self, *args, **kwargs): return None
+                def setex(self, *args, **kwargs): pass
+                def incrby(self, *args, **kwargs): pass
+                def expire(self, *args, **kwargs): pass
+                def ping(self): raise Exception("Redis not available")
+            _redis_usage = MockRedis()  # type: ignore
+            return _redis_usage
         try:
             redis_kwargs = {
                 "host": REDIS_HOST,

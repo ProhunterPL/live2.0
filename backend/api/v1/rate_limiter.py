@@ -6,10 +6,17 @@ Tracks usage per user per tier and enforces quotas.
 
 import os
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status
-import redis
+
+if TYPE_CHECKING:
+    import redis
+
+try:
+    import redis
+except ImportError:
+    redis = None  # type: ignore
 
 from backend.api.v1.auth import User
 
@@ -42,31 +49,48 @@ class RateLimiter:
         }
     }
     
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: Optional["redis.Redis"] = None):
         """
         Initialize rate limiter.
         
         Args:
             redis_client: Redis client (if None, creates new connection)
         """
-        if redis_client is None:
+        if redis is None:
+            logger.debug("Redis module not available (optional). Rate limiting will not work.")
+            # Create a mock Redis client
+            class MockRedis:
+                def get(self, *args, **kwargs): return None
+                def incrby(self, *args, **kwargs): pass
+                def expire(self, *args, **kwargs): pass
+            self.redis = MockRedis()  # type: ignore
+        elif redis_client is None:
             from backend.api.v1.config import (
                 REDIS_HOST, REDIS_PORT, REDIS_DB_USAGE,
                 REDIS_USERNAME, REDIS_PASSWORD, REDIS_DECODE_RESPONSES
             )
-            redis_kwargs = {
-                "host": REDIS_HOST,
-                "port": REDIS_PORT,
-                "db": REDIS_DB_USAGE,
-                "decode_responses": REDIS_DECODE_RESPONSES
-            }
-            # Add username/password only if provided (for Redis Labs)
-            if REDIS_USERNAME:
-                redis_kwargs["username"] = REDIS_USERNAME
-            if REDIS_PASSWORD:
-                redis_kwargs["password"] = REDIS_PASSWORD
-            
-            self.redis = redis.Redis(**redis_kwargs)
+            try:
+                redis_kwargs = {
+                    "host": REDIS_HOST,
+                    "port": REDIS_PORT,
+                    "db": REDIS_DB_USAGE,
+                    "decode_responses": REDIS_DECODE_RESPONSES
+                }
+                # Add username/password only if provided (for Redis Labs)
+                if REDIS_USERNAME:
+                    redis_kwargs["username"] = REDIS_USERNAME
+                if REDIS_PASSWORD:
+                    redis_kwargs["password"] = REDIS_PASSWORD
+                
+                self.redis = redis.Redis(**redis_kwargs)
+            except Exception as e:
+                logger.warning(f"Failed to connect to Redis: {e}. Rate limiting will not work.")
+                # Create a mock Redis client
+                class MockRedis:
+                    def get(self, *args, **kwargs): return None
+                    def incrby(self, *args, **kwargs): pass
+                    def expire(self, *args, **kwargs): pass
+                self.redis = MockRedis()  # type: ignore
         else:
             self.redis = redis_client
     

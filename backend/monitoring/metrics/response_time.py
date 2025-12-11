@@ -4,9 +4,16 @@ Response time tracking for API endpoints.
 
 import os
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta
-import redis
+
+if TYPE_CHECKING:
+    import redis
+
+try:
+    import redis
+except ImportError:
+    redis = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +32,7 @@ class ResponseTimeTracker:
     
     def __init__(
         self,
-        redis_client: Optional[redis.Redis] = None,
+        redis_client: Optional["redis.Redis"] = None,
         window_size: int = 1000  # Number of samples per window
     ):
         """
@@ -40,23 +47,27 @@ class ResponseTimeTracker:
         if redis_client:
             self.redis = redis_client
         else:
-            try:
-                redis_kwargs = {
-                    "host": REDIS_HOST,
-                    "port": REDIS_PORT,
-                    "db": REDIS_DB_METRICS,
-                    "decode_responses": True
-                }
-                if REDIS_USERNAME:
-                    redis_kwargs["username"] = REDIS_USERNAME
-                if REDIS_PASSWORD:
-                    redis_kwargs["password"] = REDIS_PASSWORD
-                
-                self.redis = redis.Redis(**redis_kwargs)
-                self.redis.ping()
-            except Exception as e:
-                logger.warning(f"Redis not available for metrics: {e}")
+            if redis is None:
+                logger.debug("Redis module not available for metrics (optional)")
                 self.redis = None
+            else:
+                try:
+                    redis_kwargs = {
+                        "host": REDIS_HOST,
+                        "port": REDIS_PORT,
+                        "db": REDIS_DB_METRICS,
+                        "decode_responses": True
+                    }
+                    if REDIS_USERNAME:
+                        redis_kwargs["username"] = REDIS_USERNAME
+                    if REDIS_PASSWORD:
+                        redis_kwargs["password"] = REDIS_PASSWORD
+                    
+                    self.redis = redis.Redis(**redis_kwargs)
+                    self.redis.ping()
+                except Exception as e:
+                    logger.warning(f"Redis not available for metrics: {e}")
+                    self.redis = None
     
     def record_response_time(
         self,

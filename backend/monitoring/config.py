@@ -58,4 +58,4 @@ def setup_sentry(dsn: Optional[str] = None, environment: Optional[str] = None):
     except ImportError:
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning("sentry-sdk not installed. Install with: pip install sentry-sdk[fastapi]")
+        logger.debug("sentry-sdk not installed (optional). Install with: pip install sentry-sdk[fastapi]")

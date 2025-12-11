@@ -3,10 +3,17 @@ SLA compliance calculation per tier.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime, date, timedelta
 from enum import Enum
-from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+try:
+    from sqlalchemy.orm import Session
+except ImportError:
+    Session = None  # type: ignore
 
 from backend.monitoring.metrics.response_time import ResponseTimeTracker
 from backend.monitoring.metrics.uptime import UptimeTracker
@@ -84,7 +91,7 @@ class SLACalculator:
     
     def __init__(
         self,
-        db: Optional[Session],
+        db: Optional["Session"],
         response_time_tracker: ResponseTimeTracker,
         uptime_tracker: UptimeTracker,
         error_rate_tracker: ErrorRateTracker

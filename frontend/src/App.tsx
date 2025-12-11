@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false)
   const [selectedSubstance, setSelectedSubstance] = useState<string | null>(null)
   const [mode, setMode] = useState<'preset_prebiotic' | 'open_chemistry'>('open_chemistry')
+  const [view, setView] = useState<'simulation' | 'api-v1'>('simulation')
   const [availableSpecies, setAvailableSpecies] = useState<string[]>([])
   const [runtimeStartMs, setRuntimeStartMs] = useState<number | null>(null)
   const [runtimeAccumulatedMs, setRuntimeAccumulatedMs] = useState<number>(0)
@@ -580,51 +581,52 @@ const App: React.FC = () => {
           <APIv1Jobs apiBaseUrl="http://localhost:8001" />
         </main>
       ) : (
-        <main className="main-content">
-          <aside className="sidebar">
-            <Controls
-              simulationId={simulationId}
-              status={status}
-              onStatusUpdate={updateStatus}
-              availableSpecies={availableSpecies}
-              selectedSubstance={selectedSubstance}
-              onSubstanceChange={setSelectedSubstance}
-              runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
-            />
-            
-            <PerformancePanel
-              simulationId={simulationId}
-              performanceData={performanceData}
-            />
-            
-            <GraphPreview
-              data={simulationData}
-              selectedSubstance={selectedSubstance}
-              onSubstanceSelect={setSelectedSubstance}
-            />
-            
-            {/* Novelty Panel with PubChem Matcher */}
-            {simulationId && (
-              <div className="mt-6">
-                <NoveltyPanel
-                  simulationId={simulationId}
-                  onSubstanceSelect={setSelectedSubstance}
-                />
-              </div>
-            )}
-          </aside>
+        <>
+          <main className="main-content">
+            <aside className="sidebar">
+              <Controls
+                simulationId={simulationId}
+                status={status}
+                onStatusUpdate={updateStatus}
+                availableSpecies={availableSpecies}
+                selectedSubstance={selectedSubstance}
+                onSubstanceChange={setSelectedSubstance}
+                runtimeMs={runtimeAccumulatedMs + (runtimeStartMs ? (runtimeNowMs - runtimeStartMs) : 0)}
+              />
+              
+              <PerformancePanel
+                simulationId={simulationId}
+                performanceData={performanceData}
+              />
+              
+              <GraphPreview
+                data={simulationData}
+                selectedSubstance={selectedSubstance}
+                onSubstanceSelect={setSelectedSubstance}
+              />
+              
+              {/* Novelty Panel with PubChem Matcher */}
+              {simulationId && (
+                <div className="mt-6">
+                  <NoveltyPanel
+                    simulationId={simulationId}
+                    onSubstanceSelect={setSelectedSubstance}
+                  />
+                </div>
+              )}
+            </aside>
 
-          <div className="canvas-container">
-          <HeatmapCanvas
-            data={simulationData}
-            selectedSubstance={selectedSubstance}
-            isConnected={isConnected}
-          />
-        </div>
-      </main>
-      
+            <div className="canvas-container">
+              <HeatmapCanvas
+                data={simulationData}
+                selectedSubstance={selectedSubstance}
+                isConnected={isConnected}
+              />
+            </div>
+          </main>
+          
           {/* Legend at bottom */}
-      <footer className="legend-footer" key={`legend-${simulationData?.step_count ?? status?.step_count ?? 0}`}>
+          <footer className="legend-footer" key={`legend-${simulationData?.step_count ?? status?.step_count ?? 0}`}>
             <div className="legend">
           <h3>🧪 Symulacja Molekularna Live 2.0</h3>
           <div className="legend-grid">
@@ -680,6 +682,7 @@ const App: React.FC = () => {
           </div>
         </div>
         </footer>
+        </>
       )}
     </div>
   )

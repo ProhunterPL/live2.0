@@ -19,7 +19,7 @@ try:
     BOTO3_AVAILABLE = True
 except ImportError:
     BOTO3_AVAILABLE = False
-    logger.warning("boto3 not available. Install with: pip install boto3")
+    logger.debug("boto3 not available (optional). Install with: pip install boto3")
 
 
 class StorageManager:

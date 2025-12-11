@@ -4,7 +4,7 @@ Async job processor for API v1.
 Handles long-running operations like dataset generation.
 """
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, TYPE_CHECKING
 from enum import Enum
 import uuid
 import asyncio
@@ -12,7 +12,14 @@ import logging
 from datetime import datetime
 import json
 from fastapi import HTTPException, status
-import redis
+
+if TYPE_CHECKING:
+    import redis
+
+try:
+    import redis
+except ImportError:
+    redis = None  # type: ignore
 
 from backend.dataset_export import DatasetExporter
 
@@ -37,7 +44,7 @@ class JobProcessor:
     
     def __init__(
         self, 
-        redis_client: Optional[redis.Redis] = None,
+        redis_client: Optional["redis.Redis"] = None,
         base_results_dir: str = "results/phase2b_additional",
         storage_manager: Optional["StorageManager"] = None
     ):

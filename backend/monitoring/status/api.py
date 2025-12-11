@@ -9,7 +9,12 @@ from datetime import datetime, date
 from backend.monitoring.metrics.response_time import ResponseTimeTracker
 from backend.monitoring.metrics.uptime import UptimeTracker
 from backend.monitoring.metrics.error_rate import ErrorRateTracker
-from backend.monitoring.metrics.sla import SLACalculator
+
+# Optional import (may fail if sqlalchemy not installed)
+try:
+    from backend.monitoring.metrics.sla import SLACalculator
+except ImportError:
+    SLACalculator = None  # type: ignore
 
 router = APIRouter(prefix="/status", tags=["status"])
 
@@ -45,8 +50,11 @@ def get_error_rate_tracker() -> ErrorRateTracker:
     return _error_rate_tracker
 
 
-def get_sla_calculator() -> SLACalculator:
+def get_sla_calculator() -> Optional[SLACalculator]:
     """Get SLA calculator instance."""
+    if SLACalculator is None:
+        return None
+    
     global _sla_calculator
     if _sla_calculator is None:
         # Try to get DB, but allow None if billing module not available
@@ -132,6 +140,13 @@ async def get_sla_compliance(
         SLA compliance status
     """
     sla_calculator = get_sla_calculator()
+    
+    if sla_calculator is None:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=503,
+            detail="SLA calculator not available. SQLAlchemy may not be installed."
+        )
     
     if month:
         try:

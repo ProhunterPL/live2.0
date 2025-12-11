@@ -88,7 +88,12 @@ def get_user_by_api_key(api_key: str) -> Optional[User]:
         logger.warning(f"Failed to lookup user from billing module: {e}")
     
     # Fallback: Placeholder implementation (for development)
-    import redis
+    try:
+        import redis
+    except ImportError:
+        logger.debug("Redis not available for API key lookup")
+        return None
+    
     from backend.api.v1.config import (
         REDIS_HOST, REDIS_PORT, REDIS_USERNAME, REDIS_PASSWORD, REDIS_DECODE_RESPONSES
     )

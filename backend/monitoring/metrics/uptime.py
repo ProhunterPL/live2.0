@@ -4,9 +4,16 @@ Uptime tracking for system availability.
 
 import os
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta, date
-import redis
+
+if TYPE_CHECKING:
+    import redis
+
+try:
+    import redis
+except ImportError:
+    redis = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +30,7 @@ class UptimeTracker:
     Calculates uptime percentage based on health check failures.
     """
     
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: Optional["redis.Redis"] = None):
         """
         Initialize uptime tracker.
         
@@ -33,23 +40,27 @@ class UptimeTracker:
         if redis_client:
             self.redis = redis_client
         else:
-            try:
-                redis_kwargs = {
-                    "host": REDIS_HOST,
-                    "port": REDIS_PORT,
-                    "db": REDIS_DB_METRICS,
-                    "decode_responses": True
-                }
-                if REDIS_USERNAME:
-                    redis_kwargs["username"] = REDIS_USERNAME
-                if REDIS_PASSWORD:
-                    redis_kwargs["password"] = REDIS_PASSWORD
-                
-                self.redis = redis.Redis(**redis_kwargs)
-                self.redis.ping()
-            except Exception as e:
-                logger.warning(f"Redis not available for uptime tracking: {e}")
+            if redis is None:
+                logger.debug("Redis module not available for uptime tracking (optional)")
                 self.redis = None
+            else:
+                try:
+                    redis_kwargs = {
+                        "host": REDIS_HOST,
+                        "port": REDIS_PORT,
+                        "db": REDIS_DB_METRICS,
+                        "decode_responses": True
+                    }
+                    if REDIS_USERNAME:
+                        redis_kwargs["username"] = REDIS_USERNAME
+                    if REDIS_PASSWORD:
+                        redis_kwargs["password"] = REDIS_PASSWORD
+                    
+                    self.redis = redis.Redis(**redis_kwargs)
+                    self.redis.ping()
+                except Exception as e:
+                    logger.warning(f"Redis not available for uptime tracking: {e}")
+                    self.redis = None
     
     def record_health_check(
         self,
