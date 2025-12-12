@@ -19,7 +19,7 @@ def getenv_strip_quotes(key: str, default: Optional[str] = None) -> Optional[str
     Get environment variable and strip quotes if present.
     
     This handles cases where values in .env files are quoted to escape special characters.
-    For example: SMTP_PASSWORD="ADkEa32XLG#J" will return "ADkEa32XLG#J" (without quotes).
+    For example: SMTP_PASSWORD="your-password#with#hash" will return "your-password#with#hash" (without quotes).
     
     Args:
         key: Environment variable key

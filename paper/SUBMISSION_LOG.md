@@ -44,7 +44,7 @@ journal: Origins of Life and Evolution of Biospheres
 ## Data Availability
 
 - **GitHub Repository**: https://github.com/ProhunterPL/live2.0
-- **Zenodo DOI**: 10.5281/zenodo.17814793
+- **Zenodo DOI**: 10.5281/zenodo.17911552
 - **Status**: Public and accessible
 
 ## Expected Timeline
@@ -58,9 +58,10 @@ journal: Origins of Life and Evolution of Biospheres
 1. ✅ Submission completed
 2. ⏳ Monitor journal system for status updates
 3. ⏳ Prepare for potential reviewer comments
-4. ✅ ArXiv preprint prepared (ready for submission)
-   - `manuscript_arxiv.tex` - Version for arXiv (no line numbers)
-   - `ARXIV_SUBMISSION_GUIDE.md` - Step-by-step submission instructions
+4. ✅ chemRxiv preprint prepared (ready for submission)
+   - `manuscript_arxiv.tex` - Version for preprint (no line numbers, can be used for chemRxiv)
+   - `CHEMRXIV_SUBMISSION_GUIDE.md` - Step-by-step submission instructions
+   - **Note**: Changed from arXiv to chemRxiv due to endorsement requirement
 
 ## Notes
 

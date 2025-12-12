@@ -1,0 +1,22 @@
+Dear Editorial Team,
+
+Thank you for your feedback on our manuscript. I have addressed both points:
+
+1. **Title revision**: I have revised the title to remove punctuation and make it more concise. The new title is:
+   - **"Emergent Molecular Complexity in Prebiotic Chemistry Simulations Using a Physics-Based Approach"**
+   
+   This title is now a single, clear sentence without colons or hyphens, while maintaining the scientific meaning and informativeness.
+
+2. **Data availability statement**: I have updated the Data and Code Availability section to comply with your data deposition policy. The section now states:
+   - "All simulation data, analysis code, and visualization scripts are publicly available. Raw simulation outputs are deposited in Zenodo (https://zenodo.org, accession number: 10.5281/zenodo.17911552)."
+   
+   The GitHub reference has been removed, and the data availability statement now includes the full database name (Zenodo) and the accession number as required.
+
+The revised manuscript will be resubmitted with these changes.
+
+Thank you for your guidance.
+
+Best regards,
+Michał Klawikowski
+Independent Researcher
+

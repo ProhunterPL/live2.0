@@ -1,0 +1,136 @@
+# Phase 2B - Hydrothermal Extended Configuration - SUPER FAST MODE
+# ==============================================
+# 
+# Maximum speed optimizations for hydrothermal scenario:
+# - Smaller grid (128 vs 256)
+# - Fewer particles (1000 vs 1500)
+# - Larger timestep (0.01 vs 0.001)
+# - Less frequent updates
+# - NO novelty detection
+# 
+# Target: 2-3x faster than FAST mode
+# Expected time: 30-60 minutes for 500K steps
+
+scenario_name: "hydrothermal_extended"
+
+simulation:
+  name: "hydrothermal_extended"
+  scenario: "phase2_prebiotic"
+  description: "Extended Hydrothermal simulation for Phase 2B (SUPER FAST MODE)"
+  
+  # SUPER FAST MODE parameters
+  n_particles: 1000  # REDUCED from 1500
+  max_steps: 500000
+  dt: 0.01  # INCREASED from 0.001 (10x larger timestep)
+  box_size: 128.0  # REDUCED from 100 to 128 for consistency with grid
+  
+  # Grid size (CRITICAL for performance)
+  grid_width: 128  # REDUCED from 256 (4x less cells)
+  grid_height: 128  # REDUCED from 256
+  
+  # Temperature (hot springs)
+  target_temperature: 373.0  # 100°C
+  temperature_control: true
+  thermostat_strength: 0.1
+  
+  # NOVELTY DETECTION: COMPLETELY DISABLED
+  novelty_check_interval: 99999999
+  detect_novel_substances: false
+  
+  # MINIMAL validation
+  validate_every_n_steps: 10000
+  enable_thermodynamic_validation: false
+  enable_diagnostics: false
+  diagnostics_frequency: 1000
+  
+  # DISABLE mutations (causes LLVM crash on CPU/Windows)
+  mutation_interval: 999999  # Disabled
+  enable_mutations: false  # Completely disable
+  
+  # PERFORMANCE TUNING
+  clamp_density_per_cell: 32  # INCREASED from 16 (allow more density)
+  rebuild_neighbors_every: 20  # INCREASED from 15 (less frequent neighbor updates)
+  neighbor_radius: 2.5  # Smaller radius
+
+# Initial composition - Hydrothermal (REDUCED)
+initial_molecules:
+  - name: "hydrogen"
+    formula: "H2"
+    count: 300  # REDUCED from 600
+    
+  - name: "hydrogen_sulfide"
+    formula: "H2S"
+    count: 200  # REDUCED from 300
+    
+  - name: "carbon_dioxide"
+    formula: "CO2"
+    count: 250  # REDUCED from 400
+    
+  - name: "water"
+    formula: "H2O"
+    count: 250  # REDUCED from 400
+
+# Energy input (thermal/hydrothermal)
+energy_injection:
+  enabled: true
+  type: "thermal"
+  pulse_interval: 800
+  pulse_energy: 50.0
+  pulse_duration: 20
+  pulse_radius: 12.0
+  pulse_shape: "spherical"
+
+# Physics - OPTIMIZED for speed
+physics:
+  use_physics_db: true
+  enable_bonding: true
+  enable_breaking: true
+  enable_reactions: true
+  
+  # LESS frequent checks
+  bond_check_interval: 200  # INCREASED from 100
+  bond_formation_threshold: 2.3
+  bond_breaking_energy_threshold: 0.7
+  cluster_check_interval: 999999999  # DISABLED - fix from local test (prevents deadlock)
+  cluster_distance_threshold: 2.8
+
+# NO validation
+validation:
+  enabled: false
+
+# MINIMAL diagnostics
+diagnostics:
+  enabled: false
+  output_interval: 10000  # REDUCED logging
+  save_snapshots: true
+  snapshot_interval: 50000  # Every 50K steps
+  
+  # Disable all metrics
+  metrics: []
+
+# NO benchmark
+benchmark:
+  track_known_molecules: false
+  expected_products: []
+
+# Output
+output:
+  base_dir: "results/phase2b_additional/hydrothermal_extended"
+  save_final_state: true
+  export_molecules: true
+  export_reactions: true
+
+# NO performance monitoring
+performance:
+  enabled: false
+  log_interval: 10000
+
+# MINIMAL logging
+logging:
+  level: "WARNING"
+  file: "logs/phase2b_hydrothermal_super_fast.log"
+  
+  log_reactions: false
+  log_molecules: false
+  log_performance: false
+
