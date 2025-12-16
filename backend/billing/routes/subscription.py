@@ -2,7 +2,7 @@
 Subscription management routes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.billing.schemas import UpgradeRequest, CancelRequest, SubscriptionResponse
@@ -11,6 +11,8 @@ from backend.billing.subscriptions import SubscriptionManager
 from backend.billing.payments import PaymentProcessor
 from backend.billing.usage_tracker import UsageTracker
 from backend.billing.config import STRIPE_SECRET_KEY
+from backend.billing.dependencies import get_current_user
+from backend.billing.models import User
 from backend.api.v1.dependencies import get_redis_usage, get_rate_limiter
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -24,35 +26,27 @@ def get_subscription_manager(db: Session = Depends(get_db)) -> SubscriptionManag
 
 @router.get("/subscription", response_model=SubscriptionResponse)
 async def get_subscription(
-    user_id: str,  # TODO: Get from JWT token or API key
     db: Session = Depends(get_db),
-    subscription_manager: SubscriptionManager = Depends(get_subscription_manager)
+    subscription_manager: SubscriptionManager = Depends(get_subscription_manager),
+    user: User = Depends(get_current_user),
 ):
     """
     Get current subscription.
     
     Returns subscription info with usage.
     """
-    from uuid import UUID
-    
-    try:
-        user_uuid = UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID")
-    
-    subscription = subscription_manager.get_active_subscription(user_uuid)
-    
+    subscription = (
+        subscription_manager.get_active_subscription(user.id)
+        or subscription_manager.get_current_subscription(user.id)
+    )
     if not subscription:
-        raise HTTPException(
-            status_code=404,
-            detail="No active subscription found"
-        )
+        raise HTTPException(status_code=404, detail="No subscription found")
     
     # Get usage
     redis_client = get_redis_usage()
     rate_limiter = get_rate_limiter()
     usage_tracker = UsageTracker(db, redis_client, rate_limiter)
-    usage = usage_tracker.get_usage(user_uuid)
+    usage = usage_tracker.get_usage(user.id)
     
     return SubscriptionResponse(
         tier=subscription.tier,
@@ -66,22 +60,15 @@ async def get_subscription(
 @router.post("/upgrade")
 async def upgrade_subscription(
     request: UpgradeRequest,
-    user_id: str,  # TODO: Get from JWT token
     db: Session = Depends(get_db),
-    subscription_manager: SubscriptionManager = Depends(get_subscription_manager)
+    subscription_manager: SubscriptionManager = Depends(get_subscription_manager),
+    user: User = Depends(get_current_user),
 ):
     """
     Upgrade/downgrade subscription tier.
     """
-    from uuid import UUID
-    
     try:
-        user_uuid = UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID")
-    
-    try:
-        subscription = subscription_manager.update_tier(user_uuid, request.tier)
+        subscription = subscription_manager.update_tier(user.id, request.tier)
         return {
             "success": True,
             "subscription": {
@@ -96,23 +83,16 @@ async def upgrade_subscription(
 @router.post("/cancel")
 async def cancel_subscription(
     request: CancelRequest,
-    user_id: str,  # TODO: Get from JWT token
     db: Session = Depends(get_db),
-    subscription_manager: SubscriptionManager = Depends(get_subscription_manager)
+    subscription_manager: SubscriptionManager = Depends(get_subscription_manager),
+    user: User = Depends(get_current_user),
 ):
     """
     Cancel subscription.
     """
-    from uuid import UUID
-    
-    try:
-        user_uuid = UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID")
-    
     try:
         subscription = subscription_manager.cancel_subscription(
-            user_uuid,
+            user.id,
             cancel_at_period_end=request.cancel_at_period_end
         )
         return {

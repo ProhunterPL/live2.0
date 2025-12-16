@@ -25,6 +25,12 @@ async def stripe_webhook(
     
     Verifies webhook signature and processes events.
     """
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Stripe webhooks not configured (missing STRIPE_WEBHOOK_SECRET)"
+        )
+
     # Get webhook payload
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")

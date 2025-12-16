@@ -227,3 +227,17 @@ class SubscriptionManager:
             Subscription.status == "active"
         ).first()
 
+    def get_current_subscription(self, user_id: uuid.UUID) -> Optional[Subscription]:
+        """
+        Get the most recent subscription record for user (active/trial/etc.).
+
+        This is used for UI/status endpoints where we want to show something even
+        when there is no active subscription yet.
+        """
+        return (
+            self.db.query(Subscription)
+            .filter(Subscription.user_id == user_id)
+            .order_by(Subscription.created_at.desc())
+            .first()
+        )
+

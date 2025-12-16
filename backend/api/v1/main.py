@@ -9,7 +9,7 @@ from backend.api.v1.routes import datasets, simulations, molecules, reactions, p
 
 # Import billing routes
 try:
-    from backend.billing.routes import auth as billing_auth, subscription, usage, webhooks
+    from backend.billing.routes import auth as billing_auth, subscription, usage, webhooks, checkout
     BILLING_AVAILABLE = True
 except ImportError:
     BILLING_AVAILABLE = False
@@ -44,6 +44,7 @@ if BILLING_AVAILABLE:
     app.include_router(subscription.router)
     app.include_router(usage.router)
     app.include_router(webhooks.router)
+    app.include_router(checkout.router)
 
 
 @app.get("/health")

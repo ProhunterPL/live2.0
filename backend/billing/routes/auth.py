@@ -4,6 +4,7 @@ Authentication routes for billing module.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import logging
 
 from backend.billing.schemas import RegisterRequest, LoginRequest, AuthResponse, UserResponse
 from backend.billing.auth import create_user, authenticate_user, generate_jwt_token
@@ -11,6 +12,8 @@ from backend.billing.database import get_db
 from backend.billing.subscriptions import SubscriptionManager
 from backend.billing.payments import PaymentProcessor
 from backend.billing.config import STRIPE_SECRET_KEY
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
