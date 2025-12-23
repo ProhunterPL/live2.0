@@ -9,6 +9,7 @@ MVP flow:
 
 from __future__ import annotations
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -21,6 +22,8 @@ from backend.billing.config import (
 from backend.billing.database import get_db
 from backend.billing.dependencies import get_current_user
 from backend.billing.models import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -68,42 +71,68 @@ async def create_checkout_session(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    stripe = _require_stripe()
+    try:
+        stripe = _require_stripe()
 
-    price_id = STRIPE_PRICE_IDS.get(payload.tier)
-    if not price_id:
-        raise HTTPException(status_code=400, detail=f"Invalid tier: {payload.tier}")
+        price_id = STRIPE_PRICE_IDS.get(payload.tier)
+        if not price_id:
+            logger.error(f"Invalid tier requested: {payload.tier}, available: {list(STRIPE_PRICE_IDS.keys())}")
+            raise HTTPException(status_code=400, detail=f"Invalid tier: {payload.tier}")
 
-    # Ensure Stripe customer exists
-    if not user.stripe_customer_id:
-        customer = stripe.Customer.create(
-            email=user.email,
-            metadata={"user_id": str(user.id)},
+        # Ensure Stripe customer exists
+        if not user.stripe_customer_id:
+            try:
+                customer = stripe.Customer.create(
+                    email=user.email,
+                    metadata={"user_id": str(user.id)},
+                )
+                user.stripe_customer_id = customer.id
+                db.commit()
+                db.refresh(user)
+                logger.info(f"Created Stripe customer {customer.id} for user {user.id}")
+            except Exception as e:
+                logger.error(f"Failed to create Stripe customer: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create Stripe customer: {str(e)}"
+                )
+
+        # Create Checkout Session in subscription mode
+        try:
+            session = stripe.checkout.Session.create(
+                mode="subscription",
+                customer=user.stripe_customer_id,
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url=payload.success_url,
+                cancel_url=payload.cancel_url,
+                client_reference_id=str(user.id),
+                metadata={"user_id": str(user.id), "tier": payload.tier},
+                subscription_data={
+                    "metadata": {"user_id": str(user.id), "tier": payload.tier},
+                },
+                allow_promotion_codes=True,
+            )
+            logger.info(f"Created checkout session {session.id} for user {user.id}, tier {payload.tier}")
+        except Exception as e:
+            logger.error(f"Failed to create Stripe checkout session: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create checkout session: {str(e)}"
+            )
+
+        return CheckoutSessionResponse(
+            session_id=session.id,
+            url=session.url,
+            publishable_key=STRIPE_PUBLISHABLE_KEY or "",
         )
-        user.stripe_customer_id = customer.id
-        db.commit()
-        db.refresh(user)
-
-    # Create Checkout Session in subscription mode
-    session = stripe.checkout.Session.create(
-        mode="subscription",
-        customer=user.stripe_customer_id,
-        line_items=[{"price": price_id, "quantity": 1}],
-        success_url=payload.success_url,
-        cancel_url=payload.cancel_url,
-        client_reference_id=str(user.id),
-        metadata={"user_id": str(user.id), "tier": payload.tier},
-        subscription_data={
-            "metadata": {"user_id": str(user.id), "tier": payload.tier},
-        },
-        allow_promotion_codes=True,
-    )
-
-    return CheckoutSessionResponse(
-        session_id=session.id,
-        url=session.url,
-        publishable_key=STRIPE_PUBLISHABLE_KEY or "",
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Unexpected error in create_checkout_session: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 @router.post("/portal", response_model=PortalResponse)

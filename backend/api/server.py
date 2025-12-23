@@ -109,10 +109,10 @@ if not use_gpu:
         ti.init(arch=ti.cpu)
         logger.info("Taichi initialized with CPU backend (default threads)")
 
-from sim.config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
-from sim.core.stepper import SimulationStepper
-from sim.core.hybrid_stepper import HybridSimulationStepper
-from sim.io.snapshot import SnapshotManager
+from backend.sim.config import SimulationConfig, PresetPrebioticConfig, OpenChemistryConfig
+from backend.sim.core.stepper import SimulationStepper
+from backend.sim.core.hybrid_stepper import HybridSimulationStepper
+from backend.sim.io.snapshot import SnapshotManager
 
 # Pydantic models for API
 class SimulationRequest(BaseModel):

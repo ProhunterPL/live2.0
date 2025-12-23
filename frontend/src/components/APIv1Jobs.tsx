@@ -3,9 +3,9 @@
  * Shows job status, progress, and download links for results stored in Supabase Storage
  */
 
-import React, { useState, useEffect } from 'react'
-import { APIv1Client, JobStatus } from '../lib/api_v1'
-import { Download, RefreshCw, Clock, CheckCircle, XCircle, Loader, LogIn, UserPlus } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { APIv1Client, JobStatus, SubscriptionResponse, UsageResponse } from '../lib/api_v1'
+import { Download, RefreshCw, Clock, CheckCircle, XCircle, Loader, LogIn, UserPlus, CreditCard, Settings } from 'lucide-react'
 
 interface APIv1JobsProps {
   apiBaseUrl?: string
@@ -40,6 +40,10 @@ const APIv1Jobs: React.FC<APIv1JobsProps> = ({
   const [tier, setTier] = useState('hobby')
   const [authLoading, setAuthLoading] = useState(false)
   const [user, setUser] = useState<AuthResponse['user'] | null>(null)
+  const [subscription, setSubscription] = useState<SubscriptionResponse | null>(null)
+  const [usage, setUsage] = useState<UsageResponse | null>(null)
+  const [loadingBilling, setLoadingBilling] = useState(false)
+  const [billingError, setBillingError] = useState<string | null>(null)
 
   useEffect(() => {
     const apiClient = new APIv1Client(apiBaseUrl, apiKey)
@@ -49,21 +53,7 @@ const APIv1Jobs: React.FC<APIv1JobsProps> = ({
     }
   }, [apiBaseUrl, apiKey])
 
-  useEffect(() => {
-    if (client) {
-      loadJobs()
-      // Poll for updates every 5 seconds
-      const interval = setInterval(() => {
-        loadJobs()
-      }, 5000)
-      
-      return () => {
-        clearInterval(interval)
-      }
-    }
-  }, [client])
-
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     if (!client) return
     
     setLoading(true)
@@ -82,15 +72,29 @@ const APIv1Jobs: React.FC<APIv1JobsProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [client])
 
-  const handleApiKeySubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (client) {
+      loadJobs()
+      // Poll for updates every 5 seconds
+      const interval = setInterval(() => {
+        loadJobs()
+      }, 5000)
+      
+      return () => {
+        clearInterval(interval)
+      }
+    }
+  }, [client, loadJobs])
+
+  const handleApiKeySubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     if (client && apiKeyInput.trim()) {
       client.setApiKey(apiKeyInput.trim())
       loadJobs()
     }
-  }
+  }, [client, apiKeyInput, loadJobs])
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,6 +123,10 @@ const APIv1Jobs: React.FC<APIv1JobsProps> = ({
       setEmail('')
       setPassword('')
       loadJobs()
+      // Load billing data after registration
+      if (client) {
+        loadBillingData()
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
@@ -153,12 +161,103 @@ const APIv1Jobs: React.FC<APIv1JobsProps> = ({
       setEmail('')
       setPassword('')
       loadJobs()
+      // Load billing data after login
+      if (client) {
+        loadBillingData()
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
       setAuthLoading(false)
     }
   }
+
+  // Load billing data (subscription + usage)
+  const loadBillingData = useCallback(async () => {
+    if (!client) return
+    
+    setLoadingBilling(true)
+    setBillingError(null)
+    
+    try {
+      const [subData, usageData] = await Promise.all([
+        client.getSubscription().catch(() => null),
+        client.getUsage().catch(() => null)
+      ])
+      
+      setSubscription(subData)
+      setUsage(usageData)
+    } catch (err: any) {
+      // Non-critical errors (404 for subscription is OK)
+      if (!err.message?.includes('No subscription found')) {
+        setBillingError(err.message || 'Failed to load billing data')
+      }
+    } finally {
+      setLoadingBilling(false)
+    }
+  }, [client])
+
+  // Handle upgrade (redirect to Stripe checkout)
+  const handleUpgrade = async (tier: string = 'hobby') => {
+    if (!client) return
+    
+    try {
+      const currentUrl = window.location.href.split('?')[0]
+      const successUrl = `${currentUrl}?checkout=success`
+      const cancelUrl = `${currentUrl}?checkout=cancel`
+      
+      const session = await client.createCheckoutSession(tier, successUrl, cancelUrl)
+      
+      // Redirect to Stripe checkout
+      window.location.href = session.url
+    } catch (err: any) {
+      setBillingError(err.message || 'Failed to create checkout session')
+    }
+  }
+
+  // Handle manage billing (redirect to Stripe portal)
+  const handleManageBilling = async () => {
+    if (!client) return
+    
+    try {
+      const currentUrl = window.location.href.split('?')[0]
+      const returnUrl = currentUrl
+      
+      const portal = await client.createPortalSession(returnUrl)
+      
+      // Redirect to Stripe portal
+      window.location.href = portal.url
+    } catch (err: any) {
+      setBillingError(err.message || 'Failed to create portal session')
+    }
+  }
+
+  // Check for checkout success/cancel in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const checkout = params.get('checkout')
+    
+    if (checkout === 'success') {
+      setError(null)
+      // Reload billing data to reflect updated subscription
+      if (client) {
+        loadBillingData()
+      }
+      // Remove query param
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (checkout === 'cancel') {
+      setError('Checkout was cancelled')
+      // Remove query param
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [client, loadBillingData])
+
+  // Load billing data when user is logged in
+  useEffect(() => {
+    if (user && client) {
+      loadBillingData()
+    }
+  }, [user, client, loadBillingData])
 
   const handleDownload = async (job: JobStatus) => {
     if (!client || !job.result_url) return
@@ -221,12 +320,79 @@ const APIv1Jobs: React.FC<APIv1JobsProps> = ({
         {/* User Info */}
         {user && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-sm text-gray-700">
-              <strong>Logged in as:</strong> {user.email} | <strong>Tier:</strong> {user.tier} | <strong>Status:</strong> {user.subscription_status}
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              <strong>API Key:</strong> {user.api_key}
-            </p>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="text-sm text-gray-700">
+                  <strong>Logged in as:</strong> {user.email} | <strong>Tier:</strong> {subscription?.tier || user.tier} | <strong>Status:</strong> {subscription?.status || user.subscription_status}
+                </p>
+                {subscription?.current_period_end && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    <strong>Period ends:</strong> {new Date(subscription.current_period_end).toLocaleDateString()}
+                  </p>
+                )}
+                <p className="text-xs text-gray-600 mt-1">
+                  <strong>API Key:</strong> {user.api_key}
+                </p>
+                
+                {/* Usage Stats */}
+                {usage && (
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Reactions: {usage.current_month.reactions} / {usage.current_month.reactions_quota || '∞'}</span>
+                        <span>{Math.round(usage.current_month.percentage_used)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full" 
+                          style={{ width: `${Math.min(usage.current_month.percentage_used, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>API Calls: {usage.current_month.api_calls} / {usage.current_month.api_calls_quota || '∞'}</span>
+                        <span>{Math.round((usage.current_month.api_calls / (usage.current_month.api_calls_quota || 1)) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full" 
+                          style={{ width: `${Math.min((usage.current_month.api_calls / (usage.current_month.api_calls_quota || 1)) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {billingError && (
+                  <p className="text-xs text-red-600 mt-2">{billingError}</p>
+                )}
+              </div>
+              
+              {/* Billing Actions */}
+              <div className="flex gap-2 ml-4">
+                {user.subscription_status === 'trial' && (
+                  <button
+                    onClick={() => handleUpgrade('hobby')}
+                    disabled={loadingBilling}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Upgrade
+                  </button>
+                )}
+                {user.subscription_status === 'active' && (
+                  <button
+                    onClick={handleManageBilling}
+                    disabled={loadingBilling}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Manage Billing
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
         
