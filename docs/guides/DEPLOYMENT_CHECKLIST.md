@@ -134,6 +134,32 @@ npm run build
 
 ## 🚀 Deployment Options
 
+### Option 0: Split Deploy Architecture (Recommended dla Production)
+
+**Nowa architektura hybrydowa: DigitalOcean (SaaS) + AWS (compute on-demand)**
+
+**Dokumentacja:**
+- 📖 **Architektura:** [`docs/technical/SPLIT_DEPLOY_ARCHITECTURE.md`](../technical/SPLIT_DEPLOY_ARCHITECTURE.md)
+- 🚀 **Quick Start:** [`docs/guides/QUICK_START_DEPLOY.md`](QUICK_START_DEPLOY.md)
+- 📋 **Krok po kroku:** [`docs/guides/SPLIT_DEPLOY_STEP_BY_STEP.md`](SPLIT_DEPLOY_STEP_BY_STEP.md)
+
+**Kluczowe zalety:**
+- ✅ Minimalny stały koszt (~$40/mo MVP)
+- ✅ Skalowanie bez refaktoru (DO + AWS Batch)
+- ✅ Bezpieczne wykonywanie zadań (AWS IAM, VPC)
+- ✅ Szybkie uruchomienie monetyzacji (DO always-on)
+
+**Komponenty:**
+- **DigitalOcean:** Backend API + Frontend (always-on)
+- **AWS:** Batch compute (on-demand, auto-scale to zero)
+- **Supabase:** Postgres + Auth (współdzielone)
+- **Redis:** Rate limiting + cache (współdzielone)
+
+**Pomocnicze skrypty:**
+- `scripts/deploy/setup_do_droplet.sh` - Automatyczny setup DO Droplet
+- `scripts/deploy/aws_batch_setup.sh` - Setup AWS infrastructure
+- `scripts/deploy/test_deployment.sh` - Testy E2E po wdrożeniu
+
 ### Option 1: Docker Compose (Recommended dla dev/staging)
 
 ```bash
