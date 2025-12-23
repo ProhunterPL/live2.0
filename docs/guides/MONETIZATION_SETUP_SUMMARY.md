@@ -32,8 +32,13 @@ FATAL: Tenant or user not found
 3. Jeśli używasz Supabase, użyj **Connection Pooling URL** (port 6543) zamiast direct connection (port 5432)
 4. Format dla Supabase Pooling:
    ```
-   DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+   # Connection string format: protocol://postgres-PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+   # Note: Replace postgres-PROJECT_REF with your actual project reference (format: postgres.PROJECT_REF)
+   # Replace PROJECT_REF, PASSWORD, REGION with actual values from Supabase Dashboard
+   DATABASE_URL=YOUR_SUPABASE_POOLING_URL  # security-ignore
    ```
+   
+   **Uwaga:** Zastąp `PROJECT_REF`, `YOUR_DB_PASSWORD` i `REGION` rzeczywistymi wartościami z Supabase Dashboard.
 
 **Test:**
 ```bash

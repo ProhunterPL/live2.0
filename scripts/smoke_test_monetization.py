@@ -24,7 +24,8 @@ def test_register():
     print("[1/5] Testing user registration...")
     
     email = f"test_{uuid.uuid4().hex[:8]}@example.com"
-    password = "test_password_123"
+    # Test password - change if needed for your test environment
+    password = f"test_pwd_{uuid.uuid4().hex[:8]}"
     
     response = requests.post(
         f"{API_BASE}/auth/register",

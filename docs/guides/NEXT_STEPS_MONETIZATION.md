@@ -35,7 +35,7 @@ python scripts/smoke_test_monetization.py
 
 **Po teście:**
 - Otwórz checkout URL w przeglądarce
-- Użyj Stripe test card: `4242 4242 4242 4242`
+- Użyj Stripe test card (zobacz Stripe docs dla test cards)
 - Sprawdź czy webhook aktualizuje subscription status
 
 ### 2. Frontend Integration (Wysoki Priorytet)

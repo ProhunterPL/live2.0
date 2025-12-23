@@ -37,16 +37,18 @@ label: [guide]
 
 ```bash
 # Database
-DATABASE_URL=postgresql://user:pass@host:port/dbname
+# Connection string format: protocol://username:password@host:port/database
+# Example format (replace with your actual connection string)
+DATABASE_URL=YOUR_DATABASE_CONNECTION_STRING  # security-ignore
 
 # Redis
 REDIS_HOST=your-redis-host
 REDIS_PORT=6379
 REDIS_USERNAME=default  # Optional
-REDIS_PASSWORD=your-password  # Optional
+REDIS_PASSWORD=YOUR_REDIS_PASSWORD  # Optional
 
-# JWT
-JWT_SECRET_KEY=your-secret-key-min-32-chars
+# JWT (minimum 32 characters)
+JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY  # security-ignore
 
 # Stripe
 STRIPE_SECRET_KEY=sk_live_...
@@ -222,14 +224,14 @@ python scripts/smoke_test_monetization.py
    ```bash
    curl -X POST https://your-domain.com/api/v1/auth/register \
      -H "Content-Type: application/json" \
-     -d '{"email":"test@example.com","password":"test123","tier":"hobby"}'
+     -d '{"email":"test@example.com","password":"YOUR_PASSWORD","tier":"hobby"}'
    ```
 
 2. **Login:**
    ```bash
    curl -X POST https://your-domain.com/api/v1/auth/login \
      -H "Content-Type: application/json" \
-     -d '{"email":"test@example.com","password":"test123"}'
+     -d '{"email":"test@example.com","password":"YOUR_PASSWORD"}'
    ```
 
 3. **Create checkout session:**
