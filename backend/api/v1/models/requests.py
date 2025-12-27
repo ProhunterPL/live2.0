@@ -25,3 +25,10 @@ class PredictReactionRequest(BaseModel):
     reactants: List[str] = Field(..., min_items=1)
     conditions: Dict
 
+
+class StartJobRequest(BaseModel):
+    """Request schema for starting a job."""
+    job_type: Literal["run_simulation", "generate_dataset"]
+    params: Dict
+    idempotency_key: Optional[str] = None
+    webhook_url: Optional[HttpUrl] = None

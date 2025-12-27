@@ -18,7 +18,7 @@ REDIS_DB_USAGE = 0  # DB for usage tracking
 # Storage configuration
 STORAGE_TYPE = os.getenv("STORAGE_TYPE", "local")  # "local" | "s3" | "minio"
 STORAGE_BASE_PATH = Path(os.getenv("STORAGE_BASE_PATH", "datasets/api"))
-S3_BUCKET = os.getenv("S3_BUCKET")
+S3_BUCKET = os.getenv("AWS_S3_BUCKET")  # Changed from S3_BUCKET to AWS_S3_BUCKET
 S3_REGION = os.getenv("S3_REGION", "us-east-1")
 S3_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY_ID")
 S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY")

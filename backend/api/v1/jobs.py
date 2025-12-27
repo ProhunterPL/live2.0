@@ -11,6 +11,7 @@ import asyncio
 import logging
 from datetime import datetime
 import json
+import os
 from fastapi import HTTPException, status
 
 if TYPE_CHECKING:
@@ -139,7 +140,31 @@ class JobProcessor:
                 detail=f"Job {job_id} not found"
             )
         
-        return json.loads(job_data)
+        job_dict = json.loads(job_data)
+        
+        # If job is running on AWS Batch, update status from Batch
+        if job_dict.get("aws_batch_job_id") and job_dict.get("status") in ["queued", "running"]:
+            try:
+                from backend.api.v1.aws_batch import AWSBatchClient
+                batch_client = AWSBatchClient()
+                batch_status = batch_client.get_job_status(job_dict["aws_batch_job_id"])
+                
+                # Update job status from Batch
+                job_dict["status"] = batch_status["status"]
+                if batch_status.get("started_at"):
+                    job_dict["started_at"] = batch_status["started_at"]
+                if batch_status.get("stopped_at"):
+                    job_dict["stopped_at"] = batch_status["stopped_at"]
+                    job_dict["completed_at"] = batch_status["stopped_at"]
+                if batch_status.get("status_reason"):
+                    job_dict["error"] = batch_status["status_reason"]
+                
+                # Save updated status
+                self.redis.setex(job_key, 86400 * 7, json.dumps(job_dict))
+            except Exception as e:
+                logger.warning(f"Failed to update status from AWS Batch: {e}")
+        
+        return job_dict
     
     async def list_user_jobs(self, user_id: str, limit: int = 20) -> List[Dict]:
         """
@@ -208,16 +233,19 @@ class JobProcessor:
                 try:
                     if job_data["job_type"] == "generate_dataset":
                         result = await self._process_dataset_job(job_data)
+                        # Update job as completed
+                        job_data["status"] = JobStatus.COMPLETED.value
+                        job_data["progress"] = 100
+                        job_data["result_url"] = result["url"]
+                        job_data["completed_at"] = datetime.utcnow().isoformat()
                     elif job_data["job_type"] == "run_simulation":
+                        # Simulation jobs are submitted to AWS Batch
+                        # Status will be updated by polling or webhook
                         result = await self._process_simulation_job(job_data)
+                        # Job status remains "running" until Batch completes
+                        # Don't mark as completed here
                     else:
                         raise ValueError(f"Unknown job type: {job_data['job_type']}")
-                    
-                    # Update job as completed
-                    job_data["status"] = JobStatus.COMPLETED.value
-                    job_data["progress"] = 100
-                    job_data["result_url"] = result["url"]
-                    job_data["completed_at"] = datetime.utcnow().isoformat()
                     
                 except Exception as e:
                     logger.error(f"Job {job_id} failed: {e}", exc_info=True)
@@ -310,20 +338,96 @@ class JobProcessor:
     
     async def _process_simulation_job(self, job_data: Dict) -> Dict:
         """
-        Process simulation job (placeholder - wymaga integracji z symulacją).
+        Process simulation job by submitting to AWS Batch.
         
         Args:
             job_data: Job data dict
         
         Returns:
-            Dict with result URL
+            Dict with batch_job_id
         """
-        # TODO: Implement simulation job processing
-        # This requires integration with backend/sim/core/stepper.py
-        raise NotImplementedError("Simulation jobs not yet implemented")
+        # Import here to avoid circular dependency
+        from backend.api.v1.aws_batch import AWSBatchClient
+        
+        # Initialize AWS Batch client
+        batch_client = AWSBatchClient()
+        
+        # Submit job to AWS Batch
+        batch_job_id = batch_client.submit_job(
+            job_id=job_data["job_id"],
+            job_params=job_data["params"],
+            user_id=job_data["user_id"],
+            environment_vars={
+                "SUPABASE_URL": os.getenv("SUPABASE_URL", ""),
+                "SUPABASE_KEY": os.getenv("SUPABASE_SERVICE_KEY", ""),
+                "REDIS_HOST": os.getenv("REDIS_HOST", "localhost"),
+                "S3_BUCKET": os.getenv("AWS_S3_BUCKET", "live2-artifacts"),
+                "ENV": os.getenv("ENV", "prod")
+            }
+        )
+        
+        # Store batch_job_id in job data
+        job_data["aws_batch_job_id"] = batch_job_id
+        job_key = f"job:{job_data['job_id']}"
+        self.redis.setex(job_key, 86400 * 7, json.dumps(job_data))
+        
+        logger.info(f"Submitted simulation job {job_data['job_id']} to AWS Batch: {batch_job_id}")
+        
+        # Return batch job ID (status will be updated by polling or webhook)
+        return {"batch_job_id": batch_job_id, "url": None}
     
     async def _send_webhook(self, job_data: Dict):
         """Send webhook notification (placeholder)."""
         # TODO: Implement webhook sending with httpx
         logger.info(f"Webhook notification for job {job_data['job_id']} (not implemented)")
+    
+    async def cancel_job(self, job_id: str, user_id: str) -> bool:
+        """
+        Cancel a job.
+        
+        Args:
+            job_id: Job ID
+            user_id: User ID (for verification)
+        
+        Returns:
+            True if successful
+        
+        Raises:
+            HTTPException 404: Job not found
+            HTTPException 403: User doesn't own job
+        """
+        job_key = f"job:{job_id}"
+        job_data = self.redis.get(job_key)
+        
+        if not job_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job {job_id} not found"
+            )
+        
+        job_dict = json.loads(job_data)
+        
+        # Verify user owns job
+        if job_dict.get("user_id") != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this job"
+            )
+        
+        # Cancel AWS Batch job if running
+        if job_dict.get("aws_batch_job_id") and job_dict.get("status") in ["queued", "running"]:
+            try:
+                from backend.api.v1.aws_batch import AWSBatchClient
+                batch_client = AWSBatchClient()
+                batch_client.cancel_job(job_dict["aws_batch_job_id"], "User requested cancellation")
+            except Exception as e:
+                logger.warning(f"Failed to cancel AWS Batch job: {e}")
+        
+        # Update job status
+        job_dict["status"] = JobStatus.CANCELLED.value
+        job_dict["canceled_at"] = datetime.utcnow().isoformat()
+        self.redis.setex(job_key, 86400 * 7, json.dumps(job_dict))
+        
+        logger.info(f"Cancelled job {job_id}")
+        return True
 

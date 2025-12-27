@@ -20,6 +20,7 @@ from backend.api.v1.config import (
 from backend.api.v1.rate_limiter import RateLimiter
 from backend.api.v1.jobs import JobProcessor
 from backend.api.v1.storage import StorageManager
+from backend.api.v1.aws_batch import AWSBatchClient
 
 # Global instances (singleton pattern)
 _redis_jobs: Optional["redis.Redis"] = None
@@ -27,6 +28,7 @@ _redis_usage: Optional["redis.Redis"] = None
 _rate_limiter: Optional[RateLimiter] = None
 _job_processor: Optional[JobProcessor] = None
 _storage_manager: Optional[StorageManager] = None
+_aws_batch_client: Optional[AWSBatchClient] = None
 
 
 def get_redis_jobs() -> "redis.Redis":
@@ -168,4 +170,12 @@ def get_storage_manager() -> StorageManager:
             s3_endpoint_url=S3_ENDPOINT_URL
         )
     return _storage_manager
+
+
+def get_aws_batch_client() -> AWSBatchClient:
+    """Get AWS Batch client instance (singleton)."""
+    global _aws_batch_client
+    if _aws_batch_client is None:
+        _aws_batch_client = AWSBatchClient()
+    return _aws_batch_client
 
